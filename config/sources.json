@@ -1,5 +1,5 @@
 {
-  "$comment": "momoko.pro 内容来源配置（canonical）。Markdown docs/sources.md 仅做人类证据说明，机器配置以本文件为准。automated_fetch 全部为 false：MVP 仅人工发现/录入。内容判断由人工/授权 agent 在 GitHub review 完成（无硬编码 reviewer 身份，见 design.md §3.2 自动化上限）。",
+  "$comment": "momoko.pro 内容来源配置（canonical）。Markdown docs/sources.md 仅做人类证据说明，机器配置以本文件为准。automated_fetch 当前全为 false（MVP 仅人工发现/录入）；cron seam 允许任何来源取得 robots/terms 许可证据并经人工批准后置 true 由 cron agent 抓取（见 design.md §5.3）。内容判断由独立 reviewer 在 GitHub review 完成（无硬编码 reviewer 身份）。",
   "schema_version": "1",
   "sources": [
     {

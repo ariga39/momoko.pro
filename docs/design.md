@@ -80,12 +80,12 @@
 
 > **自动化上限（momoko 2026-08-09 锁定）**：MVP 定时 agent 只做到 **发现 → 去重 → 生成摘要/翻译草稿 → 开 Draft PR；无变化静默。默认永不自动合并。** 将来若 T0 积累足够质量证据，再单独评估有限自动晋级——需要用户明确批准，**不在当前设计预埋复杂实现**。
 >
-> **内容判断=人工**：内容质量与晋级判断由**人工或授权 agent** 参照晋级 checklist 在 GitHub review 中完成（GitHub review/commit history 即审计）；**不另造 promote-review bot、workflow_dispatch 写回、硬编码 reviewer 身份或第二套审批库**。
+> **内容判断=独立 reviewer**：内容质量与晋级判断由**仓库授权的独立 reviewer（human 或 agent，非生成 agent）** 参照晋级 checklist 在 merge 前完成（GitHub review/commit history 即审计）；**不另造 promote-review bot、workflow_dispatch 写回、硬编码 reviewer 身份或第二套审批库**。
 
 | 字段 | 谁写 | 何时写 | 落点 |
 |---|---|---|---|
-| `review_status: draft` | 生成 job（manual-import / ai-draft） | 创建内容/译文文件时 | **开放 PR 分支** canonical 文件 |
-| `review_status: reviewed` | **人工/授权 agent**（GitHub review 后由人合入 merge） | 人在 GitHub review 通过并 merge 到 main 时，以人工确认的 `reviewed_by/reviewed_at` 落盘 | 开放 PR 分支 canonical 文件 |
+| `review_status: draft` | 生成 job（cron/manual-import / ai-draft） | 创建内容/译文文件时 | **开放 PR 分支** canonical 文件 |
+| `review_status: reviewed` | **仓库授权的独立 reviewer（human 或 agent）** | 独立 reviewer 参照晋级 checklist，**在 merge 前**显式提交 `reviewed_by/reviewed_at`（T2 必须 human review） | 开放 PR 分支 canonical 文件 |
 | `review_status: stale` | **stale-check job**（技术硬门） | 原文 content_hash 变化时，原子地把三语 reviewed 译文置 stale | PR 分支 canonical 文件 → 合并后生效 |
 | `retraction` | **retraction job**（技术硬门） | `content/retractions/**` 合并时，同一 build 原子过滤该 content | canonical + build 过滤 |
 | commit author | GitHub | 真实提交人；**不等于 reviewer** | — |
@@ -99,19 +99,21 @@
 > - 正：`draft → reviewed`（人 review 通过后合入 merge 时写，reviewer/time 非空）；`reviewed → published`（main merge+构建派生）；`published → stale`（源变化，manifest 派生层）；`* → retracted`（下架，经 build 过滤）。
 > - 反（禁止）：`reviewed → draft`、`published → draft`、跳过 `draft` 直接 `published`、同状态重复（幂等除外）。
 
-**发布流（human-merge）**：
-1. 生成 job 以 `draft` 开 Draft PR（**agent 只推分支，永不自动合并**）。
-2. 人工/授权 agent 在 GitHub review 中做内容判断（参照晋级 checklist：T0/T1/T2）；通过后人工 merge 到 main。
-3. build 派生 `published` 到 dist/manifest；技术硬门（schema/stale/allowlist/不可信外部数据/T2 禁止自动发布）由 CI 保证。
-4. 撤回：`content/retractions/**` 合并后，下次构建下线该内容。
+**发布流（reviewer-before-merge + human-merge）**：
+1. 生成 cron/manual job 以 `draft` 开 Draft PR（**agent 只推分支，不得自审/自合**）。
+2. **独立 reviewer（仓库授权的 human 或 agent，非生成 agent）** 参照晋级 checklist 做内容判断（T0/T1/T2），在 **merge 前** 显式提交 `reviewed_by/reviewed_at`（T2 必须 human review）。
+3. **具 merge 权限的 human/agent** 执行 merge 到 main。
+4. build 派生 `published` 到 dist/manifest；技术硬门（schema/stale/allowlist/不可信外部数据/T2 禁止自动发布）由 CI 保证。
+5. 撤回：`content/retractions/**` 合并后，下次构建下线该内容。
 
 **`published` 不回写 canonical**：canonical 永远最多 `reviewed`；`published` 只存在于 build 期 manifest（dist）。下次构建对 main 上 `reviewed` 内容重新派生 `published`，**不会回退**。
 
 ### 3.3 审核/发布规则（T0 保守化）
 
 - 所有 merge 需 PR + review（main 禁直推，分支保护）。
-- **T0 只可自动生成文件/Draft PR，仍需人工 review + merge；MVP 不自动合并/发布任何新内容**。
-- **内容判断=人工/授权 agent**：GitHub review + commit history 即审计；晋级 checklist（T0/T1/T2 与抽样质量证据）由人工参照，不由代码自动判定。
+- **T0 只可自动生成文件/Draft PR，仍需独立 reviewer + merge；MVP 不自动合并/发布任何新内容**。
+- **角色分离**：生成 cron/manual agent 只开 Draft PR（不自审/自合）；**独立 reviewer（仓库授权的 human 或 agent）** 在 merge 前显式提交 `reviewed_by/reviewed_at`；**具 merge 权限的 human/agent** 执行 merge。T2 必须 human review。
+- **内容判断=独立 reviewer**：GitHub review/commit history 即审计；晋级 checklist（T0/T1/T2 与抽样质量证据）由 reviewer 参照，不由代码自动判定。无 promote-review bot / workflow 写回 / 硬编码 reviewer 身份。
 - **技术硬门（CI 保证，不涉及内容判断）**：allowlist 域名/source_id、不可信外部数据按 prompt-injection 隔离、schema 校验、stale 规则、PR 无密钥验证、agent 只推分支不自动合并、T2 内容禁止自动发布、main merge 后才 published、撤回下次构建下线。
 - **secret 边界**：PR 代码路径不注入任何 secret；CI/build 仅在 main merge 后由 default-branch-owned 可信 job 使用部署 secret。
 - 未来若要 T0 auto-merge：需用户明确批准 + 另开 ADR + 独立批准门（MVP 不做）。
@@ -122,8 +124,8 @@
 
 - 只官方/本人/经纪事务所/主办方来源；**X 用人工维护的普通官方 permalink 卡片**（只存 account/date/permalink/人工原创说明，不复制 post 文本/图片）。
 - 不托管官方图像/Logo/完整台词/歌词/音频；不做声线克隆。
-- 来源机器配置：`config/sources.json`（S1–S5，全部 `automated_fetch=false`）。人类证据说明：`docs/sources.md`。
-- Prompt-injection：外部正文隔离渲染 + 不进系统提示（覆盖人工粘贴与 future 抓取）。
+- 来源机器配置：`config/sources.json`（当前 S1–S5 全部 `automated_fetch=false`；**cron seam 允许**：任何来源取得公开 robots/terms 许可证据并经批准后可置 `true`，由 cron agent 抓取——见 §5.3）。
+- Prompt-injection：外部正文隔离渲染 + 不进系统提示（覆盖人工粘贴与 agent 抓取）。
 
 ### 4.1 X 产品决策（事实摘录，不做法律裁定）
 
@@ -138,33 +140,35 @@
 ### 5.1 管线
 
 ```
-人工发现/录入（discovery record）→ schema 校验/规范化 → 指纹去重 → (可选) AI 摘要/翻译草稿
-  → 风险分级 → 生成 schema'd 内容文件 Draft PR（draft）→ 人工 GitHub review → 人工 merge → 构建派生 published
-  → 重新批准 → merge 到 main → 构建（生成 dist+派生 manifest）→ 发布
+发现/录入（cron agent 或人工 discovery）→ schema 校验/规范化 → 指纹去重 → (可选) AI 摘要/翻译草稿
+  → 风险分级 → 生成 schema'd 内容文件 Draft PR（draft）→ 独立 reviewer 在 merge 前写 reviewed_by/reviewed_at
+  → 具 merge 权限的 human/agent 执行 merge → 构建派生 published
 ```
 
-- **MVP 无**：`daily-fetch`、网页抓取、抓取重试/退避/死信、raw page store、工具自行打开 URL。这些全部移到 future 条件分支（§5.3）。
+- **cron seam（agent cron，momoko 2026-08-09 确认）**：cron 只运行 `automated_fetch=true` 且 robots/terms 已验证允许的来源 adapter；`false` 的来源只走 manual-import。**无允许来源或无变化时静默**。当前 S1–S5 全部 `false`，直到证据允许再逐项置 `true`。
 - **discovery record**：人工提交 `{source_id, source_item_id, source_url, published_at, title, lang, note_hash, note}`（schema: `schemas/discovery-record.schema.json`，含唯一键必需字段）。note 为**人工撰写的事实笔记/明确批准的短摘录**；工具只校验/去重/规范化后生成 PR。
-- **AI 输入边界（关键）**：MVP 不存页面正文，ai-draft **不能凭空摘要**。锁定输入=只消费**人工撰写的事实笔记或明确批准的短摘录**；**外部正文不进 repo、prompt log 或 artifact**；记录 source URL、note hash、模型/提示版本；输出恒 T1 draft。**工具不得自行打开 URL**。
+- **AI 输入边界（关键）**：MVP 不存页面正文，ai-draft **不能凭空摘要**。锁定输入=只消费**人工撰写的事实笔记或明确批准的短摘录**；**外部正文不进 repo、prompt log 或 artifact**；记录 source URL、note hash、模型/提示版本；输出恒 T1 draft。**工具不得自行打开 URL（除非经批准且该来源 `automated_fetch=true` 的 adapter 明示抓取）**。
 - **T 分级**：T0（人工事实/卡片，无 AI 改写）→ 可自动生成文件+PR（仍人工 merge）；T1（AI 摘要/翻译）→ 默认 draft；T2 → 永久人工。
 - **幂等/去重**：`(source_id, source_item_id, lang, content_hash)` 唯一键；去重后无变化则 PR 无 diff（静默）。
 - **content_hash**：sha256 规范化字节序列（定义见 §6.4）；校验器比较。
 - **元数据**：frontmatter 含 source URL/发布时间/hash/模型版本/审核人/变更历史。
 
-### 5.2 任务（MVP 无自动抓取）
+### 5.2 任务
 
 | 任务 | 触发 | 输入 | 输出 |
 |---|---|---|---|
+| `daily-fetch`（cron seam） | schedule | 仅 `automated_fetch=true` 的来源 adapter | 规范化内容文件 PR（`draft`）；无允许来源/无变化静默 |
 | `manual-import` | 人工运行（本地/CI manual） | discovery record | 校验通过的内容文件 PR（`draft`） |
 | `ai-draft` | 人工运行（CI manual，可选） | 已 review 的源语言内容 + 人工事实笔记 | 译文/摘要草稿 PR（T1 draft） |
-| （无 promote-review；见 §3.2 自动化上限） | — | — | — |
 | `stale-check` | schedule/manual | 源 content_hash | reviewed 译文置 stale 的原子 PR |
 | `retraction` | PR 合并 retractions/** | retraction record | canonical + 同 build 原子过滤 |
 | `build`（含 index） | push / merge / schedule | content/ + config/ | 生成 dist（含 manifest）+ 搜索索引 → Pages
 
-### 5.3 future：自动抓取条件分支（当前不实现）
+### 5.3 cron 抓取 seam（agent cron；gated by `automated_fetch=true`）
 
-仅当某来源取得公开 robots/terms 许可证据、经人工批准后才在 CI/受控本地任务中启用自动抓取；届时才引入重试/退避/死信/raw store 契约。
+- cron 只运行 `automated_fetch=true` 且 robots/terms 已验证允许的来源 adapter；`false` 来源只走 manual-import；**无允许来源或无变化时静默**。
+- 当前 S1–S5 全部 `false`，直到某来源取得公开 robots/terms 许可证据并经人工批准后逐项置 `true`。
+- 届时才引入重试/退避/死信/raw store 契约；抓取 adapter 仍遵守 allowlist + prompt-injection 隔离 + 无变化静默。
 
 ---
 
@@ -305,7 +309,7 @@ erDiagram
 
 - **manual-import**：输入 discovery record；allowlisted hostname+source_id 校验、schema 校验、去重、生成内容文件 PR（`draft`）。**不重建/提交 manifest**（manifest 仅构建期生成到 dist）。
 - **ai-draft**：输入=已 review 源语言 + 人工事实笔记；调用 provider-neutral 翻译/摘要；输出 draft PR。**只消费人工笔记/批准摘录，不打开 URL。**
-- **发布（human-merge）**：agent 只开 Draft PR（draft），人工 GitHub review 内容判断后 merge；`published` 为 build 期派生，不回写 canonical。无 promote-review / workflow_dispatch 写回 / 自动晋级。
+- **发布（reviewer-before-merge + human-merge）**：生成 agent 只开 Draft PR（draft）；独立 reviewer 在 merge 前提交 `reviewed_by/reviewed_at`；具 merge 权限的 human/agent 执行 merge；`published` 为 build 期派生，不回写 canonical。无 promote-review / workflow_dispatch 写回 / 自动晋级。
 - **stale-check**：比较源 content_hash；变化→原子置 reviewed 译文 stale（一次提交含全部受影响 locale）。
 - **retraction**：合并 retractions/** 后，同一 build 过滤该 content（原子生效）。
 - **build（含 index）**：schema 全量校验 → 双重构建确定性校验 → 渲染 → 派生 manifest 到 dist → 搜索索引 →（仅 main merge 上下文）Direct Upload。失败则发布不更新。
@@ -342,8 +346,8 @@ erDiagram
 - **PR 与 secret 严格隔离（关键矛盾已消除）**：`pull_request` 触发的 job **只用无 secret 构建 + Playwright + artifact 上传**（不部署 Pages，不注入 CF token）。只要 PR 可改 workflow/脚本，就绝不能带 token 运行其代码。
 - **生产部署**：仅受信 **main merge** 触发的 deploy job 使用 CF token 发布 production。main 禁直推（分支保护）。
 - **远端 preview（可选）**：如需远程预览，由 maintainer 在审核后对**固定 SHA** 手动触发 `workflow_dispatch`；该 job 使用 **default-branch workflow**，不执行未审脚本，不暴露 token 给 PR 代码。
-- **无 promote-review / 自动晋级**：MVP 不预埋 secret-bearing 自动写回、workflow_dispatch 内容写回、硬编码 reviewer 身份或第二套审批库（momoko 自动化上限，2026-08-09）。内容判断由人工/授权 agent 在 GitHub review 中完成；GitHub review/commit history 即审计。
-- RBAC：GitHub 分支保护、CODEOWNERS；review 由人工/授权 agent 进行。
+- **无 promote-review / 自动晋级**：MVP 不预埋 secret-bearing 自动写回、workflow_dispatch 内容写回、硬编码 reviewer 身份或第二套审批库（momoko 自动化上限，2026-08-09）。内容判断由独立 reviewer（human/授权 agent）在 GitHub review 中完成；GitHub review/commit history 即审计。
+- RBAC：GitHub 分支保护、CODEOWNERS；review 由仓库授权的独立 reviewer（human/agent）进行；merge 由具 merge 权限的 human/agent 执行。
 
 ### 8.4 manual-import 文件写入安全
 
@@ -359,18 +363,20 @@ erDiagram
 
 ## 9. 时序图（发布 / 撤回 / 访问 / 人工录入）
 
-**发布（human-merge：agent 只开 Draft PR；published 为 build 派生）**
+**发布（reviewer-before-merge + human-merge；published 为 build 派生）**
 
 ```mermaid
 sequenceDiagram
-  participant G as 生成 job
-  participant R as Reviewer（人工/授权 agent）
+  participant G as 生成 cron/manual job
+  participant R as 独立 reviewer（human/授权 agent）
+  participant M as merge 权限 human/agent
   participant PR as PR/commit
   participant CI as GitHub Actions
   participant P as Pages
-  G->>PR: 内容文件 Draft PR（draft）
-  R->>PR: GitHub review 内容判断（晋级 checklist）
-  PR->>CI: 人工 merge 触发 build（无 secret，仅 main deploy 有 token）
+  G->>PR: 内容文件 Draft PR（draft，不自审/自合）
+  R->>PR: 内容判断（晋级 checklist）后 merge 前提交 reviewed_by/reviewed_at（T2 必须 human）
+  M->>PR: 执行 merge 到 main
+  PR->>CI: merge 触发 build（无 secret，仅 main deploy 有 token）
   CI->>CI: 双重构建确定性校验 + Pagefind/fallback 索引 + 派生 published manifest
   CI->>P: Direct Upload 发布 production
 ```

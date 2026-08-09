@@ -66,4 +66,4 @@
 - ① **X embed**：已记录官方并存事实摘录（URL + 检索日期），不裁定法律冲突；产品决策=人工 permalink 卡片（不复制内容）。已清零。
 - ② **ミリシタ官方站 robots/terms**：robots.txt 404（无文件）、无域内公开条款页 → 仅人工发现/录入。已清零。
 - ③ **Live / 声优来源**：Live 走 portal（robots 404、无公开条款）→ 仅人工录入；声优走 mdawn 官方资料页（robots 200 但无公开利用条款）→ 仅人工录入；官方 X 走人工 permalink 卡片。已清零。
-- **总则**：在存在公开 robots/terms 证据前，任何内容来源不自动抓取；**缺失证据绝不当作允许**。X API 为付费，MVP 不使用。**MVP 无自动抓取管线（见 design.md §5）**。
+- **总则**：在存在公开 robots/terms 证据前，任何内容来源不自动抓取；**缺失证据绝不当作允许**。X API 为付费，MVP 不使用。**cron seam 允许**：任何来源取得 robots/terms 许可证据并经人工批准后置 `automated_fetch=true` 由 cron agent 抓取；当前 S1–S5 全 false 时 cron 静默（见 design.md §5.3）。

@@ -1,9 +1,9 @@
 # momoko.pro 分阶段实施计划
 
 ## 阶段 0（设计）
-- 本方案锁定（momoko GO）；sources 证据已清零（2026-08-08），机器配置 `config/sources.json`（全 `automated_fetch=false`）。
+- 本方案锁定（momoko GO）；sources 证据已清零（2026-08-08），机器配置 `config/sources.json`（当前全 `automated_fetch=false`；cron seam 允许逐项置 true——见 design.md §5.3）。
 - 技术栈 ADR-11 已定（Astro+TS+pnpm+Ajv+Vitest+Playwright+Pagefind；Pages 走 Actions Direct Upload）。
-- schema 正/反实例校验门已就绪：`tools/schema/validate_schemas.py`（12 cases 通过）。
+- schema 正/反实例校验门已就绪：`tools/schema/validate_schemas.py`（当前 23 cases 通过）。
 
 ## 阶段 1（MVP 并行工作包 A–E，互斥目录边界）
 
@@ -21,7 +21,7 @@
 
 ## 阶段 2
 - 审核界面完善、stale 自动化、回滚/审计报告、监控告警、备份恢复演练。
-- （future 条件分支，非默认）某来源取得 robots/terms 许可证据并经人工批准后，引入自动抓取链（重试/退避/死信/raw store 契约）。
+- cron seam：某来源取得 robots/terms 许可证据并经人工批准后，置 `automated_fetch=true`，cron agent 抓取（重试/退避/死信/raw store 契约届时引入）；当前无允许来源时 cron 静默。
 
 ## 阶段 3（可选）
 - R2 私有文件、Vectorize 语义搜索、订阅提醒、时间线可视化（各自 ADR 批准后）。
