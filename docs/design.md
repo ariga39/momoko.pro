@@ -49,6 +49,9 @@
 
 - `/zh/...`, `/ja/...`, `/en/...`。`/` 为 **x-default 语言选择页**（无 Worker/Functions，**不做服务端 Accept-Language 读取**）或固定静态 302 到默认语言（如 `/ja`）。
 - canonical（源语言/主要语言）+ alternate/hreflang（三语 + x-default）。
+- 路由由 Astro 原生 `i18n` 配置统一声明：`locales=["ja","zh","en"]`、`defaultLocale="ja"`、`prefixDefaultLocale=true`；页面链接使用 `astro:i18n` helper，避免手拼 locale URL。`/` 仍是显式 x-default 选择页，不启用浏览器语言自动跳转。
+- **界面文案与内容译文分层**：导航、按钮、状态提示等 UI chrome 使用 Paraglide JS 的类型安全 message catalog；新闻/百科等编辑内容继续使用 `content.<lang>.md` + review state schema。i18n runtime 不得覆盖 `draft/reviewed/stale/retracted`，也不得把缺译自动伪装成已审核译文。
+- 不启用 Astro/Paraglide 的内容级静默 rewrite fallback。缺失或 stale 的编辑内容继续由现有 renderer 回退到源语言，并显示 `LocaleNotice`；canonical/hreflang 只为真实存在且可发布的 locale 生成。
 
 ---
 
@@ -57,6 +60,7 @@
 | 层 | 默认选择 | 版本/锁定 | 可替换条件 |
 |---|---|---|---|
 | 静态生成器 | **Astro** | 仓库 `pnpm-lock.yaml` 锁精确版本 | 无法满足三语/hreflang 或构建复杂度超阈值时另评 |
+| i18n | **Astro 原生 i18n routing + Paraglide JS（仅 UI 文案）** | `pnpm-lock.yaml`；catalog 与 locale 集合在 CI 对账 | Paraglide SSG/Cloudflare 兼容性或维护性出现实证问题时回退为 Astro 原生 routing + typed local catalog |
 | 语言/runtime | **TypeScript**（Node ≥ 20） | `engines` 字段 + lockfile | 团队主导语言变更需 ADR |
 | 包管理器 | **pnpm** | `pnpm-lock.yaml` 强制提交，CI `frozen-lockfile` | 需 ADR |
 | Schema 校验 | **JSON Schema + Ajv** | 版本锁定于 lockfile | 需 ADR |
@@ -65,6 +69,8 @@
 | 搜索 | **Pagefind（build-time）** | 见 §7.2 验收夹具 + fallback | ADR-05 |
 | Pages 部署 | **GitHub Actions Direct Upload**（wrangler） | 见 §8.3（唯一部署面） | ADR-06 |
 | AI 摘要/翻译 | provider-neutral（未选） | 不锁定；未选前不启用 | ADR-08 |
+
+i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 URL helper（<https://docs.astro.build/en/guides/internationalization/>）；Paraglide 提供 Astro/Vite 集成、类型安全 message function 与静态生成方案（<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>）。i18next core 成熟，但当前没有 Astro 官方集成；社区 `astro-i18next` 仍为 beta 且不作为本项目基础依赖。
 
 ---
 
@@ -440,7 +446,7 @@ sequenceDiagram
 
 | 包 | owned files（互斥目录） | 接口（契约） | 依赖 | 验收测试 | 集成顺序 |
 |---|---|---|---|---|---|
-| **A. frontend/design-system** | `src/**`、`e2e/**` | 只读 content + build 产物契约（§6） | 无（示例内容先行） | 三语路由、响应式、hreflang、CSP、缺译回退、语言选择页 | B 契约后并行 |
+| **A. frontend/design-system** | `src/**`、`e2e/**` | 只读 content + build 产物契约（§6）；Astro i18n routing + Paraglide UI catalog | 无（示例内容先行） | 三语路由、UI key/catalog 对账、响应式、hreflang、CSP、缺译回退、语言选择页 | B 契约后并行 |
 | **B. content-schema/CI** | `schemas/**`、`tools/schema/**`、`config/*.json`（校验） | schema+manifest 契约、job 输入/输出、schema_version/唯一键、content_hash | 无 | schema 正/反实例校验、幂等、无变化静默、双重构建确定性、迁移空库/旧库、CJK 搜索夹具+fallback | **先冻结** |
 | **C. ingestion（cron+manual 双 seam）** | `tools/ingest/**` | B 的 schema/PR 接口、错误 enum、allowlist | B | 来源 allowlist、去重、错误 enum、bounded-root 文件写入、cron 只跑 `automated_fetch=true` 已验证 adapter（false 走 manual-import；无允许来源/无变化静默） | B 后 |
 | **D. i18n/editorial** | `content/*/content.<lang>.md`、`tools/editorial/**` | B schema + A 渲染契约；AI 只消费人工笔记；状态转移写入者 | B+C | 三语不撒谎、T 分级、stale、retract 原子、AI 输入边界、独立 reviewer 审计 | B+C 后 |
