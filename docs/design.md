@@ -72,20 +72,22 @@
 
 ### 3.1 唯一真相源（无双写）
 
-- **canonical**：`content/**` 文件（frontmatter 含 `review_status` 等字段）+ `content/retractions/**` + `config/sources.json` + `config/reviewers.json`。**由人/受控 job 编辑**。
+- **canonical**：`content/**` 文件（frontmatter 含 `review_status` 等字段）+ `content/retractions/**` + `config/sources.json`。**由人/受控 job 编辑**。
 - **`manifest.json` 不提交仓库**：由校验器在**构建期全量生成到 dist**，是 deterministic build artifact；确定性用**双重构建比对**（同一内容构建两次，产物逐字节一致）验证。**无"与已提交 manifest 比对"**——仓库内不存在 manifest。
 - `docs/sources.md` 只做人类证据说明；机器配置以 `config/sources.json` 为准（schema: `schemas/source.schema.json`）。
 
-### 3.2 状态机与写入者（可执行模型）
+### 3.2 状态机与写入者（human-merge 简化模型，自动化上限）
 
-Git 上无法在 merge commit 之后回写 canonical 状态，因此锁定的可执行模型为：
+> **自动化上限（momoko 2026-08-09 锁定）**：MVP 定时 agent 只做到 **发现 → 去重 → 生成摘要/翻译草稿 → 开 Draft PR；无变化静默。默认永不自动合并。** 将来若 T0 积累足够质量证据，再单独评估有限自动晋级——需要用户明确批准，**不在当前设计预埋复杂实现**。
+>
+> **内容判断=人工**：内容质量与晋级判断由**人工或授权 agent** 参照晋级 checklist 在 GitHub review 中完成（GitHub review/commit history 即审计）；**不另造 promote-review bot、workflow_dispatch 写回、硬编码 reviewer 身份或第二套审批库**。
 
 | 字段 | 谁写 | 何时写 | 落点 |
 |---|---|---|---|
 | `review_status: draft` | 生成 job（manual-import / ai-draft） | 创建内容/译文文件时 | **开放 PR 分支** canonical 文件 |
-| `review_status: reviewed` | **promote-review job**（受控，default-branch-owned 可信 workflow） | PR 经真实 GitHub reviewer 批准、API 校验 PR/head/review 证据后，job 用 Contents API 在该 PR head 写 `reviewed` + 非空 `reviewed_by/reviewed_at`，形成新提交 | 开放 PR 分支 canonical 文件 |
-| `review_status: stale` | **stale-check job**（受控） | 原文 content_hash 变化时，原子地把三语 reviewed 译文置 stale | PR 分支 canonical 文件 → 合并后生效 |
-| `retraction` | **retraction job**（受控） | `content/retractions/**` 合并时，同一 build 原子过滤该 content | canonical + build 过滤 |
+| `review_status: reviewed` | **人工/授权 agent**（GitHub review 后由人合入 merge） | 人在 GitHub review 通过并 merge 到 main 时，以人工确认的 `reviewed_by/reviewed_at` 落盘 | 开放 PR 分支 canonical 文件 |
+| `review_status: stale` | **stale-check job**（技术硬门） | 原文 content_hash 变化时，原子地把三语 reviewed 译文置 stale | PR 分支 canonical 文件 → 合并后生效 |
+| `retraction` | **retraction job**（技术硬门） | `content/retractions/**` 合并时，同一 build 原子过滤该 content | canonical + build 过滤 |
 | commit author | GitHub | 真实提交人；**不等于 reviewer** | — |
 | `published`（**派生，不在 canonical enum**） | build（派生） | main 上 `reviewed` 内容经 merge+构建 → manifest 记 `published`；**不回写 canonical** | dist/manifest（build artifact） |
 
@@ -94,31 +96,25 @@ Git 上无法在 merge commit 之后回写 canonical 状态，因此锁定的可
 > **`reviewed` 条件约束**：schema 用条件约束强制 `review_status=reviewed` 时 `reviewed_by` 与 `reviewed_at` 必须存在且非空；缺失/为 null 即校验失败。
 
 > **正/反状态转移表**（CI 校验，非法转移 fail）：
-> - 正：`draft → reviewed`（仅 promote-review 在开放 PR 写，且 reviewer/time 非空）；`reviewed → published`（main merge+构建派生）；`published → stale`（源变化，manifest 派生层）；`* → retracted`（下架，经 build 过滤）。
-> - 反（禁止）：`reviewed → draft`、`published → draft`、跳过 `draft` 直接 `published`、同状态重复（幂等除外）、**非 promote-review job 直接写 `reviewed`**。
+> - 正：`draft → reviewed`（人 review 通过后合入 merge 时写，reviewer/time 非空）；`reviewed → published`（main merge+构建派生）；`published → stale`（源变化，manifest 派生层）；`* → retracted`（下架，经 build 过滤）。
+> - 反（禁止）：`reviewed → draft`、`published → draft`、跳过 `draft` 直接 `published`、同状态重复（幂等除外）。
 
-**promote-review 时序（可信执行面，default-branch-owned workflow）**：
-1. 生成 job 以 `draft` 开 PR。
-2. 真实 GitHub reviewer 在 PR 上 `APPROVE`。
-3. **受控 `workflow_dispatch`**（由 maintainer 对固定 PR/head 触发，或等价的 default-branch-owned 可信事件）运行 `promote-review`：
-   - 输入：`pr_number`、`head_sha`、`reviewer_handle`。
-   - **只通过 GitHub API 校验**：PR 仍开放、`head.sha == head_sha`、存在该 reviewer 的 APPROVE review（author≠reviewer，reviewer ∈ `config/reviewers.json`）。
-   - **绝不在 CI 中 checkout/执行 PR 分支脚本**；只用 Contents API 在该精确 head 的 content 文件上写 `reviewed`+`reviewed_by/reviewed_at` 并提交。
-   - 最小权限：App token 为 repo-scoped credential，实际边界由 default-branch-owned workflow + API 精确 ref 校验 + 拒绝 fork PR + branch protection 构成；promote-review 只写该 PR head 的 content 文件。并发/幂等：同一 head 重复触发只产生一次状态提交（以目标文件当前内容 hash 判断）。
-   - 分支/作者限制：仅允许对 `config/reviewers.json` 内 reviewer 且 author≠reviewer 的 PR 生效。
-4. 分支保护要求 bot 提交后重新满足 approval（GitHub 对 push 重置 review）。
-5. reviewer 再次批准 → merge 到 main → build 派生 `published`。
+**发布流（human-merge）**：
+1. 生成 job 以 `draft` 开 Draft PR（**agent 只推分支，永不自动合并**）。
+2. 人工/授权 agent 在 GitHub review 中做内容判断（参照晋级 checklist：T0/T1/T2）；通过后人工 merge 到 main。
+3. build 派生 `published` 到 dist/manifest；技术硬门（schema/stale/allowlist/不可信外部数据/T2 禁止自动发布）由 CI 保证。
+4. 撤回：`content/retractions/**` 合并后，下次构建下线该内容。
 
 **`published` 不回写 canonical**：canonical 永远最多 `reviewed`；`published` 只存在于 build 期 manifest（dist）。下次构建对 main 上 `reviewed` 内容重新派生 `published`，**不会回退**。
 
 ### 3.3 审核/发布规则（T0 保守化）
 
 - 所有 merge 需 PR + review（main 禁直推，分支保护）。
-- **T0 只可自动生成文件/PR，仍需人工 review + merge；MVP 不自动合并/发布任何新内容**。
-- **required reviewer（真实 GitHub 身份）**：`config/reviewers.json` 只接受**真实 GitHub 登录名**（schema 拒绝空/重复 handle）。MVP 模型：PR 由 **GitHub App** 打开时，reviewer 为 `ariga39`（repo owner/App）；若未来允许人类自开 PR，则需要**第二个真实 GitHub reviewer**。**author 不能是自己 PR 的唯一 reviewer**。
-- **promote-review 执行面**：受控 `workflow_dispatch`（default-branch-owned 可信 workflow）经 API 校验 PR/head/review 证据后用 Contents API 写 PR head；**不在 `pull_request` 代码路径上注入 secret，也绝不 checkout/执行未审 PR 脚本**（详见 §3.2 与 §8.3）。
-- CI 校验 reviewer/merge 证据：`gh api` 读取 PR review（真实 GitHub review 对象）；promote-review 只对开放 PR 的精确 head 生效（不直推 main，不触发受保护分支）。
-- 未来若要 T0 auto-merge：另开 ADR + 签名来源/独立批准门（MVP 不做）。
+- **T0 只可自动生成文件/Draft PR，仍需人工 review + merge；MVP 不自动合并/发布任何新内容**。
+- **内容判断=人工/授权 agent**：GitHub review + commit history 即审计；晋级 checklist（T0/T1/T2 与抽样质量证据）由人工参照，不由代码自动判定。
+- **技术硬门（CI 保证，不涉及内容判断）**：allowlist 域名/source_id、不可信外部数据按 prompt-injection 隔离、schema 校验、stale 规则、PR 无密钥验证、agent 只推分支不自动合并、T2 内容禁止自动发布、main merge 后才 published、撤回下次构建下线。
+- **secret 边界**：PR 代码路径不注入任何 secret；CI/build 仅在 main merge 后由 default-branch-owned 可信 job 使用部署 secret。
+- 未来若要 T0 auto-merge：需用户明确批准 + 另开 ADR + 独立批准门（MVP 不做）。
 
 ---
 
@@ -143,7 +139,7 @@ Git 上无法在 merge commit 之后回写 canonical 状态，因此锁定的可
 
 ```
 人工发现/录入（discovery record）→ schema 校验/规范化 → 指纹去重 → (可选) AI 摘要/翻译草稿
-  → 风险分级 → 生成 schema'd 内容文件 PR（draft）→ 人工 review → promote-review（受控 workflow_dispatch）写 reviewed
+  → 风险分级 → 生成 schema'd 内容文件 Draft PR（draft）→ 人工 GitHub review → 人工 merge → 构建派生 published
   → 重新批准 → merge 到 main → 构建（生成 dist+派生 manifest）→ 发布
 ```
 
@@ -161,7 +157,7 @@ Git 上无法在 merge commit 之后回写 canonical 状态，因此锁定的可
 |---|---|---|---|
 | `manual-import` | 人工运行（本地/CI manual） | discovery record | 校验通过的内容文件 PR（`draft`） |
 | `ai-draft` | 人工运行（CI manual，可选） | 已 review 的源语言内容 + 人工事实笔记 | 译文/摘要草稿 PR（T1 draft） |
-| `promote-review` | 受控 `workflow_dispatch`（default-branch-owned） | PR/head/review 证据（真实 GitHub reviewer、author≠reviewer） | Contents API 在 PR head 写 `draft→reviewed`+reviewer/time |
+| （无 promote-review；见 §3.2 自动化上限） | — | — | — |
 | `stale-check` | schedule/manual | 源 content_hash | reviewed 译文置 stale 的原子 PR |
 | `retraction` | PR 合并 retractions/** | retraction record | canonical + 同 build 原子过滤 |
 | `build`（含 index） | push / merge / schedule | content/ + config/ | 生成 dist（含 manifest）+ 搜索索引 → Pages
@@ -186,7 +182,7 @@ momoko.pro/
 │   └── retractions/<id>.json
 ├── config/
 │   ├── sources.json            # 来源配置（canonical，B 校验）
-│   └── reviewers.json          # reviewer 允许名单（canonical 单来源）
+
 ├── schemas/*.json              # B: JSON Schema（含 manifest.schema.json）
 ├── tools/
 │   ├── schema/**               # B: 校验/规范化/迁移/双重构建确定性
@@ -309,7 +305,7 @@ erDiagram
 
 - **manual-import**：输入 discovery record；allowlisted hostname+source_id 校验、schema 校验、去重、生成内容文件 PR（`draft`）。**不重建/提交 manifest**（manifest 仅构建期生成到 dist）。
 - **ai-draft**：输入=已 review 源语言 + 人工事实笔记；调用 provider-neutral 翻译/摘要；输出 draft PR。**只消费人工笔记/批准摘录，不打开 URL。**
-- **promote-review**：受控 `workflow_dispatch`（default-branch-owned）经 API 校验 PR/head/review 证据后用 Contents API 在 PR head 写 `draft→reviewed`（≥1 真实 GitHub reviewer、author≠reviewer）；不在 pull_request 路径注入 secret、不执行未审脚本。`published` 为 build 期派生，不回写 canonical。
+- **发布（human-merge）**：agent 只开 Draft PR（draft），人工 GitHub review 内容判断后 merge；`published` 为 build 期派生，不回写 canonical。无 promote-review / workflow_dispatch 写回 / 自动晋级。
 - **stale-check**：比较源 content_hash；变化→原子置 reviewed 译文 stale（一次提交含全部受影响 locale）。
 - **retraction**：合并 retractions/** 后，同一 build 过滤该 content（原子生效）。
 - **build（含 index）**：schema 全量校验 → 双重构建确定性校验 → 渲染 → 派生 manifest 到 dist → 搜索索引 →（仅 main merge 上下文）Direct Upload。失败则发布不更新。
@@ -346,12 +342,8 @@ erDiagram
 - **PR 与 secret 严格隔离（关键矛盾已消除）**：`pull_request` 触发的 job **只用无 secret 构建 + Playwright + artifact 上传**（不部署 Pages，不注入 CF token）。只要 PR 可改 workflow/脚本，就绝不能带 token 运行其代码。
 - **生产部署**：仅受信 **main merge** 触发的 deploy job 使用 CF token 发布 production。main 禁直推（分支保护）。
 - **远端 preview（可选）**：如需远程预览，由 maintainer 在审核后对**固定 SHA** 手动触发 `workflow_dispatch`；该 job 使用 **default-branch workflow**，不执行未审脚本，不暴露 token 给 PR 代码。
-- **promote-review 可信执行面（blocker 3 闭合）**：
-  - 触发：受控 `workflow_dispatch`（default-branch-owned 可信 workflow；输入 `pr_number`/`head_sha`/`reviewer_handle`），**不**由 `pull_request` 事件触发，也不从 PR checkout 运行。
-  - 校验：只用 GitHub API 校验 PR 开放、`head.sha==head_sha`、reviewer 的真实 APPROVE review（author≠reviewer，reviewer ∈ reviewers.json）。
-  - 写入：只用 **Contents API** 在该精确 head 的 content 文件写 `reviewed`+`reviewed_by/reviewed_at` 并提交；**绝不在 CI 中 checkout/执行 PR 分支脚本**。
-  - 权限：GitHub App token 是 **repo-scoped** credential（非"仅限该 head"）；实际安全边界由 default-branch-owned workflow + 显式 API 精确 ref（PR/head/reviewer）校验 + 拒绝 fork PR + 并发/幂等按目标文件当前 hash 判断 + branch protection + required approval 构成。promote-review 只写该 PR head 的 content 文件，不触碰其它 ref。
-- RBAC：GitHub 分支保护、`config/reviewers.json`（真实 GitHub 身份）reviewer 名单、CODEOWNERS。
+- **无 promote-review / 自动晋级**：MVP 不预埋 secret-bearing 自动写回、workflow_dispatch 内容写回、硬编码 reviewer 身份或第二套审批库（momoko 自动化上限，2026-08-09）。内容判断由人工/授权 agent 在 GitHub review 中完成；GitHub review/commit history 即审计。
+- RBAC：GitHub 分支保护、CODEOWNERS；review 由人工/授权 agent 进行。
 
 ### 8.4 manual-import 文件写入安全
 
@@ -367,22 +359,18 @@ erDiagram
 
 ## 9. 时序图（发布 / 撤回 / 访问 / 人工录入）
 
-**发布（promote-review 在开放 PR 写 reviewed；published 为 build 派生）**
+**发布（human-merge：agent 只开 Draft PR；published 为 build 派生）**
 
 ```mermaid
 sequenceDiagram
   participant G as 生成 job
-  participant R as Reviewer
-  participant B as promote-review job
+  participant R as Reviewer（人工/授权 agent）
   participant PR as PR/commit
   participant CI as GitHub Actions
   participant P as Pages
-  G->>PR: 内容文件 PR（draft）
-  R->>PR: 批准（≥1 真实 GitHub reviewer, author≠reviewer）
-  CI->>B: API 校验 PR/head/review 证据；Contents API 写 draft→reviewed + reviewed_by/at
-  B->>PR: 开放 PR 分支新提交（reviewed）
-  R->>PR: promote-review 提交后重新批准
-  PR->>CI: merge 触发 build（无 secret，仅 main deploy 有 token）
+  G->>PR: 内容文件 Draft PR（draft）
+  R->>PR: GitHub review 内容判断（晋级 checklist）
+  PR->>CI: 人工 merge 触发 build（无 secret，仅 main deploy 有 token）
   CI->>CI: 双重构建确定性校验 + Pagefind/fallback 索引 + 派生 published manifest
   CI->>P: Direct Upload 发布 production
 ```
@@ -449,8 +437,8 @@ sequenceDiagram
 | **A. frontend/design-system** | `src/**`、`e2e/**` | 只读 content + build 产物契约（§6） | 无（示例内容先行） | 三语路由、响应式、hreflang、CSP、缺译回退、语言选择页 | B 契约后并行 |
 | **B. content-schema/CI** | `schemas/**`、`tools/schema/**`、`config/*.json`（校验） | schema+manifest 契约、job 输入/输出、schema_version/唯一键、content_hash | 无 | schema 正/反实例校验、幂等、无变化静默、双重构建确定性、迁移空库/旧库、CJK 搜索夹具+fallback | **先冻结** |
 | **C. ingestion（manual-import）** | `tools/ingest/**` | B 的 schema/PR 接口、错误 enum、allowlist | B | 来源 allowlist、去重、错误 enum、bounded-root 文件写入、无自动抓取断言 | B 后 |
-| **D. i18n/editorial** | `content/*/content.<lang>.md`、`tools/editorial/**` | B schema + A 渲染契约；AI 只消费人工笔记；状态转移写入者 | B+C | 三语不撒谎、T 分级、stale、retract 原子、AI 输入边界、promote-review 证据 | B+C 后 |
-| **E. QA/deploy** | `.github/workflows/**`、`.github/CODEOWNERS`、`tests/**`、CI/CD | A–D 产物；**workflows 唯一属 E**；promote-review/secret 隔离 | A–D | MVP 测试矩阵、STRIDE 回归、恢复演练、secret 隔离、action pinning | 收尾 |
+| **D. i18n/editorial** | `content/*/content.<lang>.md`、`tools/editorial/**` | B schema + A 渲染契约；AI 只消费人工笔记；状态转移写入者 | B+C | 三语不撒谎、T 分级、stale、retract 原子、AI 输入边界、人工 review 审计 | B+C 后 |
+| **E. QA/deploy** | `.github/workflows/**`、`.github/CODEOWNERS`、`tests/**`、CI/CD | A–D 产物；**workflows 唯一属 E**；secret 隔离、人工 merge 发布 | A–D | MVP 测试矩阵、STRIDE 回归、恢复演练、secret 隔离、action pinning | 收尾 |
 
 集成顺序：**B 冻结契约 → A/C/D 并行 → E 收尾**；feature/package 分支各自 PR，merge 前 rebase，冲突 fail-closed。
 
@@ -468,7 +456,7 @@ sequenceDiagram
 |---|---|---|
 | 技术栈 | Astro+TS+pnpm+Ajv+Vitest+Playwright+Pagefind（ADR-11） | 否（已定） |
 | 内容真相 | content/**+config canonical；manifest 不提交，构建期生成到 dist | 否（已定） |
-| 审核状态机 | promote-review（受控 workflow_dispatch+Contents API）写 reviewed（真实 GitHub reviewer）；published=build 派生 manifest，不在 canonical enum | 否（已定） |
+| 审核状态机 | human-merge：agent 只开 Draft PR（draft），人工 GitHub review 后 merge；published=build 派生 manifest，不在 canonical enum；无 promote-review/自动晋级 | 否（已定） |
 | T0 发布 | 只自动生成文件/PR，仍人工 merge；auto-merge 未来 ADR | 否（已定） |
 | 部署面 | GitHub Actions Direct Upload（唯一） | 否（已定） |
 | X 展示 | 人工 permalink 卡片；embed/API 未来需法律评审 | 否（已定） |

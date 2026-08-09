@@ -1,6 +1,6 @@
 # momoko.pro 引用官方资料清单（人类证据说明）
 
-机器可读来源配置见 **`config/sources.json`**（schema: `schemas/source.schema.json`）；reviewer 名单见 **`config/reviewers.json`**（schema: `schemas/reviewers.schema.json`，单来源）。本文档只记录人类证据、URL 与检索日期。**证据按 2026-08-08 实际访问记录清零。**
+机器可读来源配置见 **`config/sources.json`**（schema: `schemas/source.schema.json`）。本文档只记录人类证据、URL 与检索日期。**证据按 2026-08-08 实际访问记录清零。**（MVP 无硬编码 reviewer 身份；内容判断由人工/授权 agent 在 GitHub review 完成，见 design.md §3.2 自动化上限。）
 
 ## 1. Cloudflare / GitHub 产品额度（逐产品官方 pricing/limits 页，检索日期 2026-08-08）
 
