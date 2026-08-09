@@ -116,10 +116,20 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
       robots_result: "rules_available",
       robots_path_decision: "not_evaluated",
     })));
+    const automatedNotApplicable = validateFile("source.schema.json", wrap(fakeSource({
+      automated_fetch: true,
+      fetch_frequency: "daily",
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    })));
     expect(unavailableDisallow.valid).toBe(false);
     expect(unreachableAllow.valid).toBe(false);
     expect(notApplicableWithEvidence.valid).toBe(false);
     expect(rulesNotEvaluated.valid).toBe(false);
+    expect(automatedNotApplicable.valid).toBe(false);
   });
 
   it("config/sources.json validates and all S1-S5 are manual (current evidence)", () => {

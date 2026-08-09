@@ -218,6 +218,22 @@ CASES: list[tuple[str, dict, bool]] = [
         },
         True,
     ),
+    (
+        "source.schema.json",
+        {
+            "schema_version": "1",
+            "sources": [_source(
+                automated_fetch=True,
+                fetch_frequency="daily",
+                robots_result="not_applicable",
+                robots_path_decision="not_evaluated",
+                checked_path=None,
+                retrieved_at=None,
+                evidence=None,
+            )],
+        },
+        False,
+    ),
     # source: negative — automated_fetch=true cannot be manual frequency
     (
         "source.schema.json",

@@ -29,6 +29,9 @@ the allowlist, enable `automated_fetch`, add a crawler, or touch visual task
   - Crawler access requires `automated_fetch=true` and a path-bound allowed
   robots decision, plus explicit `access_control` and `terms_status` states;
   missing or invalid access-control state fails closed.
+  `robots_result=not_applicable` is valid only for a non-robots-governed
+  surface and is always rejected for crawler access, including its exact-null
+  path/evidence form; it can never authorize an automated URL fetch.
 - Reuse/republication requires independent reuse permission and a citation
   boundary; robots allow alone is insufficient.
 - Automated adapters must declare non-empty `fetch_paths`; `runCron()` passes
@@ -65,9 +68,11 @@ the allowlist, enable `automated_fetch`, add a crawler, or touch visual task
 - Source schema validation covers both result/path vocabularies, illegal
   result/path/evidence combinations, exact-null `not_applicable` fields,
   non-empty string evidence, explicit automated `fetch_paths`, and the
-  `access_control`/`terms_status` enums; old-shape readability remains
-  available but the crawler wrapper rejects missing authorization state. The
-  source-policy page exposes the distinction in zh/ja/en.
+  `access_control`/`terms_status` enums; it rejects
+  `automated_fetch=true` with `robots_result=not_applicable`. Old-shape
+  readability remains available but the crawler wrapper rejects missing
+  authorization state. The source-policy page exposes the distinction in
+  zh/ja/en.
 
 ## Privacy and side effects
 
@@ -78,7 +83,10 @@ were changed.
 ## Successor verification
 
 The narrow successor reran the focused source-policy/schema/ingest suite with
-78 passing tests and the full suite with 132 passing tests. `pnpm check` has
+81 passing tests and the full suite with 132 passing tests. It added direct
+`decideSourceAccess()`, `sourceAllowedToFetch()`, and `runCron()` regressions;
+the latter asserts zero adapter calls for an automated `not_applicable`
+source. `pnpm check` has
 0 errors, warnings, and hints; schema cases pass; the static build produced 12
 pages; `build:post` succeeded; `build:verify` found 16 byte-identical files;
 E2E passed 14 tests; and `git diff --check` is clean.

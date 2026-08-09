@@ -168,6 +168,20 @@
               "evidence": { "const": null }
             }
           }
+        },
+        {
+          "if": {
+            "required": ["automated_fetch", "robots_result"],
+            "properties": {
+              "automated_fetch": { "const": true },
+              "robots_result": { "const": "not_applicable" }
+            }
+          },
+          "then": {
+            "properties": {
+              "robots_result": { "enum": ["rules_available", "unavailable", "unreachable"] }
+            }
+          }
         }
       ]
     }

@@ -266,7 +266,7 @@ export function decideSourceAccess(request: SourceAccessRequest): SourceAccessDe
   if (stateError) return denied(stateError);
   if (request.robots_result === "unreachable") return denied("robots_unreachable_disallow");
   if (request.robots_result === "not_applicable") {
-    return { allowed: true, reason: "robots_not_applicable" };
+    return denied("robots_not_applicable_for_crawler");
   }
   if (request.robots_path_decision === "disallow") return denied("robots_path_disallow");
   return { allowed: true, reason: "crawler_path_allowed" };

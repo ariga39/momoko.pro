@@ -143,6 +143,15 @@ describe("sourceAllowedToFetch", () => {
     expect(sourceAllowedToFetch(approvedSource({ terms_status: undefined }), "/")).toBe(false);
     expect(sourceAllowedToFetch(approvedSource({ terms_status: "unknown" }), "/")).toBe(false);
   });
+  it("fails closed for an automated source with not_applicable robots state", () => {
+    expect(sourceAllowedToFetch(approvedSource({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    }), "/")).toBe(false);
+  });
 });
 
 describe("decideSourceAccess", () => {
@@ -199,7 +208,7 @@ describe("decideSourceAccess", () => {
       checked_path: null,
       retrieved_at: null,
       evidence: null,
-    }))).toMatchObject({ allowed: true, reason: "robots_not_applicable" });
+    }))).toMatchObject({ allowed: false, reason: "robots_not_applicable_for_crawler" });
   });
 
   it("requires non-empty string path evidence and exact null not-applicable fields", () => {
@@ -221,6 +230,16 @@ describe("decideSourceAccess", () => {
       allowed: false,
       reason: "robots_not_applicable_state_invalid",
     });
+  });
+
+  it("fails closed for crawler not_applicable even with exact null evidence", () => {
+    expect(decideSourceAccess(crawler({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    })).allowed).toBe(false);
   });
 
   it("allows a human-directed single page despite missing robots and automation", () => {
@@ -624,6 +643,40 @@ describe("cron with an allowed (true) source", () => {
       expect(r.fetched).toEqual([]);
       expect(r.produced).toBe(0);
       expect(r.errors["S9:/private"]).toBe("fetch_target_not_allowed");
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("does not invoke an adapter for automated not_applicable robots state", async () => {
+    const cfg = {
+      schema_version: "1",
+      sources: [approvedSource({
+        source_id: "S9",
+        robots_result: "not_applicable",
+        robots_path_decision: "not_evaluated",
+        checked_path: null,
+        retrieved_at: null,
+        evidence: null,
+      })],
+    };
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg), "utf8");
+    let called = 0;
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch() {
+        called += 1;
+        return { ok: true, items: [] };
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(called).toBe(0);
+      expect(r.fetched).toEqual([]);
+      expect(r.produced).toBe(0);
+      expect(r.errors["S9:/"]).toBe("fetch_target_not_allowed");
     } finally {
       fs.rmSync(cfgPath, { force: true });
       fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
