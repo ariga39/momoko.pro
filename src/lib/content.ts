@@ -128,7 +128,19 @@ function readPackageManifest(root: string): ContentPackageManifest {
 
 function assertKnownPackageEntries(root: string, manifest: ContentPackageManifest): void {
   const allowed = new Set(["package.json", "news", "retractions"]);
-  if (manifest.visual_catalog) allowed.add(manifest.visual_catalog);
+  if (manifest.visual_catalog) {
+    const mode = process.env[PACKAGE_MODE_ENV];
+    if (
+      process.env[PACKAGE_ROOT_ENV] === undefined ||
+      (mode !== "test" && mode !== "dev")
+    ) {
+      throw new ContentPackageError(
+        "visual_catalog_mode_required",
+        "visual catalog is allowed only for an explicit test or dev content package",
+      );
+    }
+    allowed.add(manifest.visual_catalog);
+  }
   for (const entry of fs.readdirSync(root)) {
     if (!allowed.has(entry)) {
       throw new ContentPackageError("content_package_entry_unsupported", `unsupported content package entry: ${entry}`);
@@ -136,15 +148,15 @@ function assertKnownPackageEntries(root: string, manifest: ContentPackageManifes
   }
 }
 
-function packageManifest(root = getContentRoot()): ContentPackageManifest {
+function packageManifest(root: string): ContentPackageManifest {
   const manifest = readPackageManifest(root);
   assertKnownPackageEntries(root, manifest);
   return manifest;
 }
 
 /** Read and validate a package manifest after enforcing its top-level boundary. */
-export function readContentPackageManifest(root = getContentRoot()): ContentPackageManifest {
-  return packageManifest(root);
+export function readContentPackageManifest(): ContentPackageManifest {
+  return packageManifest(getContentRoot());
 }
 
 /** content paths with an active retraction record（status=requested|active）。 */

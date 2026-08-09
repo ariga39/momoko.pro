@@ -1,0 +1,35 @@
+---
+import DemoNotice from "../../../components/DemoNotice.astro";
+import PageIntro from "../../../components/PageIntro.astro";
+import SiteLayout from "../../../components/SiteLayout.astro";
+import VisualCatalogCard from "../../../components/VisualCatalogCard.astro";
+import { ml, type Locale } from "../../../lib/messages.ts";
+import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
+
+export function getStaticPaths() {
+  return [
+    { params: { lang: "zh" } },
+    { params: { lang: "ja" } },
+    { params: { lang: "en" } },
+  ];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = ml(lang);
+const catalog = loadVisualCatalog();
+---
+
+<SiteLayout lang={lang} title={`${t.navEncyclopedia()} · ${t.home()}`} canonicalPath={`/${lang}/encyclopedia/`}>
+  <DemoNotice lang={lang} catalog={catalog} />
+  <PageIntro eyebrow="03 / dossier index" title={t.visualEncyclopedia()} lede={t.visualArchiveLede()} />
+  {catalog.encyclopedia.length > 0 ? (
+    <section class="dossier-grid" aria-label={t.visualEncyclopedia()}>
+      {catalog.encyclopedia.map((item) => <VisualCatalogCard item={item} lang={lang} />)}
+    </section>
+  ) : (
+    <section class="empty-state" aria-labelledby="encyclopedia-empty-title">
+      <h2 id="encyclopedia-empty-title" class="section-title">{t.visualEmptyTitle()}</h2>
+      <p class="mt-3 text-text-secondary">{t.visualEmptyBody()}</p>
+    </section>
+  )}
+</SiteLayout>

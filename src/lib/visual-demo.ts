@@ -96,7 +96,7 @@ function readVisualCatalogFile(filePath: string): VisualCatalog {
 /** Load only an explicit test/dev catalog declared by the validated package manifest. */
 export function loadVisualCatalog(): VisualCatalog {
   const root = getContentRoot();
-  const manifest = readContentPackageManifest(root);
+  const manifest = readContentPackageManifest();
   if (!manifest.visual_catalog) return emptyVisualCatalog();
   const mode = process.env.MOMOKO_CONTENT_PACKAGE_MODE;
   if (mode !== "test" && mode !== "dev") {

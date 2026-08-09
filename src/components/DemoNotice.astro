@@ -1,0 +1,18 @@
+---
+import type { Locale } from "../lib/messages.ts";
+import type { VisualCatalog } from "../lib/visual-demo.ts";
+
+interface Props {
+  lang: Locale;
+  catalog: VisualCatalog;
+}
+
+const { lang, catalog } = Astro.props;
+---
+
+{catalog.mode === "demo" && (
+  <aside class="demo-notice" aria-label="DEMO notice" data-demo-notice>
+    <span class="demo-stamp" aria-hidden="true">DEMO</span>
+    <p lang={lang}>{catalog.notice[lang]}</p>
+  </aside>
+)}

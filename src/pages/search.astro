@@ -1,13 +1,16 @@
 ---
+import DemoNotice from "../components/DemoNotice.astro";
+import PageIntro from "../components/PageIntro.astro";
 import SiteLayout from "../components/SiteLayout.astro";
 import { loadPublishedNews } from "../lib/content.ts";
-import { buildSearchIndex } from "../lib/search.ts";
 import { ml } from "../lib/messages.ts";
+import { buildSearchIndex } from "../lib/search.ts";
+import { loadVisualCatalog } from "../lib/visual-demo.ts";
 
-// 确定性本地 JSON 索引（ADR-05 fallback）：构建期生成，客户端过滤，无外部服务。
-const index = buildSearchIndex(loadPublishedNews());
-const indexJson = JSON.stringify(index);
 const t = ml("ja");
+const catalog = loadVisualCatalog();
+const items = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
+const index = buildSearchIndex(items);
 ---
 
 <SiteLayout
@@ -15,41 +18,62 @@ const t = ml("ja");
   title={`${t.searchHeading()} · ${t.home()}`}
   canonicalPath="/search"
   noindex
-  bodyData={{ "data-search-index": indexJson }}
 >
-  <h1 class="text-2xl">{t.searchHeading()}</h1>
-  {index.length === 0 && <p>{t.newsEmpty()}</p>}
-  <form role="search" onsubmit="return false;">
-    <label>
+  <DemoNotice lang="ja" catalog={catalog} />
+  <PageIntro eyebrow="06 / index search" title={t.searchHeading()} lede={t.visualArchiveLede()} />
+  <form class="filter-bar" id="site-search" method="get" action="/search">
+    <label class="filter-field grow" for="q">
       {t.searchQuery()}
-      <input id="q" type="search" name="q" autocomplete="off" />
+      <input class="search-input w-full" id="q" type="search" name="q" autocomplete="off" />
     </label>
+    <button class="button-secondary" type="submit">{t.visualSearch()}</button>
+    <p id="search-status" class="filter-hint" aria-live="polite">{index.length} {t.visualResults()}</p>
   </form>
-  <ul id="results"></ul>
+
+  {index.length > 0 ? (
+    <ul class="search-list" id="results">
+      {index.map((row) => {
+        return (
+          <li data-search-item data-search-text={`${row.title ?? ""} ${row.body ?? ""} ${row.sourceId}`}>
+            <a class="search-result" href={row.path} lang={row.lang}>
+              <span class="card-eyebrow">{row.sourceId} · {row.lang}</span>
+              <span class="sr-only">{row.sourceId}-{row.sourceItemId}</span>
+              <strong>{row.title}</strong>
+              <span>{row.body}</span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  ) : (
+    <section class="empty-state" aria-labelledby="search-empty-title">
+      <h2 id="search-empty-title" class="section-title">{t.visualEmptyTitle()}</h2>
+      <p class="mt-3 text-text-secondary">{t.visualEmptyBody()}</p>
+    </section>
+  )}
+  <p id="search-no-results" class="empty-state" hidden>{t.searchNoResults()}</p>
+
   <script is:inline>
-    const index = JSON.parse(document.body.dataset.searchIndex || "[]");
-    const q = document.getElementById("q");
-    const results = document.getElementById("results");
-    const norm = (s) => (s ?? "").toLowerCase();
-    function render() {
-      const query = norm(q.value).trim();
-      const hits = query
-        ? index.filter(
-            (row) => norm(row.title).includes(query) || norm(row.body).includes(query),
-          )
-        : [];
-      results.innerHTML = hits.length
-        ? hits
-            .map(
-              (row) =>
-                `<li><a href="${row.path}" lang="${row.lang}">${row.slug}</a> · ${row.lang}</li>`,
-            )
-            .join("")
-        : query
-          ? "<li>无结果 / No results.</li>"
-          : "";
-    }
-    q.addEventListener("input", render);
-    render();
+    const searchForm = document.getElementById("site-search");
+    const searchInput = document.getElementById("q");
+    const searchItems = [...document.querySelectorAll("[data-search-item]")];
+    const searchStatus = document.getElementById("search-status");
+    const searchEmpty = document.getElementById("search-no-results");
+    const normalize = (value) => (value || "").toLocaleLowerCase();
+    const renderSearch = () => {
+      const query = normalize(searchInput?.value).trim();
+      let visible = 0;
+      searchItems.forEach((item) => {
+        const matches = !query || normalize(item.dataset.searchText).includes(query);
+        item.hidden = !matches;
+        if (matches) visible += 1;
+      });
+      if (searchStatus) searchStatus.textContent = `${visible} results`;
+      if (searchEmpty) searchEmpty.hidden = !query || visible > 0;
+    };
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchInput) searchInput.value = searchParams.get("q") || "";
+    searchForm?.addEventListener("input", renderSearch);
+    renderSearch();
   </script>
 </SiteLayout>

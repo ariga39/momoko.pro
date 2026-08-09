@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadVisualCatalog } from "../src/lib/visual-demo.ts";
-import { getContentRoot, loadNews } from "../src/lib/content.ts";
+import { getContentRoot, loadNews, readContentPackageManifest } from "../src/lib/content.ts";
 import { collectContentFiles, validateContentFile, validateFile } from "../tools/schema/validate.ts";
 
 const root = path.resolve(process.cwd());
@@ -64,6 +64,50 @@ describe("Phase 4A visual package boundary", () => {
         visual_catalog: "visual-catalog.json",
       }).valid,
     ).toBe(false);
+  });
+
+  it("does not accept a caller-supplied manifest root, including ready visual content", () => {
+    delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
+    delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
+    delete process.env.PUBLIC_BUILD;
+    const callerRoot = fs.mkdtempSync(path.join(path.dirname(demoRoot), ".caller-manifest-"));
+    fs.writeFileSync(
+      path.join(callerRoot, "package.json"),
+      JSON.stringify({
+        package_version: "1",
+        content_schema_version: "1",
+        status: "ready",
+        visual_catalog: "visual-catalog.json",
+      }),
+    );
+    fs.writeFileSync(path.join(callerRoot, "visual-catalog.json"), "{}");
+    try {
+      const readWithExtraArgument = readContentPackageManifest as unknown as (root: string) => unknown;
+      expect(readWithExtraArgument(callerRoot)).toMatchObject({ status: "empty" });
+    } finally {
+      fs.rmSync(callerRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a future ready visual package at the production boundary", () => {
+    const manifest = {
+      package_version: "1",
+      content_schema_version: "1",
+      status: "ready",
+      visual_catalog: "visual-catalog.json",
+    };
+    expect(validateFile("content-package.schema.json", manifest).valid).toBe(true);
+    const futureRoot = fs.mkdtempSync(path.join(path.dirname(demoRoot), ".future-ready-visual-"));
+    fs.writeFileSync(path.join(futureRoot, "package.json"), JSON.stringify(manifest));
+    fs.writeFileSync(path.join(futureRoot, "visual-catalog.json"), "{}");
+    try {
+      process.env.MOMOKO_CONTENT_PACKAGE_ROOT = path.relative(process.cwd(), futureRoot);
+      process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+      process.env.PUBLIC_BUILD = "1";
+      expect(() => loadNews()).toThrow(/public build cannot use a content override/);
+    } finally {
+      fs.rmSync(futureRoot, { recursive: true, force: true });
+    }
   });
 });
 
