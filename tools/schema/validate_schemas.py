@@ -142,11 +142,6 @@ def _locale(**over) -> dict:
 CASES: list[tuple[str, dict, bool]] = [
     # config
     ("source.schema.json", json.loads((CONFIG / "sources.json").read_text()), True),
-    ("reviewers.schema.json", json.loads((CONFIG / "reviewers.json").read_text()), True),
-    # reviewers: empty handle rejected
-    ("reviewers.schema.json", {"schema_version": "1", "reviewers": [""]}, False),
-    # reviewers: duplicate handle rejected
-    ("reviewers.schema.json", {"schema_version": "1", "reviewers": ["ariga39", "ariga39"]}, False),
     # content: positive (reviewed requires reviewer+time)
     (
         "content.schema.json",

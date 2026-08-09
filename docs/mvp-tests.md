@@ -1,7 +1,7 @@
 # momoko.pro MVP 测试矩阵
 
 ## 架构与部署（Git canonical + GitHub Actions Direct Upload + Cloudflare Pages 静态）
-- [ ] Git canonical 内容文件；PR → promote-review → merge → CI → 静态发布
+- [ ] Git canonical 内容文件；Draft PR → 人工 GitHub review → 人工 merge → CI → 静态发布
 - [ ] **manifest 不提交仓库**：构建期全量生成到 dist；**双重构建确定性**（同内容构建两次逐字节一致，失败即 fail）
 - [ ] preview：PR 仅无 secret 构建 + Playwright + artifact；prod：main merge 部署（见安全 I/E）
 - [ ] 零成本断言：**无运行时 Worker / KV / Cron Trigger / D1 / Queues / R2 / Vectorize / Pages Functions / 原生 Git 集成**（代码层无调用 + 部署面单一=Actions Direct Upload）
@@ -13,7 +13,7 @@
 - [ ] canonical + alternate(hreflang) 正确（zh/ja/en + x-default）
 - [ ] 缺译文回退源语言 + 显式标注
 - [ ] 原文变 → 译文 stale，不显示为已审核
-- [ ] 状态机：**正/反转移表**校验（draft→reviewed 仅 promote-review（受控 workflow_dispatch+Contents API）在开放 PR 写且 reviewer/time 非空；reviewed→published 仅 build 派生；published 不在 canonical enum→draft / reviewed→draft / 跳过 / 非 promote-review 写 reviewed → fail）
+- [ ] 状态机：**正/反转移表**校验（draft→reviewed 人工 GitHub review 后 merge 时写且 reviewer/time 非空；reviewed→published 仅 build 派生；published 不在 canonical enum→draft / reviewed→draft / 跳过 → fail）
 - [ ] **published 不回写 canonical**：重建后 main 上 reviewed 内容再次派生 published，不回退
 - [ ] `/` 为语言选择页或固定静态 302；无服务端 Accept-Language 读取
 
@@ -27,7 +27,7 @@
 - [ ] 幂等/去重：同 `(source_id, source_item_id, lang)` + hash 不重复；重跑无 diff（静默）
 - [ ] manual-import：allowlisted hostname+source_id 校验、schema 校验、去重、生成 PR；错误 enum 映射正确；**不提交 manifest**
 - [ ] ai-draft：**只消费人工事实笔记/批准短摘录，不打开 URL**；外部正文不入 repo/prompt log/artifact；输出恒 draft
-- [ ] promote-review：default-branch-owned 受控 workflow_dispatch，API 校验 PR/head/真实 review 证据 + Contents API 写 PR head；不在 pull_request 路径注入 secret、不 checkout/执行未审脚本；≥1 真实 GitHub reviewer、author≠reviewer；不直推 main
+- [ ] human-merge：agent 只开 Draft PR（draft），人工/授权 agent GitHub review 内容判断后人工 merge；默认永不自动合并；无 promote-review/自动晋级残留
 - [ ] stale-check：源 hash 变化 → 三语 reviewed 译文原子置 stale
 - [ ] retraction：合并后同一 build 原子过滤
 - [ ] schema_version 迁移：空库/旧库可迁移；迁移脚本可重入；`tools/schema/migrations/*` 单次执行
@@ -38,13 +38,13 @@
 - [ ] 无 X embed/iframe、无 X API、无 X 抓取（X 仅人工 permalink 卡片；**不复制 post 文本/图片**，只存 account/date/permalink/人工说明）
 - [ ] 无官方素材托管/声线克隆；**无完整台词/台词库/随机台词渲染**
 - [ ] 来源只来自 `config/sources.json` allowlist；robots/terms 证据与 config 一致；`automated_fetch` 全 false
-- [ ] reviewer 名单单一来源：`config/reviewers.json`（不在 sources.json 重复）
-- [ ] 机器配置（config/sources.json、config/reviewers.json）与人类证据（docs/sources.md）一致
+- [ ] 无硬编码 reviewer 身份/自动晋级（momoko 自动化上限）；内容判断由人工/授权 agent 在 GitHub review 完成
+- [ ] 机器配置（config/sources.json）与人类证据（docs/sources.md）一致
 
 ## 安全（STRIDE 六类映射）
 - [ ] **S**：allowlisted HTTPS hostname + source_id 校验；author≠reviewer
 - [ ] **T**：schema+content_hash 校验、双重构建确定性比对
-- [ ] **R**：promote-review 记录 GitHub review/merge 不可变证据
+- [ ] **R**：GitHub review/commit history 记录不可变审核证据（人工 review 审计）
 - [ ] **I**：**PR workflow 不向可修改 workflow 的 `pull_request` 代码暴露模型/CF secret**（PR 仅无 secret 构建+Playwright+artifact）；secret 仅受信 main merge deploy / maintainer `workflow_dispatch`；外部正文隔离
 - [ ] **D**：permissions 最小化、第三方 action 固定 full SHA、失败不发布
 - [ ] **E**：workflow 权限最小化审计；`workflow_dispatch` 远端 preview 使用 default-branch workflow 且对固定 SHA

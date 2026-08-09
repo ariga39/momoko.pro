@@ -21,7 +21,7 @@
 - 改变条件：质量证据/政策。
 
 ## ADR-04 三语与审核状态
-- AI 草稿 → 人工校对；原文变 → 译文 stale；不撒谎。状态机：draft → reviewed（promote-review 受控 workflow_dispatch+Contents API 在开放 PR 写）→ published（main merge 后 build 派生 manifest，不回写 canonical）；stale / retracted。转移表与写入者见 design.md §3。published 永不回写 canonical。
+- AI 草稿 → 人工校对；原文变 → 译文 stale；不撒谎。状态机：draft → reviewed（人工 GitHub review 后 merge 时写，reviewer/time 非空）→ published（main merge 后 build 派生 manifest，不回写 canonical）；stale / retracted。自动化上限见 design.md §3.2；无 promote-review/自动晋级。published 永不回写 canonical。
 
 ## ADR-05 搜索（ADR-SEARCH）
 - **MVP：build-time 搜索（Pagefind 首选）**，只有通过 zh/ja/en 验收夹具后才采用；**若夹具不通过，确定性 fallback = 构建期生成的本地 JSON 索引（/search.json，客户端过滤）**；MVP 至少启用二者之一。
@@ -36,8 +36,9 @@
 - 改变条件：出现非 Git 编辑者、秒级发布、构建瓶颈或复杂服务端查询（需量化证据）。
 
 ## ADR-07 编辑/审核入口（ADR-ADMIN）
-- **MVP 锁定：Git-based workflow（PR/commit 审核 + merge 发布）**——人工发现记录/AI 草稿生成 PR；**promote-review**（default-branch-owned 受控 `workflow_dispatch` 可信 workflow）经 GitHub API 校验 PR/head/真实 review 证据后用 Contents API 在 PR head 写 `reviewed` + 非空 `reviewed_by/reviewed_at`（author≠reviewer，reviewer ∈ `config/reviewers.json` 真实 GitHub 身份）；`published` 为 build 派生（不在 canonical enum）；PR/commit history 兼作审计。required reviewer ≥1（author 除外）。
-- **secret 边界**：promote-review 与 preview 均不在 `pull_request` 代码路径注入 secret；只读 PR/review + 该 head Contents 写，不 checkout/执行未审脚本。
+- **MVP 锁定：Git-based workflow（PR/commit 审核 + 人工 merge 发布）**——人工发现记录/AI 草稿生成 Draft PR（agent 只推分支，默认永不自动合并）；**内容判断=人工/授权 agent** 在 GitHub review 中完成（GitHub review/commit history 即审计）；merge 后 `published` 为 build 派生（不在 canonical enum）。
+- **自动化上限**：MVP 不预埋 secret-bearing 自动写回、workflow_dispatch 内容写回、硬编码 reviewer 身份或第二套审批库（momoko 2026-08-09）。
+- **secret 边界**：PR 代码路径不注入任何 secret；CI/build 仅在 main merge 后由 default-branch-owned 可信 job 使用部署 secret。
 - future：如需非 Git 编辑者或秒级发布，引入受保护管理 API + 审核界面（X-Api-Key + IP allowlist）。
 - 改变条件：出现非 Git 编辑者、秒级发布（需量化证据）。
 

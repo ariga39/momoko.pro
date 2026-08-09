@@ -1,5 +1,0 @@
-{
-  "$comment": "reviewer 允许名单（canonical 单来源）。required reviewer >=1 且 author 不能是唯一 reviewer。必须是真实 GitHub 身份：若由 GitHub App 开 PR，reviewer 为 ariga39（App/repo owner）；若允许人类自开 PR，需补充第二个真实 GitHub reviewer。",
-  "schema_version": "1",
-  "reviewers": ["ariga39"]
-}
