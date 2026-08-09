@@ -63,8 +63,10 @@ The pure decision seam requires an explicit access mode:
 `reuse_or_republication`. A public single-page human-directed read is not
 blocked by `automated_fetch=false` or missing robots, but access controls and
 explicit prohibitions still deny it. A crawler requires `automated_fetch=true`
-and a path-bound robots decision. Reuse/republication requires independent
-permission and a citation boundary. These modes are never interchangeable.
+and a path-bound robots decision; every automated source must also declare
+explicit `fetch_paths`, and the adapter receives the exact checked path with
+no `/` default. Reuse/republication requires independent permission and a
+citation boundary. These modes are never interchangeable.
 
 ## Boundaries
 

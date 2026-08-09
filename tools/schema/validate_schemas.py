@@ -141,6 +141,7 @@ def _source(**over) -> dict:
         "terms_approved": {"allowed": False, "evidence": "未批准（默认）"},
         "automated_fetch": False,
         "fetch_frequency": "manual",
+        "fetch_paths": ["/"],
         "cache_boundary": "仅归档 URL，不复制正文",
         "stop_condition": "条款变更即停止",
     }
@@ -184,6 +185,30 @@ CASES: list[tuple[str, dict, bool]] = [
     (
         "source.schema.json",
         {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily")]},
+        True,
+    ),
+    (
+        "source.schema.json",
+        {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily", fetch_paths=[])]},
+        False,
+    ),
+    (
+        "source.schema.json",
+        {"schema_version": "1", "sources": [_source(robots_result="unavailable", robots_path_decision="disallow")]},
+        False,
+    ),
+    (
+        "source.schema.json",
+        {
+            "schema_version": "1",
+            "sources": [_source(
+                robots_result="not_applicable",
+                robots_path_decision="not_evaluated",
+                checked_path=None,
+                retrieved_at=None,
+                evidence=None,
+            )],
+        },
         True,
     ),
     # source: negative — automated_fetch=true cannot be manual frequency

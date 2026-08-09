@@ -1,5 +1,5 @@
 {
-  "$comment": "momoko.pro 内容来源配置（canonical）。Markdown docs/sources.md 仅做人类证据说明，机器配置以本文件为准。robots_result 是 RFC 9309 的结果类别，robots_path_decision 只适用于 checked_path；robots_approved 是旧兼容字段，已弃用且不参与新决策。automated_fetch 当前全为 false（MVP 仅人工发现/录入）；cron seam 只有在项目显式启用并取得路径级 robots 事实后才可抓取（见 design.md §5.3）。内容判断由独立 reviewer 在 GitHub review 完成（无硬编码 reviewer 身份）。",
+  "$comment": "Canonical source configuration. Human-readable evidence is documented in docs/sources.md; this file is authoritative for machine validation. robots_result is an RFC 9309 result class, robots_path_decision applies only to checked_path, and deprecated robots_approved is compatibility-only and ignored by new decisions. automated_fetch is false for every MVP source; the cron seam requires explicit fetch_paths and path-bound robots evidence. Content review is performed in GitHub review without a hard-coded reviewer identity.",
   "schema_version": "1",
   "sources": [
     {
@@ -39,7 +39,7 @@
       "robots_path_decision": "not_evaluated",
       "checked_path": null,
       "retrieved_at": null,
-      "evidence": "MVP 不使用 embed/API；robots surface not applicable",
+      "evidence": null,
       "robots_note": "不使用 embed/API，故不适用",
       "terms_url": "https://docs.x.com/developer-terms/display-requirements",
       "terms_note": "X Display Requirements + Developer Agreement 事实摘录见 docs/sources.md §2；MVP 用人工 permalink 卡片，不 embed/API/抓取",
@@ -66,7 +66,7 @@
       "robots_path_decision": "not_evaluated",
       "checked_path": null,
       "retrieved_at": null,
-      "evidence": "MVP 不使用 embed/API；robots surface not applicable",
+      "evidence": null,
       "robots_note": "不使用 embed/API，故不适用",
       "terms_url": "https://docs.x.com/developer-terms/display-requirements",
       "terms_note": "同 S2",

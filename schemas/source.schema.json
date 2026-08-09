@@ -71,6 +71,17 @@
           "minLength": 1,
           "description": "Human-readable evidence bound to the result and checked path"
         },
+        "fetch_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^/(?:[^?#]*)$"
+          },
+          "description": "Explicit URL paths an automated adapter may request; each path is checked independently"
+        },
         "robots_note": { "type": "string" },
         "terms_url": { "type": ["string", "null"], "format": "uri" },
         "terms_note": { "type": "string" },
@@ -91,12 +102,64 @@
           "then": {
             "properties": {
               "fetch_frequency": { "not": { "const": "manual" } }
-            }
+            },
+            "required": ["fetch_paths"]
           }
         },
         {
           "if": { "properties": { "automated_fetch": { "const": false } } },
           "then": { "properties": { "fetch_frequency": { "const": "manual" } } }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "rules_available" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "enum": ["allow", "disallow", "no_match"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "unavailable" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "const": "allow" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "unreachable" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "const": "disallow" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "not_applicable" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "const": "not_evaluated" },
+              "checked_path": { "const": null },
+              "retrieved_at": { "const": null },
+              "evidence": { "const": null }
+            }
+          }
         }
       ]
     }

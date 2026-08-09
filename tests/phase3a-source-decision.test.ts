@@ -60,7 +60,7 @@ describe("Phase 3A source-policy no-fetch decision", () => {
     expect(sources).toHaveLength(5);
     expect(sources.every((source) => source.fetch_frequency === "manual")).toBe(true);
     expect(sources.every((source) => source.automated_fetch === false)).toBe(true);
-    expect(sources.every((source) => sourceAllowedToFetch(source) === false)).toBe(true);
+    expect(sources.every((source) => sourceAllowedToFetch(source, "/") === false)).toBe(true);
 
     const s1 = sources.find((source) => source.source_id === "S1");
     expect(s1).toMatchObject({

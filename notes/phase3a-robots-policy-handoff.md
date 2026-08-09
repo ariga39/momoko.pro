@@ -28,8 +28,13 @@ the allowlist, enable `automated_fetch`, add a crawler, or touch visual task
     missing robots, but public access and non-prohibited terms are required.
   - Crawler access requires `automated_fetch=true` and a path-bound allowed
     robots decision.
-  - Reuse/republication requires independent reuse permission and a citation
-    boundary; robots allow alone is insufficient.
+- Reuse/republication requires independent reuse permission and a citation
+  boundary; robots allow alone is insufficient.
+- Automated adapters must declare non-empty `fetch_paths`; `runCron()` passes
+  the exact path into each adapter call and validates that same path. There is
+  no default `/`; missing, malformed, disallowed, or path-ambiguous targets
+  are rejected before the adapter is invoked. A root allow therefore cannot
+  authorize a `/private` target.
 
 ## Compatibility and migration
 
@@ -51,14 +56,25 @@ the allowlist, enable `automated_fetch`, add a crawler, or touch visual task
   access-control/explicit-terms denial; and reuse without an independent
   permission/citation boundary.
 - Ingest tests prove cron uses `automated_fetch` plus the new path decision and
-  ignores deprecated `robots_approved`.
+  ignores deprecated `robots_approved`; the `/`-allow versus `/private` target
+  counter-example is covered, with the exact path passed into the adapter.
 - Phase 3A synthetic proof still makes zero HTTP calls and zero writes under
   the checked-in all-manual policy.
-- Source schema validation covers both result/path vocabularies and old-shape
-  readability; the source-policy page exposes the distinction in zh/ja/en.
+- Source schema validation covers both result/path vocabularies, illegal
+  result/path/evidence combinations, explicit automated `fetch_paths`, and
+  old-shape readability; the source-policy page exposes the distinction in
+  zh/ja/en.
 
 ## Privacy and side effects
 
 No real source, response body, private document, credential, or external
 service was accessed. Only synthetic fixtures and checked-in policy metadata
 were changed.
+
+## Successor verification
+
+The narrow successor reran the focused source-policy/schema/ingest suite with
+75 passing tests and the full suite with 129 passing tests. `pnpm check` has
+0 errors, warnings, and hints; schema cases pass; the static build produced 12
+pages; `build:post` succeeded; `build:verify` found 16 byte-identical files;
+E2E passed 14 tests; and `git diff --check` is clean.

@@ -133,7 +133,7 @@ i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 U
 
 - 只官方/本人/经纪事务所/主办方来源；**X 用人工维护的普通官方 permalink 卡片**（只存 account/date/permalink/人工原创说明，不复制 post 文本/图片）。
 - 不托管官方图像/Logo/完整台词/歌词/音频；不做声线克隆。
-- 来源机器配置：`config/sources.json`（`robots_result` 记录 RFC 9309 的结果类别，`robots_path_decision` 绑定 `checked_path`；旧 `robots_approved` 只为兼容读取并标记弃用，不参与新决策；当前 S1–S5 全部 `automated_fetch=false`；**cron seam 允许**：项目显式启用且每个请求路径有 robots 证据后才可抓取——见 §5.3）。
+- 来源机器配置：`config/sources.json`（`robots_result` 记录 RFC 9309 的结果类别，`robots_path_decision` 绑定 `checked_path`；旧 `robots_approved` 只为兼容读取并标记弃用，不参与新决策；当前 S1–S5 全部 `automated_fetch=false`；自动来源必须声明非空 `fetch_paths`；**cron seam 允许**：项目显式启用且每个请求路径有 robots 证据后才可抓取——见 §5.3）。
 - Prompt-injection：外部正文隔离渲染 + 不进系统提示（覆盖人工粘贴与 agent 抓取）。
 
 ### 4.1 X 产品决策（事实摘录，不做法律裁定）
@@ -161,7 +161,7 @@ i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 U
   → 具 merge 权限的 human/agent 执行 merge → 构建派生 published
 ```
 
-- **cron seam（agent cron，momoko 2026-08-09 确认）**：cron 只运行 `automated_fetch=true` 且请求路径 `robots_result`/`robots_path_decision` 通过 pure access decision 的来源 adapter；旧 `robots_approved` 不再是额外门。`false` 的来源只走 manual-import。**无允许来源或无变化时静默**。当前 S1–S5 全部 `false`。
+- **cron seam（agent cron，momoko 2026-08-09 确认）**：cron 只运行 `automated_fetch=true`、声明非空 `fetch_paths` 且每个请求路径的 `robots_result`/`robots_path_decision` 通过 pure access decision 的来源 adapter；`runCron()` 把同一显式路径传给 adapter，不以 `/` 作为默认或全站许可。旧 `robots_approved` 不再是额外门。`false` 的来源只走 manual-import。**无允许来源或无变化时静默**。当前 S1–S5 全部 `false`。
 - **discovery record**：人工提交 `{source_id, source_item_id, source_url, published_at, title, lang, note_hash, note}`（schema: `schemas/discovery-record.schema.json`，含唯一键必需字段）。note 为**人工撰写的事实笔记/明确批准的短摘录**；工具只校验/去重/规范化后生成 PR。
 - **AI 输入边界（关键）**：MVP 不存页面正文，ai-draft **不能凭空摘要**。锁定输入=只消费**人工撰写的事实笔记或明确批准的短摘录**；**外部正文不进 repo、prompt log 或 artifact**；记录 source URL、note hash、模型/提示版本；输出恒 T1 draft。批量工具不得自行打开 URL；future access must call the pure seam with an explicit access mode, and single-page reads still obey access control, Terms, rate limits, and retention boundaries.
 - **T 分级**：T0（人工事实/卡片，无 AI 改写）→ 可自动生成文件+PR（仍人工 merge）；T1（AI 摘要/翻译）→ 默认 draft；T2 → 永久人工。
@@ -487,7 +487,7 @@ sequenceDiagram
 | T0 发布 | 只自动生成文件/PR，仍独立 reviewer（T2 必须 human）+ 具 merge 权限合并；auto-merge 未来 ADR | 否（已定） |
 | 部署面 | GitHub Actions Direct Upload（唯一） | 否（已定） |
 | X 展示 | 人工 permalink 卡片；embed/API 未来需法律评审 | 否（已定） |
-| 自动抓取 | future 条件分支，需项目 `automated_fetch=true` + 请求路径 robots result/decision 证据 | 否（future） |
+| 自动抓取 | future 条件分支，需项目 `automated_fetch=true` + 非空 `fetch_paths` + 每个请求路径 robots result/decision 证据 | 否（future） |
 | D1/Queues/Vectorize | future，不进入 MVP | 否（future） |
 | 受保护管理 API | future | 否（future） |
 

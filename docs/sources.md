@@ -49,7 +49,7 @@
 
 ## 3. 内容来源（机器配置见 config/sources.json）
 
-字段：`automated_fetch`（全部 `false`）、`fetch_frequency`（manual）、`robots_result`、`robots_path_decision`、`checked_path`、`retrieved_at`、`evidence`、`cache_boundary`、`stop_condition`；robots/terms HTTP 结果与时间均为 2026-08-08 实测。`robots_result` 是 RFC 9309 的结果类别，`robots_path_decision` 只绑定 `checked_path`；旧 `robots_approved` 仅为兼容字段，不参与新决策。**逐项汇总：**
+字段：`automated_fetch`（全部 `false`）、`fetch_frequency`（manual）、`fetch_paths`（自动来源必填）、`robots_result`、`robots_path_decision`、`checked_path`、`retrieved_at`、`evidence`、`cache_boundary`、`stop_condition`；robots/terms HTTP 结果与时间均为 2026-08-08 实测。`robots_result` 是 RFC 9309 的结果类别，`robots_path_decision` 只绑定 `checked_path`；旧 `robots_approved` 仅为兼容字段，不参与新决策。自动 adapter 每次接收显式 target path，不能用根路径授权其他路径。**逐项汇总：**
 
 | source_id | 名称 | canonical URL | robots.txt 结果与 checked path | terms/guideline 结论 |
 |---|---|---|---|---|
@@ -77,4 +77,4 @@ AI agent 的一次人工指令单页读取、无人值守的批量/递归 crawle
 - ① **X embed**：已记录官方并存事实摘录（URL + 检索日期），不裁定法律冲突；产品决策=人工 permalink 卡片（不复制内容）。已清零。
 - ② **ミリシタ官方站 robots/terms**：robots.txt 404（`unavailable + allow`，只绑定 `/`，不是全站许可）、无域内公开条款页，且项目 `automated_fetch=false` → 仅人工发现/录入。已清零。
 - ③ **Live / 声优来源**：Live 走 portal（robots 404 → `unavailable + allow`，只绑定 `/`）→ 仅人工录入；声优走 mdawn 官方资料页（robots 200 → `rules_available + allow`，只绑定 `/`，但无公开利用条款）→ 仅人工录入；官方 X 走人工 permalink 卡片。已清零。
-- **总则**：当前 S1–S5 全 false，cron 静默；未来 crawler 必须同时具备 `automated_fetch=true` 与请求路径的 robots decision。**缺失结果/路径证据绝不当作允许**。人类明确指令的单页读取、无人值守 crawler、reuse/republication 分别由 pure access seam 判定；X API 为付费，MVP 不使用。
+- **总则**：当前 S1–S5 全 false，cron 静默；未来 crawler 必须同时具备 `automated_fetch=true`、非空 `fetch_paths` 与每个请求路径的 robots decision。**缺失结果/路径证据绝不当作允许**。人类明确指令的单页读取、无人值守 crawler、reuse/republication 分别由 pure access seam 判定；X API 为付费，MVP 不使用。

@@ -60,6 +60,7 @@ const fakeSource = (over: Record<string, unknown> = {}): SourceConfig => ({
   terms_approved: { allowed: false, evidence: "未批准（默认）" },
   automated_fetch: false,
   fetch_frequency: "manual",
+  fetch_paths: ["/"],
   cache_boundary: "仅归档 URL",
   stop_condition: "条款变更即停止",
   ...over,
@@ -103,32 +104,36 @@ class FakeAdapter {
 
 describe("sourceAllowedToFetch", () => {
   it("false when automated_fetch is false (S1-S5 default)", () => {
-    expect(sourceAllowedToFetch(fakeSource())).toBe(false);
+    expect(sourceAllowedToFetch(fakeSource(), "/")).toBe(false);
   });
   it("does not use deprecated robots_approved as an extra gate", () => {
-    expect(sourceAllowedToFetch(approvedSource())).toBe(true);
+    expect(sourceAllowedToFetch(approvedSource(), "/")).toBe(true);
   });
   it("treats 404 as unavailable plus path allow for a crawler", () => {
     expect(sourceAllowedToFetch(approvedSource({
       robots_http: "404",
       robots_result: "unavailable",
       robots_path_decision: "allow",
-    }))).toBe(true);
+    }), "/")).toBe(true);
     expect(sourceAllowedToFetch(approvedSource({
       robots_http: "500",
       robots_result: "unreachable",
       robots_path_decision: "disallow",
-    }))).toBe(false);
+    }), "/")).toBe(false);
   });
   it("evaluates a path disallow independently from an allowed path", () => {
-    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: "allow" }))).toBe(true);
-    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: "disallow" }))).toBe(false);
-    expect(sourceAllowedToFetch(approvedSource({ checked_path: "/other" }))).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: "allow" }), "/")).toBe(true);
+    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: "disallow" }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ checked_path: "/other" }), "/")).toBe(false);
   });
   it("fails closed when the result or path evidence is missing", () => {
-    expect(sourceAllowedToFetch(approvedSource({ robots_result: undefined }))).toBe(false);
-    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: undefined }))).toBe(false);
-    expect(sourceAllowedToFetch(approvedSource({ evidence: undefined }))).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ robots_result: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ evidence: undefined }), "/")).toBe(false);
+  });
+  it("requires an explicit target path and never treats root allow as private-path allow", () => {
+    expect(sourceAllowedToFetch(approvedSource(), "/private")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource(), undefined as unknown as string)).toBe(false);
   });
 });
 
@@ -161,6 +166,25 @@ describe("decideSourceAccess", () => {
   it("allows and denies separate paths under one valid rules result", () => {
     expect(decideSourceAccess(crawler({ robots_path_decision: "allow" })).allowed).toBe(true);
     expect(decideSourceAccess(crawler({ robots_path_decision: "disallow" })).allowed).toBe(false);
+  });
+
+  it("rejects result/path/evidence combinations that are not fail-closed states", () => {
+    expect(decideSourceAccess(crawler({ robots_result: "unavailable", robots_path_decision: "disallow" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_unavailable_requires_allow",
+    });
+    expect(decideSourceAccess(crawler({ robots_result: "unreachable", robots_path_decision: "allow" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_unreachable_requires_disallow",
+    });
+    expect(decideSourceAccess(crawler({ robots_result: "not_applicable", robots_path_decision: "not_evaluated" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_not_applicable_state_invalid",
+    });
+    expect(decideSourceAccess(crawler({ robots_result: "rules_available", robots_path_decision: "not_evaluated" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_rules_path_not_evaluated",
+    });
   });
 
   it("allows a human-directed single page despite missing robots and automation", () => {
@@ -421,9 +445,12 @@ describe("cron with an allowed (true) source", () => {
       source_url: "https://example.com/cron/1", published_at: "2026-08-08T00:00:00+09:00",
       title: "cron title", lang: "zh", note: "cron note",
     };
+    const requestedPaths: string[] = [];
     registerSourceAdapter({
       source_id: "S9",
-      async fetch(): Promise<FetchResult> {
+      async fetch(source, requestedPath): Promise<FetchResult> {
+        void source;
+        requestedPaths.push(requestedPath);
         return { ok: true, items: [recordA] as never[] };
       },
     });
@@ -432,6 +459,7 @@ describe("cron with an allowed (true) source", () => {
       expect(r1.fetched).toEqual(["S9"]);
       expect(r1.produced).toBe(1);
       expect(r1.errors).toEqual({});
+      expect(requestedPaths).toEqual(["/"]);
       // re-run: same content => duplicate suppressed, silent
       const r2 = await runCron(cfgPath);
       expect(r2.produced).toBe(0);
@@ -529,6 +557,35 @@ describe("cron with an allowed (true) source", () => {
       expect(r.fetched).toEqual([]);
       expect(called).toBe(0);
       expect(r.produced).toBe(0);
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("does not let root allow authorize a private fetch target", async () => {
+    const cfg = {
+      schema_version: "1",
+      sources: [
+        approvedSource({ source_id: "S9", fetch_paths: ["/private"] }),
+      ],
+    };
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg), "utf8");
+    let called = 0;
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch() {
+        called += 1;
+        return { ok: true, items: [] };
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(called).toBe(0);
+      expect(r.fetched).toEqual([]);
+      expect(r.produced).toBe(0);
+      expect(r.errors["S9:/private"]).toBe("fetch_target_not_allowed");
     } finally {
       fs.rmSync(cfgPath, { force: true });
       fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
