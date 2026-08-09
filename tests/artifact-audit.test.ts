@@ -69,8 +69,10 @@ describe("production artifact boundary", () => {
     const manifest = asRecord(readJson(PUBLIC, "manifest.json"));
     expect(asArray(manifest.entries)).toHaveLength(0);
     expect(asArray(readJson(PUBLIC, "search.json"))).toHaveLength(0);
-    expect(fs.existsSync(path.join(PUBLIC, "zh", "news"))).toBe(false);
-    expect(fs.existsSync(path.join(DEFAULT, "zh", "news"))).toBe(false);
+    expect(fs.existsSync(path.join(PUBLIC, "zh", "news", "index.html"))).toBe(true);
+    expect(fs.existsSync(path.join(DEFAULT, "zh", "news", "index.html"))).toBe(true);
+    expect(fs.existsSync(path.join(PUBLIC, "zh", "news", "2026"))).toBe(false);
+    expect(fs.existsSync(path.join(DEFAULT, "zh", "news", "2026"))).toBe(false);
   });
 
   it("production output contains no synthetic/demo markers or external scripts", () => {

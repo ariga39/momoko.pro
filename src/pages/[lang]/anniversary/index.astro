@@ -1,0 +1,43 @@
+---
+import DemoNotice from "../../../components/DemoNotice.astro";
+import PageIntro from "../../../components/PageIntro.astro";
+import SiteLayout from "../../../components/SiteLayout.astro";
+import { ml, type Locale } from "../../../lib/messages.ts";
+import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
+
+export function getStaticPaths() {
+  return [
+    { params: { lang: "zh" } },
+    { params: { lang: "ja" } },
+    { params: { lang: "en" } },
+  ];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = ml(lang);
+const catalog = loadVisualCatalog();
+---
+
+<SiteLayout lang={lang} title={`${t.navAnniversary()} · ${t.home()}`} canonicalPath={`/${lang}/anniversary/`}>
+  <DemoNotice lang={lang} catalog={catalog} />
+  <PageIntro eyebrow="05 / calendar marks" title={t.visualAnniversary()} lede={t.visualArchiveLede()} />
+  {catalog.anniversaries.length > 0 ? (
+    <ol class="anniversary-grid">
+      {catalog.anniversaries.map((item, index) => (
+        <li class="anniversary-card">
+          <span class="anniversary-number">{String(index + 1).padStart(2, "0")}</span>
+          <div>
+            <p class="card-eyebrow">{item.year}</p>
+            <h2 class="card-title">{item.label[lang]}</h2>
+            <p class="card-body">{item.note[lang]}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  ) : (
+    <section class="empty-state" aria-labelledby="anniversary-empty-title">
+      <h2 id="anniversary-empty-title" class="section-title">{t.visualEmptyTitle()}</h2>
+      <p class="mt-3 text-text-secondary">{t.visualEmptyBody()}</p>
+    </section>
+  )}
+</SiteLayout>

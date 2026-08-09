@@ -1,0 +1,88 @@
+---
+import DemoNotice from "../../../components/DemoNotice.astro";
+import EditorialCard from "../../../components/EditorialCard.astro";
+import PageIntro from "../../../components/PageIntro.astro";
+import SiteLayout from "../../../components/SiteLayout.astro";
+import { loadPublishedNews, resolveLocale } from "../../../lib/content.ts";
+import { ml, type Locale } from "../../../lib/messages.ts";
+import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
+
+export function getStaticPaths() {
+  return [
+    { params: { lang: "zh" } },
+    { params: { lang: "ja" } },
+    { params: { lang: "en" } },
+  ];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = ml(lang);
+const catalog = loadVisualCatalog();
+const items = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
+const years = [...new Set(items.map((item) => item.canonical.publishedAt.slice(0, 4)))].sort().reverse();
+---
+
+<SiteLayout lang={lang} title={`${t.navNews()} · ${t.home()}`} canonicalPath={`/${lang}/news/`}>
+  <DemoNotice lang={lang} catalog={catalog} />
+  <PageIntro eyebrow="01 / archive" title={t.navNews()} lede={t.visualArchiveLede()} />
+
+  <form class="filter-bar" id="news-filter" method="get" action={`/${lang}/news/`}>
+    <label class="filter-field" for="archive-year">
+      {t.visualYear()}
+      <select id="archive-year" name="year">
+        <option value="">{t.visualAll()}</option>
+        {years.map((year) => <option value={year}>{year}</option>)}
+      </select>
+    </label>
+    <button class="button-secondary" type="submit">{t.visualResults()}</button>
+    <p class="filter-hint" id="news-filter-status" aria-live="polite">{items.length} {t.visualResults()}</p>
+  </form>
+
+  {items.length > 0 ? (
+    <ul class="archive-grid" id="news-archive-list">
+      {items.map((item) => {
+        const resolved = resolveLocale(item, lang);
+        const year = item.canonical.publishedAt.slice(0, 4);
+        return (
+          <li data-filter-card data-filter-year={year}>
+            <EditorialCard
+              href={`/${lang}/news/${item.slug}/`}
+              eyebrow={`${year} · ${item.canonical.sourceId}`}
+              title={item.canonical.title}
+              body={resolved.body}
+              meta={resolved.translated ? lang : item.canonical.lang}
+              lang={lang}
+            />
+          </li>
+        );
+      })}
+    </ul>
+  ) : (
+    <section class="empty-state" aria-labelledby="archive-empty-title">
+      <p class="eyebrow">{t.visualArchiveEyebrow()}</p>
+      <h2 id="archive-empty-title" class="section-title">{t.visualEmptyTitle()}</h2>
+      <p class="mt-3 text-text-secondary">{t.visualEmptyBody()}</p>
+    </section>
+  )}
+
+  <script is:inline>
+    const archiveForm = document.getElementById("news-filter");
+    const archiveYear = document.getElementById("archive-year");
+    const archiveCards = [...document.querySelectorAll("[data-filter-card]")];
+    const archiveStatus = document.getElementById("news-filter-status");
+    const archiveApply = () => {
+      const year = archiveYear?.value || "";
+      let visible = 0;
+      archiveCards.forEach((card) => {
+        const matches = !year || card.dataset.filterYear === year;
+        card.hidden = !matches;
+        if (matches) visible += 1;
+      });
+      if (archiveStatus) archiveStatus.textContent = `${visible} results`;
+    };
+    const archiveParams = new URLSearchParams(window.location.search);
+    if (archiveYear) archiveYear.value = /^\d{4}$/.test(archiveParams.get("year") || "") ? archiveParams.get("year") : "";
+    archiveForm?.addEventListener("input", archiveApply);
+    archiveApply();
+  </script>
+</SiteLayout>

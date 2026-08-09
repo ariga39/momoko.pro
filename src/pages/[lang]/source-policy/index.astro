@@ -1,7 +1,10 @@
 ---
+import DemoNotice from "../../../components/DemoNotice.astro";
+import PageIntro from "../../../components/PageIntro.astro";
 import SiteLayout from "../../../components/SiteLayout.astro";
 import { loadPublishedNews } from "../../../lib/content.ts";
 import { ml, type Locale } from "../../../lib/messages.ts";
+import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
 
 export function getStaticPaths() {
   return [
@@ -13,30 +16,42 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = ml(lang);
+const catalog = loadVisualCatalog();
 const sources = loadPublishedNews();
 ---
 
 <SiteLayout lang={lang} title={`${t.policyTitle()} · ${t.home()}`} canonicalPath={`/${lang}/source-policy/`}>
-  <h1 class="text-2xl">{t.policyTitle()}</h1>
-  <p>{t.policyIntro()}</p>
-  <ul class="list-disc pl-6">
-    <li>{t.policyNoCopy()}</li>
-    <li>{t.policyAutomated()}</li>
-    <li>{t.policyRobots()}</li>
-    <li>{t.policyAiUse()}</li>
-  </ul>
-  <h2 class="text-xl">{t.policyCurrentSources()}</h2>
-  {sources.length === 0 ? (
-    <p>{t.policyNoCurrentSources()}</p>
-  ) : (
-    <ul class="list-disc pl-6">
-      {sources.map((s) => (
-        <li>
-          <strong>{s.canonical.sourceId}</strong> — {s.canonical.sourceUrl}
-        </li>
-      ))}
-    </ul>
-  )}
-  <h2 class="text-xl">{t.policyCorrectionTitle()}</h2>
-  <p>{t.policyCorrectionBody()}</p>
+  <DemoNotice lang={lang} catalog={catalog} />
+  <PageIntro eyebrow="08 / boundary notes" title={t.policyTitle()} lede={t.policyIntro()} />
+  <div class="policy-grid">
+    <article class="policy-card"><p class="card-eyebrow">01 / rights</p><h2 class="card-title">{t.policyNoCopy()}</h2></article>
+    <article class="policy-card"><p class="card-eyebrow">02 / automation</p><h2 class="card-title">{t.policyAutomated()}</h2></article>
+    <article class="policy-card"><p class="card-eyebrow">03 / robots</p><h2 class="card-title">{t.policyRobots()}</h2></article>
+    <article class="policy-card"><p class="card-eyebrow">04 / review</p><h2 class="card-title">{t.policyAiUse()}</h2></article>
+  </div>
+  <section class="mt-12" aria-labelledby="current-sources-heading">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">05 / evidence index</p>
+        <h2 id="current-sources-heading" class="section-title">{t.policyCurrentSources()}</h2>
+      </div>
+    </div>
+    {sources.length === 0 ? (
+      <p class="empty-state">{t.policyNoCurrentSources()}</p>
+    ) : (
+      <ul class="source-list">
+        {sources.map((source) => (
+          <li>
+            <strong>{source.canonical.sourceId}</strong>
+            <a href={source.canonical.sourceUrl}>{source.canonical.sourceUrl}</a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+  <section class="policy-card mt-8" aria-labelledby="correction-heading">
+    <p class="card-eyebrow">06 / stewardship</p>
+    <h2 id="correction-heading" class="card-title">{t.policyCorrectionTitle()}</h2>
+    <p class="card-body">{t.policyCorrectionBody()}</p>
+  </section>
 </SiteLayout>

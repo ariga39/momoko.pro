@@ -62,19 +62,19 @@ Routes are `/[lang]/` home, `/[lang]/news/` archive, `/[lang]/news/[...slug]/` d
 
 The explicit `tests/fixtures/content-package/visual-demo` package has a versioned manifest, a schema-validated `visual-catalog.json`, and schema-valid news records. Its notice is required in all three locales and visibly says `DEMO`/`架空示例`; it contains no official images, logos, lyrics, audio, scraped body, or source claim. It is selected only through the existing `MOMOKO_CONTENT_PACKAGE_ROOT` plus `MOMOKO_CONTENT_PACKAGE_MODE=test|dev` contract. There is no independent preview switch.
 
-`PUBLIC_BUILD=1` rejects all content overrides and resolves the checked-in `content/package.json` empty package. Public builds therefore render the truthful trilingual empty state and cannot include a demo title, slug, body, search row, or visual catalog. This boundary is tested before visual pages are expanded.
+`PUBLIC_BUILD=1` rejects all content overrides and resolves the checked-in `content/package.json` empty package. Public builds therefore render the truthful trilingual empty state and cannot include a demo title, slug, body, search row, or visual catalog. The package seam itself also rejects a declared visual catalog unless the root was selected through an explicit test/dev package mode; the public manifest reader has no caller-supplied root argument.
 
 ## Progressive enhancement and test matrix
 
 The mobile menu uses native `<details>` as the no-JS truth. JavaScript only focuses the first link on open, returns focus to the summary on close/Escape, and never uses dialog semantics. Search and filters use URL/query state and retain the complete static list; enhancement updates a live region. Screenshots cover `zh/ja/en` long-title states at 320/375/768/1024/1440, 200% zoom, reduced motion, and forced colors. Playwright checks keyboard order, skip link, menu state/focus, language links, URL filters, DOM overflow, console errors, and visible DEMO labeling. Axe-equivalent checks cover landmarks, headings, accessible names, duplicate IDs, focus-visible, and live-region behavior. Baselines are test-only and use a 0.2% diff threshold with animation/time disabled.
 
-## First implementation checkpoint
+## Implementation checkpoints
 
-The new base and ownership boundary are recorded above. The first red tests are in `tests/phase4a-visual.test.ts` and cover:
+The new base and ownership boundary are recorded above. The first checkpoint (`967e7ae`, then append-only boundary successor `225f156`) added red tests in `tests/phase4a-visual.test.ts` covering:
 
 1. loading the schema-valid visual package and deriving a DEMO catalog;
 2. production-empty behavior under `PUBLIC_BUILD=1`;
 3. native details markup, Escape/focus-return hooks, and non-dialog semantics;
 4. deterministic URL-backed year/type filter parsing and serialization.
 
-At the checkpoint, the tests intentionally fail because the visual loader, native mobile shell, and URL filter module have not yet been implemented. No page, source-policy fact, deployment, or real network behavior is changed by this checkpoint.
+The boundary successor made the public override and `empty + visual_catalog` cases explicit, and added a schema-valid trilingual fictional DEMO news record. The loader/shell checkpoint is `6935b29`; it makes manifest validation and the native details/filter seams green. The follow-up boundary fix is kept in the next successor: `readContentPackageManifest()` always resolves through `getContentRoot()`, and top-level visual catalog entries are rejected for default/production packages before `loadNews()` can consume them. The expanded route/page implementation retains no-JS static truth, and does not change source-policy facts, deployment, or network behavior.

@@ -1,0 +1,10 @@
+---
+interface Props {
+  children: string;
+  tone?: "pink" | "brass" | "ink";
+}
+
+const { children, tone = "pink" } = Astro.props;
+---
+
+<span class={`status-pill status-pill-${tone}`}>{children}</span>

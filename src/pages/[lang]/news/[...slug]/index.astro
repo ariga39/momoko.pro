@@ -1,7 +1,9 @@
 ---
+import DemoNotice from "../../../../components/DemoNotice.astro";
 import SiteLayout from "../../../../components/SiteLayout.astro";
 import { hasTranslation, isCurrentReviewed, isRetracted, loadNews, resolveLocale } from "../../../../lib/content.ts";
 import { ml, type Locale } from "../../../../lib/messages.ts";
+import { loadVisualCatalog } from "../../../../lib/visual-demo.ts";
 
 export function getStaticPaths() {
   const paths = [];
@@ -22,21 +24,21 @@ const slugPath = slug ?? "";
 const item = loadNews().find((i) => i.slug === slugPath);
 const retracted = item ? isRetracted(item) : false;
 const t = ml(lang);
+const catalog = loadVisualCatalog();
 const locale = item && !retracted ? resolveLocale(item, lang) : undefined;
 const translated = item && !retracted ? hasTranslation(item, lang) : false;
 const sourceLang = item?.canonical.lang ?? "ja";
-// 源语言页面（lang===canonical.lang）本身就是内容身份的源页面：
-// self-canonical、按内容状态索引、不显示缺译提示、不 noindex/follow。
-// 仅「非源语言请求且无真实译文」才是 fallback 页（noindex,follow + 缺译提示）。
+// The source-language page is the content identity page: it is self-canonical,
+// follows content status, and never displays a missing-translation notice.
+// Only a non-source request without a real translation is a fallback page.
 const isSourcePage = item ? lang === sourceLang : false;
 const isFallback = !isSourcePage && !translated;
 const effectiveLang = translated || isSourcePage ? lang : sourceLang;
-// 源语言页 robots 按内容状态：reviewed→可索引；draft/stale→noindex,follow。
+// Source-language robots follow lifecycle status.
 const sourceRobots =
   item?.canonical.reviewStatus === "reviewed" ? undefined : ("noindex,follow" as const);
 
-// 内容身份 alternate 集合（design §1.2）：只含源语言页 + 真实翻译页，
-// 缺译的请求 locale 不得进入集合；x-default 指向源语言页。
+// Content alternates include only the source page and real translations.
 const contentAlternates = item
   ? (["ja", "zh", "en"] as Locale[])
       .filter((l) => l === sourceLang || hasTranslation(item, l))
@@ -55,27 +57,36 @@ const contentAlternates = item
   {...(isFallback ? { robots: "noindex,follow" as const } : isSourcePage && sourceRobots ? { robots: sourceRobots } : {})}
   {...(item ? { xDefaultHref: `https://momoko.pro/${sourceLang}/news/${item.slug}/` } : {})}
 >
+  <DemoNotice lang={effectiveLang} catalog={catalog} />
   {item && !retracted && locale ? (
     <>
-      <p><a href={`/${lang}/`}>{t.newsBackToList()}</a></p>
-      <h1 class="text-2xl" lang={effectiveLang}>{item.canonical.title}</h1>
-      <p>
-        <time datetime={item.canonical.publishedAt} class="text-sm text-text-secondary">
-          {item.canonical.publishedAt}
-        </time>
-        {isFallback && (
-          <span class="ml-2 border-l-[3px] border-accent pl-3 text-sm text-text-secondary">
-            {t.newsMissingLocale()}
-          </span>
-        )}
-      </p>
-      <p class="text-sm text-text-secondary">
-        {t.newsRiskTier({ tier: item.canonical.riskTier })} · {t.newsReviewStatus({ status: item.canonical.reviewStatus })} ·{" "}
-        {t.newsSource({ source: item.canonical.sourceId })}
-      </p>
-      <article>{locale.body}</article>
+      <p class="mb-6"><a href={`/${lang}/news/`}>{t.newsBackToList()}</a></p>
+      <article class="detail-layout">
+        <aside class="detail-meta" aria-label="Content metadata">
+          <p class="eyebrow">{item.canonical.publishedAt.slice(0, 10)}</p>
+          <p>{t.newsRiskTier({ tier: item.canonical.riskTier })}</p>
+          <p>{t.newsReviewStatus({ status: item.canonical.reviewStatus })}</p>
+          <p>{t.newsSource({ source: item.canonical.sourceId })}</p>
+          {isFallback && <p class="fallback-note">{t.newsMissingLocale()}</p>}
+        </aside>
+        <div class="detail-body">
+          <h1 class="display-title" lang={effectiveLang}>{item.canonical.title}</h1>
+          <p class="detail-date">
+            <time datetime={item.canonical.publishedAt}>{item.canonical.publishedAt}</time>
+          </p>
+          <div class="prose-block" lang={effectiveLang}>{locale.body}</div>
+          <div class="detail-callout">
+            <p class="card-eyebrow">{t.visualSourcePolicy()}</p>
+            <p>{t.policyCorrectionBody()}</p>
+          </div>
+        </div>
+      </article>
     </>
   ) : (
-    <p>{t.newsEmpty()}</p>
+    <section class="empty-state" aria-labelledby="missing-news-title">
+      <p class="eyebrow">{t.visualArchiveEyebrow()}</p>
+      <h1 id="missing-news-title" class="section-title">{t.visualEmptyTitle()}</h1>
+      <p class="mt-3 text-text-secondary">{t.newsEmpty()}</p>
+    </section>
   )}
 </SiteLayout>

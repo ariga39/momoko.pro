@@ -23,7 +23,10 @@ const { lang, title, description, canonicalPath, noindex, robots, bodyData, alte
 const t = ml(lang);
 const robotsContent = robots ?? (noindex ? "noindex" : undefined);
 const nav = [
-  { href: getRelativeLocaleUrl(lang, "/"), label: t.navNews() },
+  { href: getRelativeLocaleUrl(lang, "/news/"), label: t.navNews() },
+  { href: getRelativeLocaleUrl(lang, "/encyclopedia/"), label: t.navEncyclopedia() },
+  { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongsLive() },
+  { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navAnniversary() },
   { href: getRelativeLocaleUrl(lang, "/about/"), label: t.navAbout() },
   { href: getRelativeLocaleUrl(lang, "/source-policy/"), label: t.navSourcePolicy() },
   { href: "/search", label: t.navSearch() },
@@ -85,7 +88,7 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
               <span class="sr-only">{t.navMain()}</span>
             </summary>
             <div class="mobile-menu-panel" data-menu-panel>
-              <nav aria-label={t.navMain()}>
+              <nav aria-label={`${t.navMain()} mobile`}>
                 <ul class="grid gap-2">
                   {nav.map((item) => (
                     <li>
@@ -95,7 +98,7 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
                 </ul>
               </nav>
               <div class="border-t border-border pt-3 sm:hidden">
-                <LanguageSwitcher current={lang} />
+                <LanguageSwitcher current={lang} ariaLabel={`${t.navLanguage()} mobile`} />
               </div>
             </div>
           </details>

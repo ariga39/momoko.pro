@@ -1,6 +1,9 @@
 ---
+import DemoNotice from "../../../components/DemoNotice.astro";
+import PageIntro from "../../../components/PageIntro.astro";
 import SiteLayout from "../../../components/SiteLayout.astro";
 import { ml, type Locale } from "../../../lib/messages.ts";
+import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
 
 export function getStaticPaths() {
   return [
@@ -12,9 +15,21 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = ml(lang);
+const catalog = loadVisualCatalog();
 ---
 
 <SiteLayout lang={lang} title={`${t.aboutTitle()} · ${t.home()}`} canonicalPath={`/${lang}/about/`}>
-  <h1 class="text-2xl">{t.aboutTitle()}</h1>
-  <p lang={lang}>{t.aboutBody()}</p>
+  <DemoNotice lang={lang} catalog={catalog} />
+  <PageIntro eyebrow="07 / about the desk" title={t.aboutTitle()} lede={t.visualArchiveLede()} />
+  <div class="about-layout">
+    <article class="about-copy">
+      <p>{t.aboutBody()}</p>
+      <p>{t.visualEmptyBody()}</p>
+    </article>
+    <aside class="policy-card">
+      <p class="card-eyebrow">{t.visualSourcePolicy()}</p>
+      <h2 class="card-title">{t.policyCorrectionTitle()}</h2>
+      <p class="card-body">{t.policyCorrectionBody()}</p>
+    </aside>
+  </div>
 </SiteLayout>
