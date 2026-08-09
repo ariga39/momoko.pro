@@ -12,6 +12,10 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const DIST_A = path.join(REPO_ROOT, "dist-a");
 const DIST_B = path.join(REPO_ROOT, "dist-b");
+const PRODUCTION_ENV = { ...process.env };
+delete PRODUCTION_ENV.MOMOKO_CONTENT_PACKAGE_ROOT;
+delete PRODUCTION_ENV.MOMOKO_CONTENT_PACKAGE_MODE;
+delete PRODUCTION_ENV.MOMOKO_BUILD_OUT_DIR;
 
 function remove(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
@@ -21,17 +25,15 @@ function build(outDir) {
   remove(outDir);
   execFileSync("pnpm", ["exec", "astro", "build", "--outDir", outDir], {
     cwd: REPO_ROOT,
+    env: PRODUCTION_ENV,
     stdio: "inherit",
   });
-  // postbuild artifacts live under dist/; replicate into outDir
+  // Postbuild receives the same isolated output directory explicitly.
   execFileSync(
     "node",
     ["--experimental-strip-types", "tools/schema/postbuild.ts"],
-    { cwd: REPO_ROOT, stdio: "inherit" },
+    { cwd: REPO_ROOT, env: { ...PRODUCTION_ENV, MOMOKO_BUILD_OUT_DIR: outDir }, stdio: "inherit" },
   );
-  if (outDir !== path.join(REPO_ROOT, "dist")) {
-    fs.cpSync(path.join(REPO_ROOT, "dist"), outDir, { recursive: true });
-  }
 }
 
 function snapshot(dir) {

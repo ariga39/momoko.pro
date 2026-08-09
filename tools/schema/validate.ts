@@ -60,8 +60,8 @@ export interface FrontmatterDoc {
   data: Record<string, unknown>;
 }
 
-export function collectContentFiles(): FrontmatterDoc[] {
-  const root = path.join(REPO_ROOT, "content");
+export function collectContentFiles(contentRoot = path.join(REPO_ROOT, "content")): FrontmatterDoc[] {
+  const root = path.resolve(contentRoot);
   const out: FrontmatterDoc[] = [];
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

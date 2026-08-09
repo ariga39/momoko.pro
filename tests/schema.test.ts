@@ -8,7 +8,7 @@ import {
   validateFile,
   validateSources,
 } from "../tools/schema/validate.ts";
-import { loadNews, resolveLocale } from "../src/lib/content.ts";
+import { getContentRoot, loadNews, resolveLocale } from "../src/lib/content.ts";
 
 const fakeSource = (over: Record<string, unknown> = {}) => ({
   source_id: "S9",
@@ -69,7 +69,7 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
 
 describe("schemas/content.schema.json — reviewed 条件约束", () => {
   it("all content fixtures pass their schema", () => {
-    const files = collectContentFiles();
+    const files = collectContentFiles(getContentRoot());
     expect(files.length).toBeGreaterThan(0);
     for (const f of files) {
       const r = validateContentFile(f);

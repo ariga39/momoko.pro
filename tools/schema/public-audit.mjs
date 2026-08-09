@@ -27,8 +27,12 @@ function main() {
   const files = walk(dist);
   const problems = [];
 
-  // 1) Forbidden content markers (retracted/draft/stale detail paths).
+  // 1) Forbidden content markers (retracted/draft/stale detail paths and
+  // synthetic/demo material that must stay in explicit test packages).
   const forbiddenPath = /synth-2026-08-08-00(2|3)/;
+  const forbiddenDemo = /synthetic|合成夹具|demo news|fake news/i;
+  const forbiddenMediaPath = /\.(?:png|jpe?g|gif|webp|svg|mp3|wav|ogg|m4a|flac|mp4|webm)$/i;
+  const forbiddenRuntimePath = /(?:^|[/._-])(?:crawler|cron|deploy|maintenance|research)(?:[/._-]|$)/i;
   // 2) Controlled raw/secret-shaped markers: we never place real values in the
   //    output, only detect suspicious shapes.
   const secretShapes = [
@@ -42,10 +46,25 @@ function main() {
       problems.push(`forbidden draft/stale/retracted path in public build: ${rel}`);
       continue;
     }
+    if (forbiddenMediaPath.test(rel)) {
+      problems.push(`copyrighted-media-shaped file in public build: ${rel}`);
+    }
+    if (forbiddenRuntimePath.test(rel)) {
+      problems.push(`research/maintenance runtime path in public build: ${rel}`);
+    }
     if (!/\.(html|json|css|js)$/.test(f)) continue;
     const text = fs.readFileSync(f, "utf-8");
     if (forbiddenPath.test(text)) {
       problems.push(`forbidden content marker in ${rel}`);
+    }
+    if (forbiddenDemo.test(text)) {
+      problems.push(`synthetic/demo marker in ${rel}`);
+    }
+    if (/<script[^>]+src=["']https?:\/\//i.test(text)) {
+      problems.push(`external script in ${rel}`);
+    }
+    if (/<(?:img|audio|video|source)\b/i.test(text)) {
+      problems.push(`media markup in ${rel}`);
     }
     for (const [i, re] of secretShapes.entries()) {
       if (re.test(text)) {

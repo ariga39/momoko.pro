@@ -1,11 +1,15 @@
 ---
 import SiteLayout from "../../../../components/SiteLayout.astro";
-import { hasTranslation, isRetracted, loadNews, resolveLocale } from "../../../../lib/content.ts";
+import { hasTranslation, isCurrentReviewed, isRetracted, loadNews, resolveLocale } from "../../../../lib/content.ts";
 import { ml, type Locale } from "../../../../lib/messages.ts";
 
 export function getStaticPaths() {
   const paths = [];
-  for (const item of loadNews().filter((candidate) => !isRetracted(candidate))) {
+  const lifecyclePreview = process.env.MOMOKO_CONTENT_PACKAGE_PREVIEW === "1";
+  const candidates = lifecyclePreview
+    ? loadNews().filter((candidate) => !isRetracted(candidate))
+    : loadNews().filter(isCurrentReviewed);
+  for (const item of candidates) {
     for (const lang of ["zh", "ja", "en"]) {
       paths.push({ params: { lang, slug: item.slug } });
     }
