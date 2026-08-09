@@ -19,6 +19,19 @@
       "type": "string",
       "pattern": "^S[0-9]+$"
     },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "evidence"],
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "人工核验证据（如 robots 文本段落 / 条款链接与摘录 + 核验时间），缺失不得视为允许"
+        }
+      }
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
@@ -32,6 +45,8 @@
         "robots_note": { "type": "string" },
         "terms_url": { "type": ["string", "null"], "format": "uri" },
         "terms_note": { "type": "string" },
+        "robots_approved": { "$ref": "#/$defs/approval" },
+        "terms_approved": { "$ref": "#/$defs/approval" },
         "automated_fetch": { "type": "boolean" },
         "fetch_frequency": { "enum": ["manual", "daily", "weekly"] },
         "cache_boundary": { "type": "string" },
@@ -40,7 +55,14 @@
       "allOf": [
         {
           "if": { "properties": { "automated_fetch": { "const": true } } },
-          "then": { "properties": { "fetch_frequency": { "not": { "const": "manual" } } } }
+          "then": {
+            "properties": {
+              "fetch_frequency": { "not": { "const": "manual" } },
+              "robots_approved": { "$ref": "#/$defs/approval" },
+              "terms_approved": { "$ref": "#/$defs/approval" }
+            },
+            "required": ["robots_approved", "terms_approved"]
+          }
         },
         {
           "if": { "properties": { "automated_fetch": { "const": false } } },

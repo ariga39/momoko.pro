@@ -132,6 +132,8 @@ def _source(**over) -> dict:
         "robots_note": "Allow: /",
         "terms_url": "https://example.com/terms",
         "terms_note": "公开条款允许抓取",
+        "robots_approved": {"allowed": False, "evidence": "未批准（默认）"},
+        "terms_approved": {"allowed": False, "evidence": "未批准（默认）"},
         "automated_fetch": False,
         "fetch_frequency": "manual",
         "cache_boundary": "仅归档 URL，不复制正文",
@@ -164,7 +166,9 @@ CASES: list[tuple[str, dict, bool]] = [
     # source: positive — approved automated_fetch=true with non-manual frequency
     (
         "source.schema.json",
-        {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily")]},
+        {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily",
+            robots_approved={"allowed": True, "evidence": "robots Allow: /（2026-08-09 核验）"},
+            terms_approved={"allowed": True, "evidence": "条款明确允许抓取（2026-08-09 核验）"})]},
         True,
     ),
     # source: negative — automated_fetch=true cannot be manual frequency

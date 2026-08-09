@@ -19,6 +19,8 @@ const fakeSource = (over: Record<string, unknown> = {}) => ({
   robots_note: "Allow: /",
   terms_url: "https://example.com/terms",
   terms_note: "公开条款允许抓取",
+  robots_approved: { allowed: false, evidence: "未批准（默认）" },
+  terms_approved: { allowed: false, evidence: "未批准（默认）" },
   automated_fetch: false,
   fetch_frequency: "manual",
   cache_boundary: "仅归档 URL",
@@ -30,7 +32,12 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
   const wrap = (s: unknown) => ({ schema_version: "1", sources: [s] });
 
   it("approved automated_fetch=true with non-manual frequency passes", () => {
-    const r = validateFile("source.schema.json", wrap(fakeSource({ automated_fetch: true, fetch_frequency: "daily" })));
+    const r = validateFile("source.schema.json", wrap(fakeSource({
+      automated_fetch: true,
+      fetch_frequency: "daily",
+      robots_approved: { allowed: true, evidence: "robots Allow: /（2026-08-09 核验）" },
+      terms_approved: { allowed: true, evidence: "条款明确允许抓取（2026-08-09 核验）" },
+    })));
     expect(r.valid).toBe(true);
   });
 
