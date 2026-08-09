@@ -13,23 +13,32 @@
     "build": "astro build",
     "build:post": "node --experimental-strip-types tools/schema/postbuild.ts",
     "build:verify": "node tools/schema/determinism.mjs",
-    "check": "astro check",
+    "check": "pnpm lint && pnpm typecheck",
     "test": "vitest run",
     "test:schema": "vitest run tests/schema.test.ts",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "pnpm lint --fix",
+    "typecheck": "astro check"
   },
   "dependencies": {
     "astro": "^5.1.0"
   },
   "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@eslint/js": "9.39.5",
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "eslint": "9.39.5",
+    "eslint-plugin-astro": "~1.7.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "globals": "17.9.0",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "8.66.0",
     "vitest": "^2.1.0"
   }
 }

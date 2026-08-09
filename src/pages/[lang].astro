@@ -1,5 +1,5 @@
 ---
-import { hasTranslation, loadNews, resolveLocale } from "../lib/content.ts";
+import { hasTranslation, loadNews } from "../lib/content.ts";
 
 export function getStaticPaths() {
   return [
@@ -12,7 +12,7 @@ export function getStaticPaths() {
 const { lang } = Astro.params as { lang: "zh" | "ja" | "en" };
 const items = loadNews();
 const entries = items
-  .map((item) => ({ item, locale: resolveLocale(item, lang) }))
+  .map((item) => ({ item }))
   .sort((a, b) => b.item.canonical.publishedAt.localeCompare(a.item.canonical.publishedAt));
 
 const langNames = { zh: "中文", ja: "日本語", en: "English" } as const;
@@ -46,7 +46,7 @@ const canonical = `https://momoko.pro/${lang}`;
         <p>暂无内容。</p>
       ) : (
         <ul>
-          {entries.map(({ item, locale }) => (
+          {entries.map(({ item }) => (
             <li>
               <a href={`/${lang}/news/${item.slug}/`} lang={lang}>
                 {item.canonical.title}
