@@ -66,6 +66,7 @@ describe("translation eligibility — fail-closed", () => {
     const item1 = items.find((i) => i.slug.includes("001"))!;
     // write a temp retraction record pointing at item1, then reload
     const retrDir = path.join(REPO_ROOT, "content", "retractions");
+    const retrDirExisted = fs.existsSync(retrDir);
     fs.mkdirSync(retrDir, { recursive: true });
     const file = path.join(retrDir, "probe.json");
     fs.writeFileSync(
@@ -86,7 +87,7 @@ describe("translation eligibility — fail-closed", () => {
       expect(resolveLocale(reloaded, "zh").translated).toBe(false);
     } finally {
       fs.rmSync(file, { force: true });
-      fs.rmdirSync(retrDir, { recursive: true });
+      if (!retrDirExisted) fs.rmdirSync(retrDir, { recursive: true });
     }
   });
 });
