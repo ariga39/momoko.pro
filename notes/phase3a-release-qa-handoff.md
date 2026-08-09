@@ -36,6 +36,6 @@ the Playwright E2E smoke. Human review uses the local build.
 
 ## Verification (cold, dedicated worktree)
 
-`pnpm check` 0/0/0; `pnpm test` 106 passed; `pnpm build:verify` 22 files
+`pnpm check` 0/0/0; `pnpm test` 101 passed; `pnpm build:verify` 22 files
 byte-identical; public build deterministic (double build diff empty);
 `pnpm test:e2e` 14/14. No production deploy; no workflow actually dispatched.
