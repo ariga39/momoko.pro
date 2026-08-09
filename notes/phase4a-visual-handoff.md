@@ -50,7 +50,7 @@ SiteLayout
 Routes are `/[lang]/` home, `/[lang]/news/` archive, `/[lang]/news/[...slug]/` detail, `/[lang]/encyclopedia/`, `/[lang]/songs-live/`, `/[lang]/anniversary/`, `/search`, `/[lang]/about/`, and `/[lang]/source-policy/`.
 
 - Home: hero (editorial label/title/lede/actions plus folio stamp), status strip, three-card latest notes, archive teaser, quick links. Mobile stacks the stamp and cards without viewport overflow.
-- News archive: intro, URL-backed filter chips, featured note, two-column desktop cards, month rail; mobile wraps chips and stacks cards.
+- News archive: intro, URL-backed year filter, result live region, and editorial card grid; mobile wraps controls and stacks cards.
 - News detail: back link, metadata rail, title/body, source/correction panel, related notes; metadata precedes title on mobile.
 - Encyclopedia: intro, index chips, portrait-free dossier cards, aliases/tags, related notes; one stack at 320px.
 - Songs/live: year/type URL controls, timeline and compact table on desktop; numbered cards with date/type/title/source on mobile.
@@ -66,7 +66,7 @@ The explicit `tests/fixtures/content-package/visual-demo` package has a versione
 
 ## Progressive enhancement and test matrix
 
-The mobile menu uses native `<details>` as the no-JS truth. JavaScript only focuses the first link on open, returns focus to the summary on close/Escape, and never uses dialog semantics. Search and filters use URL/query state and retain the complete static list; enhancement updates a live region. Screenshots cover `zh/ja/en` long-title states at 320/375/768/1024/1440, 200% zoom, reduced motion, and forced colors. Playwright checks keyboard order, skip link, menu state/focus, language links, URL filters, DOM overflow, console errors, and visible DEMO labeling. Axe-equivalent checks cover landmarks, headings, accessible names, duplicate IDs, focus-visible, and live-region behavior. Baselines are test-only and use a 0.2% diff threshold with animation/time disabled.
+The mobile menu uses native `<details>` as the no-JS truth. JavaScript only focuses the first link on open, returns focus to the summary on close/Escape, and never uses dialog semantics. Search and filters use URL/query state and retain the complete static list; enhancement updates a live region. Playwright checks keyboard order, skip link, menu state/focus, language links, URL filters, DOM overflow at 320/375/1440, console errors, and external-request absence. The browser a11y gate runs `axe-core` 4.13.0 against representative demo home, encyclopedia, and songs/live pages; the separate media test covers 200% root-size reflow, forced colors, and reduced motion. Baselines are test-only and use a 0.2% diff threshold, CSS scale, `document.fonts.ready`, reduced motion, hidden caret, and disabled animations. The stable-font strategy is the repository's system/display/mono stacks only: no remote font or time-dependent asset is loaded.
 
 ## Implementation checkpoints
 
@@ -78,3 +78,18 @@ The new base and ownership boundary are recorded above. The first checkpoint (`9
 4. deterministic URL-backed year/type filter parsing and serialization.
 
 The boundary successor made the public override and `empty + visual_catalog` cases explicit, and added a schema-valid trilingual fictional DEMO news record. The loader/shell checkpoint is `6935b29`; it makes manifest validation and the native details/filter seams green. The follow-up boundary fix is kept in the next successor: `readContentPackageManifest()` always resolves through `getContentRoot()`, and top-level visual catalog entries are rejected for default/production packages before `loadNews()` can consume them. The expanded route/page implementation retains no-JS static truth, and does not change source-policy facts, deployment, or network behavior.
+
+## Final visual closure evidence
+
+The final closure candidate adds `e2e/phase4a.visual.spec.ts`. Its isolated browser fixture server builds only the explicit `visual-demo` package into `dist-visual-e2e`; it does not fetch, publish, deploy, or use an external URL. The four committed screenshot baselines are:
+
+| Baseline | Route | Viewport | State |
+| --- | --- | --- | --- |
+| `phase4a-zh-detail-320-linux.png` | `/zh/news/2026/S99-visual-demo-archive-001/` | 320px | DEMO long title/detail |
+| `phase4a-ja-detail-375-linux.png` | `/ja/news/2026/S99-visual-demo-archive-001/` | 375px | DEMO long title/detail |
+| `phase4a-en-detail-375-linux.png` | `/en/news/2026/S99-visual-demo-archive-001/` | 375px | DEMO long title/detail |
+| `phase4a-en-songs-live-1440-linux.png` | `/en/songs-live/` | 1440px | dense DEMO timeline |
+
+Every baseline uses a maximum `0.002` pixel-difference ratio, `animations: disabled`, reduced motion, CSS scale, hidden caret, and fonts-ready synchronization. The artifact audit now builds default/public-empty, synthetic, and explicit visual-demo outputs separately; it asserts the public manifest has zero entries and no S99/DEMO fixture markers while the visual artifact has the one S99 entry and visible DEMO markers. This is an artifact-set check, not a claim that demo content is production truth.
+
+Final machine gates to record against the frozen successor: full `pnpm test`, `pnpm check`, default/public and explicit-demo builds plus public audit, `pnpm build:verify`, `pnpm test:e2e`, `git diff --check`, and a changed-tree secret/PII scan. The exact candidate SHA, base, clean status, and these counts must be updated here before the independent visual/a11y peer is assigned.
