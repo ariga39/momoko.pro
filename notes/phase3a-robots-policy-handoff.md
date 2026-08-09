@@ -83,7 +83,8 @@ were changed.
 ## Successor verification
 
 The narrow successor reran the focused source-policy/schema/ingest suite with
-81 passing tests and the full suite with 132 passing tests. It added direct
+81 passing tests and the full suite with 135 passing tests (`81 focused / 135
+full`). It added direct
 `decideSourceAccess()`, `sourceAllowedToFetch()`, and `runCron()` regressions;
 the latter asserts zero adapter calls for an automated `not_applicable`
 source. `pnpm check` has
