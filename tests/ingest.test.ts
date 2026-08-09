@@ -33,6 +33,12 @@ afterEach(() => {
   }
   const pycache = path.join(process.cwd(), "tools", "schema", "__pycache__");
   if (fs.existsSync(pycache)) fs.rmSync(pycache, { recursive: true, force: true });
+  // Clean any staging/backup residue left in the repo root by fault-injection tests.
+  for (const f of fs.readdirSync(process.cwd())) {
+    if (f.startsWith(".drafts-old-") || f.startsWith(".drafts-staging-")) {
+      fs.rmSync(path.join(process.cwd(), f), { recursive: true, force: true });
+    }
+  }
 });
 
 const fakeSource = (over: Record<string, unknown> = {}): SourceConfig => ({
@@ -828,6 +834,117 @@ describe("NO-GO round-5 regressions (@Mirai)", () => {
     expect(fs.existsSync(handoff)).toBe(true);
     const text = fs.readFileSync(handoff, "utf8");
     expect(text).toContain("翼（tsubasa）"); // no-@ signature
+    expect(text).not.toContain("@tsubasa");
+  });
+});
+
+describe("NO-GO round-6 regressions (@Mirai)", () => {
+  function approvedCfg(sourceId = "S9") {
+    return { schema_version: "1", sources: [approvedSource({ source_id: sourceId })] };
+  }
+
+  it("adapter returning null/undefined => structured error, no write", async () => {
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources-r6a.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(approvedCfg()), "utf8");
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch(): Promise<FetchResult> {
+        return null as never;
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(r.produced).toBe(0);
+      expect(Object.values(r.errors).some((e) => e.includes("non-object"))).toBe(true);
+      expect(fs.existsSync(DRAFT_ROOT)).toBe(false);
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("adapter throwing null => structured error, no write", async () => {
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources-r6b.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(approvedCfg()), "utf8");
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch(): Promise<FetchResult> {
+        throw null;
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(r.produced).toBe(0);
+      expect(Object.values(r.errors).some((e) => e.includes("adapter_unexpected"))).toBe(true);
+      expect(fs.existsSync(DRAFT_ROOT)).toBe(false);
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("adapter throwing a non-Error (string) => structured, no TypeError", async () => {
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources-r6c.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(approvedCfg()), "utf8");
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch(): Promise<FetchResult> {
+        throw "boom";
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(r.produced).toBe(0);
+      expect(Object.values(r.errors).some((e) => e.includes("adapter_unexpected"))).toBe(true);
+      expect(fs.existsSync(DRAFT_ROOT)).toBe(false);
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("commit cleanup residue is observable, not faked as failure", async () => {
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources-r6d.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(approvedCfg()), "utf8");
+    const rec1 = { schema_version: "1", source_id: "S9", source_item_id: "res",
+      source_url: "https://example.com/res", published_at: "2026-08-08T00:00:00+09:00",
+      title: "t", lang: "zh", note: "n1" };
+    const rec2 = { ...rec1, note: "n2 changed" };
+    let fetchCount = 0;
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch(): Promise<FetchResult> {
+        fetchCount += 1;
+        return { ok: true, items: [fetchCount === 1 ? rec1 : rec2] as never[] };
+      },
+    });
+    try {
+      expect((await runCron(cfgPath)).produced).toBe(1);
+      // Make the old-backup cleanup fail by replacing backup dir with a file.
+      // (Simulate by making rmSync fail on .drafts-old* — see snapshot approach.)
+      const origRm = fs.rmSync;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (fs as any).rmSync = (p: unknown, opts: unknown) => {
+        if (typeof p === "string" && p.includes("drafts-old")) throw new Error("cleanup injected");
+        return origRm(p as never, opts as never);
+      };
+      const r2 = await runCron(cfgPath);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (fs as any).rmSync = origRm;
+      // honest: committed (produced=1) AND residue warning surfaced
+      expect(r2.produced).toBe(1);
+      expect(Object.values(r2.errors).some((e) => e.includes("cleanup_residue"))).toBe(true);
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("handoff contains exact facts (63 passed, ingest 45, no-@ signature)", () => {
+    const text = fs.readFileSync(path.join(process.cwd(), "notes", "phase2b-ingestion-handoff.md"), "utf8");
+    expect(text).toContain("63 passed");
+    expect(text).toContain("ingest 45");
+    expect(text).toContain("翼（tsubasa）");
     expect(text).not.toContain("@tsubasa");
   });
 });

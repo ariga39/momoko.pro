@@ -467,10 +467,12 @@ export function planVersionFor(
 
 /** Serialize a batch of planned artifacts into a fresh staging directory,
  * then atomically swap it in as DRAFT_ROOT (temp dir + rename). On any write
- * failure the staging dir is removed and DRAFT_ROOT is untouched. */
+ * or commit failure the staging dir is removed and DRAFT_ROOT is untouched
+ * (zero state change). Returns whether the batch committed and whether a
+ * best-effort old-tree backup cleanup left residue (observable, honest). */
 export function commitPlannedBatch(
   artifacts: Array<{ relPath: string; content: string }>,
-): void {
+): { committed: boolean; cleanupResidue: boolean } {
   const root = path.resolve(DRAFT_ROOT);
   // Reject a symlink/irregular root before doing anything.
   if (fs.existsSync(root)) {
@@ -524,14 +526,16 @@ export function commitPlannedBatch(
       }
       throw err;
     }
-    // Committed. Best-effort backup cleanup; residue is honest, not failure.
+    // Committed. Best-effort backup cleanup; residue is reported honestly.
+    let cleanupResidue = false;
     if (movedOld) {
       try {
         fs.rmSync(backup, { recursive: true, force: true });
       } catch {
-        // leave backup; caller can observe residue via commit note
+        cleanupResidue = true; // backup left behind; observable via result
       }
     }
+    return { committed: true, cleanupResidue };
   } catch (err) {
     try { fs.rmSync(staging, { recursive: true, force: true }); } catch { /* ignore */ }
     throw err;
@@ -586,15 +590,22 @@ export async function runCron(sourcesPath?: string): Promise<{
       continue;
     }
     fetched.push(source.source_id);
-    let result: FetchResult;
+    let result: FetchResult | null | undefined;
     try {
       result = await adapter.fetch(source);
     } catch (err) {
-      errors[source.source_id] = `unexpected: ${(err as Error).message}`;
+      // adapter may throw null / a primitive / non-Error; fail closed.
+      const msg = err instanceof Error ? err.message : `non-error thrown: ${String(err)}`;
+      errors[source.source_id] = `adapter_unexpected: ${msg}`;
       anyError = true;
       continue;
     }
-    if (!result.ok) {
+    if (result === null || result === undefined || typeof result !== "object") {
+      errors[source.source_id] = "adapter_unexpected: fetch returned non-object";
+      anyError = true;
+      continue;
+    }
+    if (result.ok !== true) {
       errors[source.source_id] = result.error ?? result.code ?? "fetch_failed";
       anyError = true;
       continue;
@@ -659,7 +670,10 @@ export async function runCron(sourcesPath?: string): Promise<{
   // Any commit failure is a structured error with NO state change.
   if (artifacts.length > 0) {
     try {
-      commitPlannedBatch(artifacts);
+      const res = commitPlannedBatch(artifacts);
+      if (res.cleanupResidue) {
+        errors["commit"] = "commit_ok_with_cleanup_residue";
+      }
     } catch (err) {
       errors["commit"] = `commit_failed: ${(err as Error).message}`;
       return { fetched, produced: 0, duplicates: 0, errors };

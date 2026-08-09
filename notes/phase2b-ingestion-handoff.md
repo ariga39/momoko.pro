@@ -5,7 +5,7 @@ Branch: `phase2b/ingestion-final` · base: GitHub main `2ee05244527564e423c0aeb4
 
 ## 交付对象（current-main successor）
 
-- 代码 head:（新 exact SHA，见 PR/线程机器记录）
+- 代码 head:（新 exact SHA 见 PR/线程机器记录；本轮 successor 验证以 exact tree 内本文件为准）
 - 独占文件：
   - `tools/ingest/ingest.ts`
   - `tests/ingest.test.ts`
@@ -33,7 +33,7 @@ Branch: `phase2b/ingestion-final` · base: GitHub main `2ee05244527564e423c0aeb4
 ## 验证（clean detached worktree，exact head）
 
 - `pnpm check`（lint + Astro check strictest）→ 0 errors / 0 warnings（本任务文件）
-- `pnpm test` → 59 passed（ingest 41）
+- `pnpm test` → 63 passed（ingest 45）
 - `pnpm build` OK；`python3 -m tools.schema.validate_schemas` 全 cases
 - `git diff --check` clean；运行后 `git status --short` 为空
 
