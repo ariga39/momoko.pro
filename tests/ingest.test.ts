@@ -940,11 +940,13 @@ describe("NO-GO round-6 regressions (@Mirai)", () => {
     }
   });
 
-  it("handoff contains exact facts (63 passed, ingest 45, no-@ signature)", () => {
+  it("handoff contains exact facts (68 passed, ingest 50, cleanup semantics, no-@ signature)", () => {
     const text = fs.readFileSync(path.join(process.cwd(), "notes", "phase2b-ingestion-handoff.md"), "utf8");
-    expect(text).toContain("63 passed");
-    expect(text).toContain("ingest 45");
+    expect(text).toContain("68 passed");
+    expect(text).toContain("ingest 50");
     expect(text).toContain("翼（tsubasa）");
     expect(text).not.toContain("@tsubasa");
+    expect(text).toContain("cleanupResidue");
+    expect(text).toContain("commit_ok_with_cleanup_residue");
   });
 });

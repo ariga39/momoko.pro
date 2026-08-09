@@ -5,7 +5,7 @@ Branch: `phase2b/ingestion-final` · base: GitHub main `2ee05244527564e423c0aeb4
 
 ## 交付对象（current-main successor）
 
-- 代码 head:（新 exact SHA 见 PR/线程机器记录；本轮 successor 验证以 exact tree 内本文件为准）
+- 代码 head: 本 exact tree 即交付对象（exact SHA 由 PR/线程机器记录，wrapper 不自引用自身 commit；代码事实以本文件为准）
 - 独占文件：
   - `tools/ingest/ingest.ts`
   - `tests/ingest.test.ts`
@@ -24,8 +24,10 @@ Branch: `phase2b/ingestion-final` · base: GitHub main `2ee05244527564e423c0aeb4
   内容变化 → versioned successor（index-vN.md，跨年单调，不分叉）。
 - 事务：批提交 = staging 树 + 原子 swap（rename 旧→backup、staging→root、失败恢复旧树）；
   import 单写失败结构化返回且清理空目录（零状态变化）；adapter null/非对象元素 fail-closed。
-- 结构化失败：importDiscovery 写失败 → `{status:"error", code:"write_failed"}`；
-  runCron commit 失败 → `errors.commit = "commit_failed: ..."`；无 raw 异常/TypeError。
+- 结构化失败：importDiscovery 写失败 → `{status:"error", code:"write_failed"}` 且清理空父目录（零状态）；
+  adapter 返回 null/undefined/非对象、throw null/非 Error → `adapter_unexpected`（无 raw TypeError/异常）。
+- commit 语义：`commitPlannedBatch` 返回 `{committed, cleanupResidue}`；swap 失败 → `errors.commit = "commit_failed: ..."`
+  且恢复旧树（零状态）；backup 清理失败 → `errors.commit = "commit_ok_with_cleanup_residue"`（已提交 + 残留可观察，honest）。
 - 安全：atomicWriteStaged resolve/relative-to 防逃逸 + symlink（含 root）拒绝 + temp 清理；
   urlInScope 完整 HTTPS origin + path segment + 拒 userinfo；note_hash timing-safe 比较。
 - 版权/隐私：全离线合成测试，不注册服务/不接受条款/不写 GitHub/生产；跨源候选只标不吞。
@@ -33,7 +35,7 @@ Branch: `phase2b/ingestion-final` · base: GitHub main `2ee05244527564e423c0aeb4
 ## 验证（clean detached worktree，exact head）
 
 - `pnpm check`（lint + Astro check strictest）→ 0 errors / 0 warnings（本任务文件）
-- `pnpm test` → 63 passed（ingest 45）
+- `pnpm test` → 68 passed（ingest 50）
 - `pnpm build` OK；`python3 -m tools.schema.validate_schemas` 全 cases
 - `git diff --check` clean；运行后 `git status --short` 为空
 
