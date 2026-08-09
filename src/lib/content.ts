@@ -176,6 +176,21 @@ export function loadNews(): NewsItem[] {
 }
 
 /**
+ * A current item is reviewed at the latest source revision and has no active
+ * retraction. Draft/stale/retracted records remain readable by the detail
+ * route so they can render an explicit noindex/fallback response, but they
+ * must never enter public archive/search/build indexes.
+ */
+export function isCurrentReviewed(item: NewsItem): boolean {
+  return item.canonical.reviewStatus === "reviewed" && !isRetracted(item);
+}
+
+/** Items eligible for the public archive/search surface. */
+export function loadPublishedNews(): NewsItem[] {
+  return loadNews().filter(isCurrentReviewed);
+}
+
+/**
  * A locale file is a REAL translation only when（design §1.2）:
  *  - body is non-empty,
  *  - review_status === "reviewed",
@@ -186,6 +201,7 @@ export function loadNews(): NewsItem[] {
 export function isRealTranslation(item: NewsItem, lang: LocaleLang): boolean {
   const loc = item.locales[lang];
   if (!loc) return false;
+  if (!isCurrentReviewed(item)) return false;
   if (!loc.body || !loc.body.trim()) return false;
   if (loc.meta.reviewStatus !== "reviewed") return false;
   if (loc.meta.sourceContentHash !== item.canonical.contentHash) return false;
@@ -195,7 +211,7 @@ export function isRealTranslation(item: NewsItem, lang: LocaleLang): boolean {
 
 /** True when this item has an active retraction record. */
 export function isRetracted(item: NewsItem): boolean {
-  return retractedPaths().has(`content/news/${item.slug}/index.md`);
+  return item.canonical.reviewStatus === "retracted" || retractedPaths().has(`content/news/${item.slug}/index.md`);
 }
 
 /**

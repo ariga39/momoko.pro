@@ -1,0 +1,36 @@
+{
+  "history_version": "1",
+  "identity": "S1|synth-2026-08-08-003",
+  "events": [
+    {
+      "sequence": 1,
+      "event_id": "synthetic-003-draft",
+      "operation_id": "draft:sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": null,
+      "to": "draft",
+      "actor": "editorial-fixture",
+      "actor_kind": "system",
+      "at": "2026-08-09T10:00:00Z",
+      "reason": "normalized synthetic discovery draft",
+      "source_content_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "content_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "sequence": 2,
+      "event_id": "synthetic-003-retracted",
+      "operation_id": "retract:synthetic-003",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": "reviewed",
+      "to": "retracted",
+      "actor": "human-reviewer",
+      "actor_kind": "human",
+      "at": "2026-08-09T10:33:00Z",
+      "reason": "synthetic retraction route regression",
+      "source_content_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "content_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    }
+  ]
+}
