@@ -1,0 +1,65 @@
+name: preview
+
+# 远程 preview（可选，§8.3）：仅由 maintainer 对固定 SHA 手动触发；
+# 使用 default-branch workflow，不执行未审脚本，不向 PR 代码暴露 secret。
+# 不 production deploy、不写 Cloudflare 项目/域名、不付费/不接受新条款。
+# 缺部署 secret 时显式标记 skipped，绝不伪装成功部署。
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Build & preview this fixed SHA (e.g. 481bfc6308...) "
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-preview:
+    runs-on: ubuntu-latest
+    # 无部署 secret 时本 job 不会真正部署；缺 secret 即跳过并报告 skipped。
+    env:
+      CI: "true"
+      HAS_DEPLOY_SECRET: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - name: Checkout fixed ref
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static site
+        run: |
+          pnpm build
+          pnpm build:post
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: momoko-preview-${{ inputs.ref }}
+          path: dist/
+          retention-days: 7
+
+      - name: Deployment gate (no fake success)
+        if: env.HAS_DEPLOY_SECRET == 'false'
+        run: |
+          echo "::error::Preview requires a deployment secret; no Cloudflare deploy performed."
+          echo "skipped=true" >> "$GITHUB_ENV"
+          exit 1
