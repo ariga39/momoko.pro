@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:public": "PUBLIC_BUILD=1 astro build --outDir dist-public && PUBLIC_BUILD=1 node --experimental-strip-types tools/schema/postbuild.ts",
     "build:post": "node --experimental-strip-types tools/schema/postbuild.ts",
     "build:verify": "node tools/schema/determinism.mjs",
     "check": "pnpm lint && pnpm typecheck",

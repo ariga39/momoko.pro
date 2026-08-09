@@ -1,6 +1,7 @@
-// Build-time artifact generation (B 拥有): manifest.json + search.json → dist。
-// 确定性：generated_at 取内容中最晚 published_at（不读构建时钟），
-// 同输入两次构建产物逐字节一致由 tools/schema/determinism.mjs 验证。
+// Build-time artifact generation: manifest.json + search.json into dist/.
+// Determinism: generated_at derives from the latest published_at in content
+// (never the build clock), so two builds of the same input are byte-identical,
+// verified by tools/schema/determinism.mjs.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -15,7 +16,7 @@ import {
 import { buildSearchIndex } from "../../src/lib/search.ts";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const DIST = path.join(REPO_ROOT, "dist");
+const DIST = path.join(REPO_ROOT, process.env.PUBLIC_BUILD === "1" ? "dist-public" : "dist");
 
 const LOCALES = ["ja", "zh", "en"] as const;
 type Lang = (typeof LOCALES)[number];

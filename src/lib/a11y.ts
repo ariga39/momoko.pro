@@ -1,4 +1,4 @@
-/** a11y helpers（可单测）：对比度计算 + 设计 token 断言。 */
+/** a11y helpers (unit-testable): contrast calculation + design-token assertions. */
 
 export interface Rgb {
   r: number;
