@@ -28,7 +28,7 @@
         "evidence": {
           "type": "string",
           "minLength": 1,
-          "description": "人工核验证据（如 robots 文本段落 / 条款链接与摘录 + 核验时间），缺失不得视为允许"
+          "description": "项目/owner 的明确核验证据（如 robots 文本段落 / 条款链接与摘录 + 核验时间）；协议状态本身不是授权，缺失不得视为允许"
         }
       }
     },
@@ -41,11 +41,63 @@
         "name_zh": { "type": "string" },
         "canonical_url": { "type": "string", "format": "uri" },
         "robots_txt_url": { "type": ["string", "null"], "format": "uri" },
-        "robots_http": { "type": ["string", "null"], "pattern": "^[0-9]{3}$" },
+        "robots_http": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{3}$",
+          "description": "Legacy observation only; runtime decisions use the explicit robots_result and robots_path_decision fields"
+        },
+        "robots_result": {
+          "type": "string",
+          "enum": ["rules_available", "unavailable", "unreachable", "not_applicable"],
+          "description": "RFC 9309 result class, independent of any one target path"
+        },
+        "robots_path_decision": {
+          "type": "string",
+          "enum": ["allow", "disallow", "no_match", "not_evaluated"],
+          "description": "Decision for checked_path only; never a whole-site permission"
+        },
+        "checked_path": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "The URL path to which robots_path_decision applies; null only when not_applicable"
+        },
+        "retrieved_at": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Evidence date or timestamp for the robots result; null only when not_applicable"
+        },
+        "evidence": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Human-readable evidence bound to the result and checked path"
+        },
+        "fetch_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^/(?:[^?#]*)$"
+          },
+          "description": "Explicit URL paths an automated adapter may request; each path is checked independently"
+        },
         "robots_note": { "type": "string" },
         "terms_url": { "type": ["string", "null"], "format": "uri" },
         "terms_note": { "type": "string" },
-        "robots_approved": { "$ref": "#/$defs/approval" },
+        "access_control": {
+          "enum": ["public", "login_required", "paywall", "captcha", "explicitly_blocked"],
+          "description": "Explicit access-control state; unknown or omitted state cannot authorize automated access"
+        },
+        "terms_status": {
+          "enum": ["not_evaluated", "permitted", "prohibited"],
+          "description": "Explicit terms state; not_evaluated is not reuse permission"
+        },
+        "robots_approved": {
+          "$ref": "#/$defs/approval",
+          "deprecated": true,
+          "description": "Deprecated compatibility field; retained for old configs and ignored by new access decisions"
+        },
         "terms_approved": { "$ref": "#/$defs/approval" },
         "automated_fetch": { "type": "boolean" },
         "fetch_frequency": { "enum": ["manual", "daily", "weekly"] },
@@ -57,16 +109,79 @@
           "if": { "properties": { "automated_fetch": { "const": true } } },
           "then": {
             "properties": {
-              "fetch_frequency": { "not": { "const": "manual" } },
-              "robots_approved": { "$ref": "#/$defs/approval" },
-              "terms_approved": { "$ref": "#/$defs/approval" }
+              "fetch_frequency": { "not": { "const": "manual" } }
             },
-            "required": ["robots_approved", "terms_approved"]
+            "required": ["fetch_paths", "access_control", "terms_status"]
           }
         },
         {
           "if": { "properties": { "automated_fetch": { "const": false } } },
           "then": { "properties": { "fetch_frequency": { "const": "manual" } } }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "rules_available" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "enum": ["allow", "disallow", "no_match"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "unavailable" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "const": "allow" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "unreachable" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "const": "disallow" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["robots_result"],
+            "properties": { "robots_result": { "const": "not_applicable" } }
+          },
+          "then": {
+            "required": ["robots_path_decision", "checked_path", "retrieved_at", "evidence"],
+            "properties": {
+              "robots_path_decision": { "const": "not_evaluated" },
+              "checked_path": { "const": null },
+              "retrieved_at": { "const": null },
+              "evidence": { "const": null }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["automated_fetch", "robots_result"],
+            "properties": {
+              "automated_fetch": { "const": true },
+              "robots_result": { "const": "not_applicable" }
+            }
+          },
+          "then": {
+            "properties": {
+              "robots_result": { "enum": ["rules_available", "unavailable", "unreachable"] }
+            }
+          }
         }
       ]
     }

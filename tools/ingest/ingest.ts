@@ -7,8 +7,9 @@
  * human fact-notes / approved excerpts — never auto-summarized body text.
  *
  * Contract (design §5.2/§5.3, momoko automation ceiling):
- * - cron only runs adapters for sources with `automated_fetch=true` AND
- *   explicit robots/terms approval evidence; S1–S5 all false => silent no-op.
+ * - cron only runs adapters for sources with `automated_fetch=true`, explicit
+ *   fetch paths, and a path-bound robots decision for every target;
+ *   S1–S5 all false => silent no-op.
  * - manual-import validates a discovery record against
  *   `schemas/discovery-record.schema.json`; identity = (source_id,
  *   source_item_id, lang); content_hash is a VERSION, so a changed draft
@@ -62,8 +63,8 @@ export interface FetchResult {
 
 export interface SourceAdapter {
   readonly source_id: string;
-  /** Fetch discovery items for one source. Never executes untrusted URL payloads. */
-  fetch(source: Record<string, unknown>): Promise<FetchResult>;
+  /** Fetch one explicitly authorized path. Never executes untrusted payloads. */
+  fetch(source: Record<string, unknown>, requestedPath: string): Promise<FetchResult>;
 }
 
 const _adapters = new Map<string, SourceAdapter>();
@@ -103,9 +104,17 @@ export interface SourceConfig {
   source_id: string;
   automated_fetch: boolean;
   fetch_frequency: string;
+  fetch_paths?: string[];
   robots_http?: string | number | null;
+  robots_result?: RobotsResult;
+  robots_path_decision?: RobotsPathDecision;
+  checked_path?: string | null;
+  retrieved_at?: string | null;
+  evidence?: string | null;
   robots_note?: string;
   terms_note?: string;
+  access_control?: AccessControl;
+  terms_status?: TermsStatus;
   robots_approved?: { allowed: boolean; evidence: string };
   terms_approved?: { allowed: boolean; evidence: string };
   canonical_url?: string;
@@ -118,19 +127,171 @@ export function loadSources(sourcesPath?: string): SourceConfig[] {
   return cfg.sources as SourceConfig[];
 }
 
+export type RobotsResult = "rules_available" | "unavailable" | "unreachable" | "not_applicable";
+export type RobotsPathDecision = "allow" | "disallow" | "no_match" | "not_evaluated";
+export type SourceAccessMode =
+  | "human_directed_single_page"
+  | "scheduled_or_recursive_crawler"
+  | "reuse_or_republication";
+export type AccessControl = "public" | "login_required" | "paywall" | "captcha" | "explicitly_blocked";
+export type TermsStatus = "not_evaluated" | "permitted" | "prohibited";
+
+function isAccessControl(value: unknown): value is AccessControl {
+  return typeof value === "string" && ["public", "login_required", "paywall", "captcha", "explicitly_blocked"].includes(value);
+}
+
+function isTermsStatus(value: unknown): value is TermsStatus {
+  return typeof value === "string" && ["not_evaluated", "permitted", "prohibited"].includes(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+/** A fetch target is an origin-relative URL path, never a query or fragment. */
+export function isFetchPath(value: unknown): value is string {
+  return Boolean(
+    typeof value === "string" &&
+      value.length > 0 &&
+      value.startsWith("/") &&
+      !value.includes("?") &&
+      !value.includes("#") &&
+      !value.includes("//") &&
+      !value.split("/").some((part) => part === "." || part === ".."),
+  );
+}
+
+export interface SourceAccessRequest {
+  access_mode: SourceAccessMode;
+  automated_fetch: boolean;
+  robots_result?: RobotsResult;
+  robots_path_decision?: RobotsPathDecision;
+  checked_path?: string | null;
+  requested_path?: string | null;
+  retrieved_at?: string | null;
+  evidence?: string | null;
+  access_control?: AccessControl;
+  terms_status?: TermsStatus;
+  reuse_permitted?: boolean;
+  citation_boundary?: boolean;
+}
+
+export interface SourceAccessDecision {
+  allowed: boolean;
+  reason: string;
+}
+
+function denied(reason: string): SourceAccessDecision {
+  return { allowed: false, reason };
+}
+
+function commonAccessDecision(request: SourceAccessRequest): SourceAccessDecision | null {
+  if (!isAccessControl(request.access_control)) return denied("access_control_missing_or_invalid");
+  if (request.access_control !== "public") return denied("access_control_blocked");
+  if (!isTermsStatus(request.terms_status)) return denied("terms_status_missing_or_invalid");
+  if (request.terms_status === "prohibited") return denied("explicit_terms_prohibited");
+  return null;
+}
+
+function hasPathBoundEvidence(request: SourceAccessRequest): boolean {
+  return Boolean(
+    isFetchPath(request.requested_path) &&
+      isFetchPath(request.checked_path) &&
+      request.checked_path === request.requested_path &&
+      isNonEmptyString(request.retrieved_at) &&
+      isNonEmptyString(request.evidence),
+  );
+}
+
+function robotsStateError(request: SourceAccessRequest): string | null {
+  if (!request.robots_result || !request.robots_path_decision) {
+    return "robots_decision_missing";
+  }
+  if (!("rules_available" === request.robots_result || "unavailable" === request.robots_result || "unreachable" === request.robots_result || "not_applicable" === request.robots_result)) {
+    return "robots_result_invalid";
+  }
+  if (!("allow" === request.robots_path_decision || "disallow" === request.robots_path_decision || "no_match" === request.robots_path_decision || "not_evaluated" === request.robots_path_decision)) {
+    return "robots_path_decision_invalid";
+  }
+  if (request.robots_result === "not_applicable") {
+    if (
+      request.robots_path_decision !== "not_evaluated" ||
+      request.checked_path !== null ||
+      request.retrieved_at !== null ||
+      request.evidence !== null
+    ) {
+      return "robots_not_applicable_state_invalid";
+    }
+    return null;
+  }
+  if (!hasPathBoundEvidence(request)) return "robots_path_evidence_missing_or_mismatched";
+  if (request.robots_result === "rules_available" && request.robots_path_decision === "not_evaluated") {
+    return "robots_rules_path_not_evaluated";
+  }
+  if (request.robots_result === "unavailable" && request.robots_path_decision !== "allow") {
+    return "robots_unavailable_requires_allow";
+  }
+  if (request.robots_result === "unreachable" && request.robots_path_decision !== "disallow") {
+    return "robots_unreachable_requires_disallow";
+  }
+  return null;
+}
+
 /**
- * A source is only "allowed to fetch" when BOTH robots and terms were
- * explicitly approved (allowed=true) with recorded evidence. automated_fetch
- * alone or a 2xx robots_http is NOT approval; missing/negative evidence is
- * never treated as allowance.
+ * Pure access decision for the three deliberately separate access modes.
+ * robots_result is a file/result class; robots_path_decision is only for the
+ * bound checked_path. Legacy robots_approved is intentionally not accepted.
  */
-export function sourceAllowedToFetch(source: SourceConfig): boolean {
-  if (source.automated_fetch !== true) return false;
-  const robots = source.robots_approved;
-  const terms = source.terms_approved;
-  if (!robots || robots.allowed !== true || !robots.evidence) return false;
-  if (!terms || terms.allowed !== true || !terms.evidence) return false;
-  return true;
+export function decideSourceAccess(request: SourceAccessRequest): SourceAccessDecision {
+  if (!(["human_directed_single_page", "scheduled_or_recursive_crawler", "reuse_or_republication"] as string[]).includes(request.access_mode)) {
+    return denied("access_mode_invalid");
+  }
+  const common = commonAccessDecision(request);
+  if (common) return common;
+
+  if (request.access_mode === "human_directed_single_page") {
+    return { allowed: true, reason: "human_directed_single_page_allowed" };
+  }
+
+  if (request.access_mode === "reuse_or_republication") {
+    if (request.reuse_permitted !== true || request.citation_boundary !== true) {
+      return denied("reuse_permission_or_citation_boundary_missing");
+    }
+    return { allowed: true, reason: "reuse_permission_and_citation_boundary_present" };
+  }
+
+  if (!isFetchPath(request.requested_path)) return denied("requested_path_invalid");
+  if (request.automated_fetch !== true) return denied("automated_fetch_disabled");
+  const stateError = robotsStateError(request);
+  if (stateError) return denied(stateError);
+  if (request.robots_result === "unreachable") return denied("robots_unreachable_disallow");
+  if (request.robots_result === "not_applicable") {
+    return denied("robots_not_applicable_for_crawler");
+  }
+  if (request.robots_path_decision === "disallow") return denied("robots_path_disallow");
+  return { allowed: true, reason: "crawler_path_allowed" };
+}
+
+/**
+ * Compatibility wrapper for the cron seam. The old robots_approved field is
+ * loaded when present for old configs, but it is not read here. Missing new
+ * result/path evidence fails closed for crawler access.
+ */
+export function sourceAllowedToFetch(source: SourceConfig, requestedPath: string): boolean {
+  if (!isFetchPath(requestedPath)) return false;
+  if (!isAccessControl(source.access_control) || !isTermsStatus(source.terms_status)) return false;
+  return decideSourceAccess({
+    access_mode: "scheduled_or_recursive_crawler",
+    automated_fetch: source.automated_fetch,
+    requested_path: requestedPath,
+    access_control: source.access_control,
+    terms_status: source.terms_status,
+    ...(source.robots_result !== undefined ? { robots_result: source.robots_result } : {}),
+    ...(source.robots_path_decision !== undefined ? { robots_path_decision: source.robots_path_decision } : {}),
+    ...(source.checked_path !== undefined ? { checked_path: source.checked_path } : {}),
+    ...(source.retrieved_at !== undefined ? { retrieved_at: source.retrieved_at } : {}),
+    ...(source.evidence !== undefined ? { evidence: source.evidence } : {}),
+  }).allowed;
 }
 
 /** Recompute the canonical note hash from note bytes; caller-provided
@@ -394,8 +555,8 @@ export function normalizeTitle(title: string): string {
 
 /**
  * Run cron for all configured sources: only allowed (automated_fetch=true +
- * verified robots/terms) sources are fetched. With no allowed sources or no
- * change this is a silent no-op returning an empty summary.
+ * path-bound robots decision) sources are fetched. With no allowed sources or
+ * no change this is a silent no-op returning an empty summary.
  */
 /** Check the discovery URL stays within the source's canonical HTTPS origin
  * AND the canonical path prefix with segment-boundary semantics
@@ -568,50 +729,92 @@ export async function runCron(sourcesPath?: string): Promise<{
   errors: Record<string, string>;
 }> {
   const sources = loadSources(sourcesPath);
-  const allowed = sources.filter(sourceAllowedToFetch);
   const fetched: string[] = [];
   let produced = 0;
   let duplicates = 0;
   const errors: Record<string, string> = {};
+  const fetchTargets: Array<{
+    source: SourceConfig;
+    adapter: SourceAdapter;
+    requestedPath: string;
+    errorKey: string;
+  }> = [];
+  let preflightError = false;
 
-  if (allowed.length === 0) {
+  if (sources.every((source) => source.automated_fetch !== true)) {
     return { fetched: [], produced: 0, duplicates: 0, errors: {} };
+  }
+
+  for (const source of sources) {
+    if (source.automated_fetch !== true) continue;
+    const paths = source.fetch_paths;
+    if (
+      !Array.isArray(paths) ||
+      paths.length === 0 ||
+      new Set(paths).size !== paths.length ||
+      !paths.every((requestedPath) => isFetchPath(requestedPath))
+    ) {
+      errors[source.source_id] = "fetch_paths_missing_or_invalid";
+      preflightError = true;
+      continue;
+    }
+    const adapter = sourceAdapterFor(source.source_id);
+    if (!adapter) {
+      errors[source.source_id] = "no_adapter_registered";
+      preflightError = true;
+      continue;
+    }
+    const deniedPaths = paths.filter((requestedPath) => !sourceAllowedToFetch(source, requestedPath));
+    if (deniedPaths.length > 0) {
+      for (const requestedPath of deniedPaths) {
+        errors[source.source_id + ":" + requestedPath] = "fetch_target_not_allowed";
+      }
+      preflightError = true;
+      continue;
+    }
+    for (const requestedPath of paths) {
+      fetchTargets.push({
+        source,
+        adapter,
+        requestedPath,
+        errorKey: paths.length === 1 ? source.source_id : source.source_id + ":" + requestedPath,
+      });
+    }
+  }
+
+  if (fetchTargets.length === 0) {
+    return { fetched: [], produced: 0, duplicates: 0, errors };
   }
 
   // Phase 1: fetch + validate ALL items, plan versions in-memory. NO writes.
   const planned = new Map<string, { version: number; hash: string }>();
   const artifacts: Array<{ relPath: string; content: string }> = [];
-  let anyError = false;
-  for (const source of allowed) {
-    const adapter = sourceAdapterFor(source.source_id);
-    if (!adapter) {
-      errors[source.source_id] = "no_adapter_registered";
-      anyError = true;
-      continue;
-    }
-    fetched.push(source.source_id);
+  let anyError = preflightError;
+  for (const target of fetchTargets) {
+    const { source, adapter, requestedPath, errorKey } = target;
+    if (!fetched.includes(source.source_id)) fetched.push(source.source_id);
     let result: FetchResult | null | undefined;
     try {
-      result = await adapter.fetch(source);
+      result = await adapter.fetch(source, requestedPath);
     } catch (err) {
       // adapter may throw null / a primitive / non-Error; fail closed.
       const msg = err instanceof Error ? err.message : `non-error thrown: ${String(err)}`;
-      errors[source.source_id] = `adapter_unexpected: ${msg}`;
+      errors[errorKey] = `adapter_unexpected: ${msg}`;
       anyError = true;
       continue;
     }
     if (result === null || result === undefined || typeof result !== "object") {
-      errors[source.source_id] = "adapter_unexpected: fetch returned non-object";
+      errors[errorKey] = "adapter_unexpected: fetch returned non-object";
       anyError = true;
       continue;
     }
     if (result.ok !== true) {
-      errors[source.source_id] = result.error ?? result.code ?? "fetch_failed";
+      errors[errorKey] = result.error ?? result.code ?? "fetch_failed";
       anyError = true;
       continue;
     }
     if (!Array.isArray(result.items)) {
-      errors[source.source_id] = "invalid_items_not_array";
+      errors[errorKey] = "invalid_items_not_array";
       anyError = true;
       continue;
     }

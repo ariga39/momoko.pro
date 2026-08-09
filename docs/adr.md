@@ -3,11 +3,11 @@
 每项给默认值、代价、改变条件。
 
 ## ADR-01 抓取范围
-- 默认：只官方/本人/经纪事务所/主办方；**X 用人工维护的普通官方 permalink 卡片（只存 account/date/permalink/人工原创说明，不复制 post 文本/图片，不 embed/API/抓取——见 sources.md §2）**；内容源在存在公开 robots/terms 证据前不自动抓取，仅人工发现/录入。
+- 默认：只官方/本人/经纪事务所/主办方；**X 用人工维护的普通官方 permalink 卡片（只存 account/date/permalink/人工原创说明，不复制 post 文本/图片，不 embed/API/抓取——见 sources.md §2）**；内容源在存在公开 robots/terms 证据前不自动抓取，仅人工发现/录入。`robots_result=unavailable` + `robots_path_decision=allow` 是 RFC 9309 对 4xx/404 的协议事实，不等于来源授权；`robots_path_decision` 必须绑定 checked path；批量抓取还需项目 `automated_fetch=true`。
 - MVP 管线：**发现（cron `automated_fetch=true` 或人工）→ schema → AI 草稿 → Draft PR → 独立 reviewer merge 前写 reviewed → 具 merge 权限 human/agent 合并**；cron 只跑已验证允许的来源，无允许来源/无变化静默；当前 S1–S5 全 false 走 manual-import。
-- 来源验证：allowlisted HTTPS hostname + source_id（MVP 无加密签名）。
+- 来源验证：allowlisted HTTPS hostname + source_id（MVP 无加密签名）；robots result/path decision 与 access-mode/project gate 分字段记录。旧 `robots_approved` 仅兼容读取并弃用，不参与新 access decision。
 - 代价：缺失非官方/实时 X、自动抓取时效性受限（人工录入为主）。
-- 改变条件：用户明确需要且人工批准；或某来源取得公开 robots/terms 许可证据并经批准后开放自动抓取（届时才引入抓取链契约）。
+- 改变条件：用户明确需要且人工批准；或某来源项目门置 `automated_fetch=true`、声明非空 `fetch_paths` 并为每个目标路径取得 robots 结果/decision 证据后开放自动抓取（届时才引入抓取链契约）。`runCron()` 将显式目标路径传给 adapter，不以 `/` 作为默认或全站许可。人类明确指令下的单页读取另行适用访问控制、Terms、限频和内容保留边界，不因 robots 404 自动拒绝，也不因 robots 允许自动取得再利用许可。
 
 ## ADR-02 素材托管
 - 默认：不托管官方图像/Logo/完整台词/歌词/音频；不声线克隆。

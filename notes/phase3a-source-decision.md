@@ -25,17 +25,48 @@ authoritative policy input for this run:
 - `robots.txt` returned HTTP 404.
 - No public terms page was found for the domain; the game terms are inside
   the application.
-- `config/sources.json` records `robots_approved.allowed=false`,
-  `terms_approved.allowed=false`, and `automated_fetch=false`.
-- The source is therefore `not_approved_for_automated_fetch`; the policy only
+- `config/sources.json` records `robots_result=unavailable`,
+  `robots_path_decision=allow` for `/`, and `automated_fetch=false`. The old
+  `robots_approved` field remains false only as deprecated compatibility data.
+- The source is therefore not enabled for automated crawling; the policy only
   permits human discovery/manual entry for it. Missing robots or terms
-  evidence is not permission.
+  evidence is not permission for reuse or unattended crawling.
 
 The task-level read-only instruction does not override that gate. No agent
 HTTP request, substitute-source search, terms acceptance, allowlist change,
-or cron run is authorized by this candidate. The same negative decision
-applies to S2–S5: no configured source has both explicit approvals and
-`automated_fetch=true`.
+or cron run is authorized by this candidate. The same no-fetch decision
+applies to S2–S5 because the canonical configuration keeps
+`automated_fetch=false` for every source; the deprecated approval fields are
+not an additional decision gate.
+
+## Follow-up policy clarification (task #18)
+
+The configuration now separates the RFC result from the decision for a target
+path:
+
+- `robots_result` is one of `rules_available`, `unavailable`, `unreachable`,
+  or `not_applicable`.
+- `robots_path_decision` is one of `allow`, `disallow`, `no_match`, or
+  `not_evaluated`, and is bound to `checked_path`, `retrieved_at`, and
+  `evidence`. A root-path allow is not a whole-site allow.
+- S1's HTTP 404 is `robots_result=unavailable` with
+  `robots_path_decision=allow` for `/`. RFC 9309 permits a crawler to proceed
+  past a 4xx unavailable file; this is not terms, copyright, or project
+  authorization. A 5xx/network failure is `unreachable` and fails closed.
+- `robots_http` and the old `robots_approved` field are compatibility evidence
+  only. The old field is deprecated and is not read by the new decision seam;
+  missing new state remains fail-closed for crawler access rather than being
+  inferred from the HTTP number.
+
+The pure decision seam requires an explicit access mode:
+`human_directed_single_page`, `scheduled_or_recursive_crawler`, or
+`reuse_or_republication`. A public single-page human-directed read is not
+blocked by `automated_fetch=false` or missing robots, but access controls and
+explicit prohibitions still deny it. A crawler requires `automated_fetch=true`
+and a path-bound robots decision; every automated source must also declare
+explicit `fetch_paths`, and the adapter receives the exact checked path with
+no `/` default. Reuse/republication requires independent permission and a
+citation boundary. These modes are never interchangeable.
 
 ## Boundaries
 
@@ -72,7 +103,11 @@ or publication projection is materialized by this candidate.
 
 | Boundary | Expected result | External/public write |
 | --- | --- | --- |
-| No robots/terms approval | `not_approved_for_automated_fetch` / silent no-op | None |
+| Project `automated_fetch=false` | `automated_fetch_disabled` / silent no-op for crawler | None |
+| Robots HTTP 404/other 4xx + path allow | `unavailable + allow`; crawler may proceed when project gate is enabled | None |
+| Explicit path disallow or 5xx/network failure | Fail closed | None |
+| Human single page with missing robots | Allowed only when public and not explicitly prohibited | None |
+| Reuse without independent permission/citation boundary | Structured rejection | None |
 | HTTP 403/429/5xx or source request | Structured stop, no retry | None |
 | Terms/robots change or path leaves canonical scope | Fail closed | None |
 | Invalid schema, date, URL, or untrusted prompt text | Reject as data, no execution | None |
@@ -94,9 +129,10 @@ of the following:
    revocation condition. The waiver must not be inferred from silence.
 3. A declared user agent, request frequency/concurrency/retry budget, cache
    lifetime, stored-field allowlist, and stop conditions.
-4. A reviewed config change setting `automated_fetch=true` only after both
-   approval objects contain non-empty evidence; source-policy tests and the
-   negative-path test must remain green.
+4. A reviewed config change setting `automated_fetch=true` only after every
+   crawler target path has explicit robots result/decision evidence; source
+   policy tests and the negative-path test must remain green. The deprecated
+   `robots_approved` field is not used as a second gate.
 5. A synthetic adapter/normalization/dedup/editorial regression plus a local
    aggregate run that proves no public asset, full text, secret, or external
    write is produced.

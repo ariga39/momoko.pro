@@ -43,6 +43,7 @@ export function ml(lang: Locale) {
     policyIntro: () => m["policy.intro"]({}, options),
     policyNoCopy: () => m["policy.noCopy"]({}, options),
     policyAutomated: () => m["policy.automated"]({}, options),
+    policyRobots: () => m["policy.robots"]({}, options),
     policyAiUse: () => m["policy.aiUse"]({}, options),
     policyCurrentSources: () => m["policy.currentSources"]({}, options),
     policyNoCurrentSources: () => m["policy.noCurrentSources"]({}, options),

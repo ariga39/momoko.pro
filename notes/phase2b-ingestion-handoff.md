@@ -9,7 +9,7 @@ Branch: `phase2b/ingestion-final` · base: GitHub main `2ee05244527564e423c0aeb4
 - 独占文件：
   - `tools/ingest/ingest.ts`
   - `tests/ingest.test.ts`
-  - `schemas/source.schema.json`（显式 robots_approved/terms_approved 审批字段）
+  - `schemas/source.schema.json`（显式 robots_result/robots_path_decision 与 path-bound evidence；自动来源还必须声明 fetch_paths；旧 robots_approved 仅兼容读取）
   - `schemas/discovery-record.schema.json`（note_hash 可选——工具重算 canonical）
   - `config/sources.json`（S1–S5 显式 allowed=false 带证据）
   - `tests/schema.test.ts` / `tools/schema/validate_schemas.py`（审批字段同步）
@@ -17,7 +17,7 @@ Branch: `phase2b/ingestion-final` · base: GitHub main `2ee05244527564e423c0aeb4
 
 ## 契约
 
-- cron 门：`runCron()` 只跑 `automated_fetch=true` 且 robots/terms 显式 approved 的来源；
+- cron 门：`runCron()` 只跑 `automated_fetch=true`、显式声明 `fetch_paths` 且每个请求路径通过 robots pure decision 的来源，并把相同路径传给 adapter；
   S1–S5 全 false → 静默 no-op。
 - manual-import：`importDiscovery()` 校验 discovery-record schema、source 登记、urlInScope；
   identity = (source_id, source_item_id, lang)；content_hash 含 published_at+source_url；

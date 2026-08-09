@@ -49,21 +49,32 @@
 
 ## 3. 内容来源（机器配置见 config/sources.json）
 
-字段：`automated_fetch`（全部 `false`）、`fetch_frequency`（manual）、`cache_boundary`、`stop_condition`；robots/terms HTTP 结果与时间均为 2026-08-08 实测。**逐项汇总：**
+字段：`automated_fetch`（全部 `false`）、`fetch_frequency`（manual）、`fetch_paths`（自动来源必填）、`access_control`、`terms_status`、`robots_result`、`robots_path_decision`、`checked_path`、`retrieved_at`、`evidence`、`cache_boundary`、`stop_condition`；robots/terms HTTP 结果与时间均为 2026-08-08 实测。`access_control` 与 `terms_status` 是显式状态，未知状态不能授权自动抓取；`robots_result` 是 RFC 9309 的结果类别，`robots_path_decision` 只绑定 `checked_path`；旧 `robots_approved` 仅为兼容字段，不参与新决策。自动 adapter 每次接收显式 target path，不能用根路径授权其他路径。**逐项汇总：**
 
-| source_id | 名称 | canonical URL | robots.txt HTTP/时间 | terms/guideline 结论 |
+| source_id | 名称 | canonical URL | robots.txt 结果与 checked path | terms/guideline 结论 |
 |---|---|---|---|---|
-| S1 | ミリシタ官方公告/卡池/新歌 | https://millionlive-theaterdays.idolmaster-official.jp/ | **404（无文件）** / 0.77s | 域内无公开条款页；游戏条款仅在应用内 → 仅人工录入 |
-| S2 | ミリシタ官方 X | https://x.com/imasml_theater | 不适用（不 embed/API） | 人工 permalink 卡片（§2.2） |
-| S3 | 品牌官方 X | https://x.com/imasml_765PRO | 不适用 | 同 S2 |
-| S4 | Live 情报 | https://idolmaster-official.jp/live_event | **404（无文件）** / 0.04s | portal 域内无公开条款页 → 仅人工录入 |
-| S5 | 声優渡部恵子动态 | https://mdawn.co.jp/keiko_watanabe.html | **200** / 1.12s（Allow:/） | 仅 privacy 页、无 terms → 仅人工录入 |
+| S1 | ミリシタ官方公告/卡池/新歌 | https://millionlive-theaterdays.idolmaster-official.jp/ | **unavailable + allow**, `checked_path=/`, 2026-08-08 | 域内无公开条款页；游戏条款仅在应用内 → 仅人工录入 |
+| S2 | ミリシタ官方 X | https://x.com/imasml_theater | `not_applicable` + `not_evaluated`（不 embed/API） | 人工 permalink 卡片（§2.2） |
+| S3 | 品牌官方 X | https://x.com/imasml_765PRO | `not_applicable` + `not_evaluated`（不 embed/API） | 同 S2 |
+| S4 | Live 情报 | https://idolmaster-official.jp/live_event | **unavailable + allow**, `checked_path=/`, 2026-08-08 | portal 域内无公开条款页 → 仅人工录入 |
+| S5 | 声優渡部恵子动态 | https://mdawn.co.jp/keiko_watanabe.html | **rules_available + allow**, `checked_path=/`, 2026-08-08 | 仅 privacy 页、无 terms → 仅人工录入 |
+
+### 3.1 Robots result 与授权的区别
+
+按 [RFC 9309 §2.3.1.3](https://www.rfc-editor.org/rfc/rfc9309.html#section-2.3.1.3)，HTTP 400–499（包括 404）表示 robots 文件 unavailable，crawler 可以继续访问资源；HTTP 500–599 或网络不可达则按 unreachable/complete disallow 处理，见 [§2.3.1.4](https://www.rfc-editor.org/rfc/rfc9309.html#section-2.3.1.4)。因此：
+
+- `robots_result=unavailable` 与 `robots_path_decision=allow` 是协议事实，不是站主、版权、Terms 或项目授权。
+- `robots_result=rules_available` 只表示规则文件可解析；`robots_path_decision` 必须绑定具体 `checked_path`，不能把根路径的 allow 写成全站 allow。
+- `robots_result=unreachable` 或路径 `disallow` 均由 crawler seam fail closed；`not_applicable` 只适用于当前不使用 robots 约束的表面。
+- `robots_http` 与旧 `robots_approved` 只保留作历史兼容/证据读取；新决策不从 HTTP 数字或旧 approval 字段推断。
+
+AI agent 的一次人工指令单页读取、无人值守的批量/递归 crawler，以及缓存、再发布或训练属于不同访问模式；不能仅凭 robots 结果推导后两类操作的许可。AI crawler 的 robots 语义目前也未形成统一约定，参考 [RFC 9969](https://www.rfc-editor.org/rfc/rfc9969.html)。
 
 ---
 
 ## 4. 证据清零结论（2026-08-08）
 
 - ① **X embed**：已记录官方并存事实摘录（URL + 检索日期），不裁定法律冲突；产品决策=人工 permalink 卡片（不复制内容）。已清零。
-- ② **ミリシタ官方站 robots/terms**：robots.txt 404（无文件）、无域内公开条款页 → 仅人工发现/录入。已清零。
-- ③ **Live / 声优来源**：Live 走 portal（robots 404、无公开条款）→ 仅人工录入；声优走 mdawn 官方资料页（robots 200 但无公开利用条款）→ 仅人工录入；官方 X 走人工 permalink 卡片。已清零。
-- **总则**：在存在公开 robots/terms 证据前，任何内容来源不自动抓取；**缺失证据绝不当作允许**。X API 为付费，MVP 不使用。**cron seam 允许**：任何来源取得 robots/terms 许可证据并经人工批准后置 `automated_fetch=true` 由 cron agent 抓取；当前 S1–S5 全 false 时 cron 静默（见 design.md §5.3）。
+- ② **ミリシタ官方站 robots/terms**：robots.txt 404（`unavailable + allow`，只绑定 `/`，不是全站许可）、无域内公开条款页，且项目 `automated_fetch=false` → 仅人工发现/录入。已清零。
+- ③ **Live / 声优来源**：Live 走 portal（robots 404 → `unavailable + allow`，只绑定 `/`）→ 仅人工录入；声优走 mdawn 官方资料页（robots 200 → `rules_available + allow`，只绑定 `/`，但无公开利用条款）→ 仅人工录入；官方 X 走人工 permalink 卡片。已清零。
+- **总则**：当前 S1–S5 全 false，cron 静默；未来 crawler 必须同时具备 `automated_fetch=true`、非空 `fetch_paths` 与每个请求路径的 robots decision。**缺失结果/路径证据绝不当作允许**。人类明确指令的单页读取、无人值守 crawler、reuse/republication 分别由 pure access seam 判定；X API 为付费，MVP 不使用。
