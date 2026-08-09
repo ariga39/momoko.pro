@@ -1,7 +1,8 @@
 // @ts-check
-// 确定性校验（§6.3）：同一内容构建两次到隔离目录，逐字节比对产物。
-// 任何差异（含时间戳/顺序）即构建失败。manifest generated_at 由内容派生，
-// 不读构建时钟，因此两次产物必须完全一致。
+// Determinism check (§6.3): build the same content twice into isolated
+// directories and byte-compare the output. Any difference (timestamps/order
+// included) fails the build. manifest generated_at derives from content, never
+// the build clock, so the two outputs must be identical.
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";

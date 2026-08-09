@@ -84,7 +84,7 @@ export interface NewsItem {
   slug: string;
   canonical: ContentMeta;
   canonicalBody: string;
-  /** translation files, keyed by lang (absent = 缺译) */
+  /** translation files, keyed by lang (absent = missing translation) */
   locales: Partial<Record<"ja" | "zh" | "en", LocaleFile>>;
 }
 
@@ -172,8 +172,9 @@ export function loadNews(): NewsItem[] {
     }
   };
   walk(newsRoot);
-  // PUBLIC_BUILD=1（preview 部署 / 公开发布构建）：只产 reviewed/current 内容，
-  // draft/stale/retracted 的 detail 路由与正文都不进产物（不是用 noindex 代替）。
+  // PUBLIC_BUILD=1 (public-release build): only reviewed/current content; the
+  // detail routes and bodies of draft/stale/retracted never enter the output
+  // (not replaced by noindex).
   if (process.env.PUBLIC_BUILD === "1") {
     return out.filter(isCurrentReviewed);
   }
@@ -199,7 +200,7 @@ export function loadPublishedNews(): NewsItem[] {
  * A locale file is a REAL translation only when（design §1.2）:
  *  - body is non-empty,
  *  - review_status === "reviewed",
- *  - source_content_hash === canonical content_hash（未漂移）,
+ *  - source_content_hash === canonical content_hash (no drift),
  *  - and the item is not retracted.
  * Anything else is fail-closed → treated as missing (fallback to source).
  */

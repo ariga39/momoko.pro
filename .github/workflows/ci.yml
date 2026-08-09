@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # PR 触发路径不注入任何 secret（§8.3）：无 CF token、无模型 key、不部署。
+    # PR-triggered path injects no secrets (§8.3): no CF token, no model key, no deploy.
     env:
       CI: "true"
     steps:
@@ -52,7 +52,7 @@ jobs:
           pnpm test:e2e
         continue-on-error: false
 
-      # 仅当真实失败且确实产生 test-results/ 证据时才上传；无证据则静默。
+      # Upload only on real failure with actual test-results/ evidence; silent otherwise.
       - name: Upload browser artifacts (no secrets, conditional on evidence)
         if: failure() && hashFiles('test-results/**') != ''
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5

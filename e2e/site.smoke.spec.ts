@@ -179,8 +179,8 @@ test("source-language detail page is self-canonical and NOT a fallback (no noind
   await expect(page.locator("body")).not.toContainText("缺译");
   await expect(page.locator("body")).not.toContainText("未翻訳");
 
-  // 002 canonical is ja (draft): still a source page, not fallback (no 缺译 notice),
-  // but draft content is noindex,follow per content status.
+  // 002 canonical is ja (draft): still a source page, not fallback (no
+  // missing-translation notice), but draft content is noindex,follow per content status.
   await page.goto("/ja/news/2026/S1-synth-2026-08-08-002/");
   await expect(page.locator("body")).not.toContainText("缺译");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
