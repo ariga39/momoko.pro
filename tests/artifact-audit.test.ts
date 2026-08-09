@@ -7,8 +7,26 @@ import { REPO_ROOT } from "../tools/schema/css-tokens.ts";
 
 const PUBLIC = path.join(REPO_ROOT, "dist-public");
 const DEFAULT = path.join(REPO_ROOT, "dist");
+const FIXTURE = path.join(REPO_ROOT, "dist-fixture");
+const FIXTURE_ROOT = "tests/fixtures/content-package/synthetic";
 
 type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
+
+function productionEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.MOMOKO_CONTENT_PACKAGE_ROOT;
+  delete env.MOMOKO_CONTENT_PACKAGE_MODE;
+  delete env.MOMOKO_BUILD_OUT_DIR;
+  return env;
+}
+
+function fixtureEnv(): NodeJS.ProcessEnv {
+  return {
+    ...productionEnv(),
+    MOMOKO_CONTENT_PACKAGE_MODE: "test",
+    MOMOKO_CONTENT_PACKAGE_ROOT: FIXTURE_ROOT,
+  };
+}
 
 function readJson(dir: string, rel: string): Json {
   return JSON.parse(fs.readFileSync(path.join(dir, rel), "utf-8")) as Json;
@@ -22,61 +40,80 @@ function asRecord(v: Json | undefined): Record<string, Json> {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, Json>) : {};
 }
 
-const DRAFT_REL = path.join("zh", "news", "2026", "S1-synth-2026-08-08-002", "index.html");
-
-describe("public build artifact audit — deploy-ready excludes draft/stale/retracted", () => {
-  // Ensure a fresh public-only build exists before auditing.
-  execFileSync("pnpm", ["build:public"], { cwd: REPO_ROOT, stdio: "pipe" });
-  // Self-contained: cold-start worktrees have no default `dist/`; build it on
-  // demand so the default-vs-public comparison does not depend on test order.
-  let builtDefault = false;
+describe("production artifact boundary", () => {
   beforeAll(() => {
-    if (!fs.existsSync(path.join(DEFAULT, DRAFT_REL))) {
-      execFileSync("pnpm", ["build"], { cwd: REPO_ROOT, stdio: "pipe" });
-      builtDefault = true;
-    }
+    for (const dir of [PUBLIC, DEFAULT, FIXTURE]) fs.rmSync(dir, { recursive: true, force: true });
+    execFileSync("pnpm", ["build:public"], { cwd: REPO_ROOT, env: productionEnv(), stdio: "pipe" });
+    execFileSync("pnpm", ["build"], { cwd: REPO_ROOT, env: productionEnv(), stdio: "pipe" });
+
+    // The fixture build is deliberately explicit and isolated. It proves that
+    // a reviewed-current package can enter the static seam without making the
+    // normal production build inherit synthetic content.
+    execFileSync("pnpm", ["exec", "astro", "build", "--outDir", "dist-fixture"], {
+      cwd: REPO_ROOT,
+      env: fixtureEnv(),
+      stdio: "pipe",
+    });
+    execFileSync("node", ["--experimental-strip-types", "tools/schema/postbuild.ts"], {
+      cwd: REPO_ROOT,
+      env: { ...fixtureEnv(), MOMOKO_BUILD_OUT_DIR: "dist-fixture" },
+      stdio: "pipe",
+    });
   });
+
   afterAll(() => {
-    if (builtDefault) fs.rmSync(DEFAULT, { recursive: true, force: true });
+    for (const dir of [PUBLIC, DEFAULT, FIXTURE]) fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("public manifest contains only current/reviewed content", () => {
-    const m = asRecord(readJson(PUBLIC, "manifest.json"));
-    const entries = asArray(m.entries);
-    expect(entries.length).toBeGreaterThan(0);
-    for (const e of entries) expect(asRecord(e).review_status).toBe("published");
-    const ids = entries.map((e) => asRecord(e).source_item_id);
-    expect(ids.some((i) => typeof i === "string" && (i.includes("002") || i.includes("003")))).toBe(false);
+  it("default production package is a truthful empty site", () => {
+    const manifest = asRecord(readJson(PUBLIC, "manifest.json"));
+    expect(asArray(manifest.entries)).toHaveLength(0);
+    expect(asArray(readJson(PUBLIC, "search.json"))).toHaveLength(0);
+    expect(fs.existsSync(path.join(PUBLIC, "zh", "news"))).toBe(false);
+    expect(fs.existsSync(path.join(DEFAULT, "zh", "news"))).toBe(false);
   });
 
-  it("public search index contains no draft/retracted slugs", () => {
-    const s = asArray(readJson(PUBLIC, "search.json"));
-    for (const row of s) {
-      const slug = asRecord(row).slug;
-      expect(typeof slug === "string" ? slug : "").not.toMatch(/002|003/);
-    }
-  });
-
-  it("public build has no draft/stale/retracted detail/body and no raw/secret-shaped values", () => {
+  it("production output contains no synthetic/demo markers or external scripts", () => {
     execFileSync(
       "node",
       ["--experimental-strip-types", "tools/schema/public-audit.mjs", "dist-public"],
-      { cwd: REPO_ROOT, stdio: "pipe" },
+      { cwd: REPO_ROOT, env: productionEnv(), stdio: "pipe" },
     );
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.isFile()) files.push(full);
+      }
+    };
+    walk(PUBLIC);
+    for (const file of files) {
+      const text = fs.readFileSync(file, "utf8");
+      expect(text).not.toMatch(/synthetic|合成夹具|demo news|fake news/i);
+      expect(text).not.toMatch(/<script[^>]+src=["']https?:\/\//i);
+      expect(file).not.toMatch(/\.(?:png|jpe?g|gif|webp|svg|mp3|wav|ogg|m4a|flac|mp4|webm)$/i);
+      expect(file).not.toMatch(/(?:^|[/._-])(?:crawler|cron|deploy|maintenance|research)(?:[/._-]|$)/i);
+      expect(text).not.toMatch(/<(?:img|audio|video|source)\b/i);
+    }
   });
 
-  it("security headers file is present in the public artifact", () => {
+  it("explicit reviewed-current fixture package alone produces one trilingual item", () => {
+    const manifest = asRecord(readJson(FIXTURE, "manifest.json"));
+    const entries = asArray(manifest.entries);
+    expect(entries).toHaveLength(1);
+    expect(asRecord(entries[0]).review_status).toBe("published");
+    expect(asRecord(asRecord(entries[0]).locales).ja).toBeTruthy();
+    expect(asRecord(asRecord(entries[0]).locales).zh).toBeTruthy();
+    expect(asRecord(asRecord(entries[0]).locales).en).toBeTruthy();
+    expect(fs.existsSync(path.join(FIXTURE, "zh", "news", "2026", "S1-synth-2026-08-08-001", "index.html"))).toBe(true);
+    expect(fs.existsSync(path.join(FIXTURE, "zh", "news", "2026", "S1-synth-2026-08-08-002", "index.html"))).toBe(false);
+  });
+
+  it("keeps security headers in the empty public artifact", () => {
     const h = fs.readFileSync(path.join(PUBLIC, "_headers"), "utf-8");
     expect(h).toMatch(/Content-Security-Policy/);
     expect(h).toMatch(/X-Content-Type-Options: nosniff/);
     expect(h).toMatch(/frame-ancestors 'none'/);
-  });
-
-  it("default local build still renders draft preview (approved behavior), public build does not", () => {
-    // default build keeps the accepted noindex preview for draft (002)
-    const defaultHasDraft = fs.existsSync(path.join(DEFAULT, DRAFT_REL));
-    const publicHasDraft = fs.existsSync(path.join(PUBLIC, DRAFT_REL));
-    expect(defaultHasDraft).toBe(true);
-    expect(publicHasDraft).toBe(false);
   });
 });

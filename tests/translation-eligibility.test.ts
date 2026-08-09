@@ -7,7 +7,7 @@ import {
   isRealTranslation,
   loadNews,
   resolveLocale,
-  REPO_ROOT,
+  getContentRoot,
 } from "../src/lib/content.ts";
 
 // Translation eligibility（design §1.2）: body 非空、reviewed、
@@ -65,7 +65,7 @@ describe("translation eligibility — fail-closed", () => {
     const items = loadNews();
     const item1 = items.find((i) => i.slug.includes("001"))!;
     // write a temp retraction record pointing at item1, then reload
-    const retrDir = path.join(REPO_ROOT, "content", "retractions");
+    const retrDir = path.join(getContentRoot(), "retractions");
     const retrDirExisted = fs.existsSync(retrDir);
     fs.mkdirSync(retrDir, { recursive: true });
     const file = path.join(retrDir, "probe.json");

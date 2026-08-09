@@ -15,7 +15,10 @@ const items = loadPublishedNews().sort((a, b) =>
 ---
 
 {items.length === 0 ? (
-  <p>{t.newsEmpty()}</p>
+  <section aria-labelledby="empty-news-title" class="rounded border border-border bg-surface px-6 py-5">
+    <h3 id="empty-news-title" class="mt-0 text-xl">{t.newsEmptyTitle()}</h3>
+    <p>{t.newsEmpty()}</p>
+  </section>
 ) : (
   <ul class="grid gap-6">
     {items.map((item) => (

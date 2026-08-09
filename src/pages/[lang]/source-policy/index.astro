@@ -22,13 +22,20 @@ const sources = loadPublishedNews();
   <ul class="list-disc pl-6">
     <li>{t.policyNoCopy()}</li>
     <li>{t.policyAutomated()}</li>
+    <li>{t.policyAiUse()}</li>
   </ul>
   <h2 class="text-xl">{t.policyCurrentSources()}</h2>
-  <ul class="list-disc pl-6">
-    {sources.map((s) => (
-      <li>
-        <strong>{s.canonical.sourceId}</strong> — {s.canonical.sourceUrl}
-      </li>
-    ))}
-  </ul>
+  {sources.length === 0 ? (
+    <p>{t.policyNoCurrentSources()}</p>
+  ) : (
+    <ul class="list-disc pl-6">
+      {sources.map((s) => (
+        <li>
+          <strong>{s.canonical.sourceId}</strong> — {s.canonical.sourceUrl}
+        </li>
+      ))}
+    </ul>
+  )}
+  <h2 class="text-xl">{t.policyCorrectionTitle()}</h2>
+  <p>{t.policyCorrectionBody()}</p>
 </SiteLayout>

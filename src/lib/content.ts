@@ -3,37 +3,186 @@ import path from "node:path";
 import matter from "gray-matter";
 
 import { fileURLToPath } from "node:url";
+import { validateFile } from "../../tools/schema/validate.ts";
 
 export const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+
+const DEFAULT_CONTENT_ROOT = path.join(REPO_ROOT, "content");
+const TEST_CONTENT_PACKAGE_BASE = path.join(REPO_ROOT, "tests", "fixtures", "content-package");
+const DEV_CONTENT_PACKAGE_BASE = path.join(REPO_ROOT, "content-dev");
+const PACKAGE_ROOT_ENV = "MOMOKO_CONTENT_PACKAGE_ROOT";
+const PACKAGE_MODE_ENV = "MOMOKO_CONTENT_PACKAGE_MODE";
+
+export type ContentPackageMode = "test" | "dev";
+
+export class ContentPackageError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "ContentPackageError";
+    this.code = code;
+  }
+}
+
+export interface ContentPackageManifest {
+  package_version: "1";
+  content_schema_version: "1";
+  status: "empty" | "ready";
+}
+
+function isInside(child: string, parent: string): boolean {
+  const relative = path.relative(parent, child);
+  return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+}
+
+/**
+ * Resolve the package used by a build. An override is never implicit: it
+ * requires an explicit test/dev mode and test packages must live below the
+ * checked-in fixture root. Production builds therefore cannot inherit demo
+ * content from an environment variable or a silent fallback.
+ */
+export function getContentRoot(): string {
+  const raw = process.env[PACKAGE_ROOT_ENV];
+  const mode = process.env[PACKAGE_MODE_ENV] as ContentPackageMode | undefined;
+  if (process.env.PUBLIC_BUILD === "1" && (raw !== undefined || mode !== undefined)) {
+    throw new ContentPackageError(
+      "public_build_content_override_forbidden",
+      "public build cannot use a content override",
+    );
+  }
+  if (raw !== undefined) {
+    if (!raw.trim()) {
+      throw new ContentPackageError("content_package_root_empty", `${PACKAGE_ROOT_ENV} is empty`);
+    }
+    if (mode !== "test" && mode !== "dev") {
+      throw new ContentPackageError(
+        "content_package_mode_required",
+        `${PACKAGE_MODE_ENV} must be explicitly set to test or dev when ${PACKAGE_ROOT_ENV} is set`,
+      );
+    }
+    if (path.isAbsolute(raw)) {
+      throw new ContentPackageError(
+        "content_package_root_absolute",
+        "content package root must be a relative repository path",
+      );
+    }
+    const root = path.resolve(REPO_ROOT, raw);
+    const allowedRoot = mode === "test" ? TEST_CONTENT_PACKAGE_BASE : DEV_CONTENT_PACKAGE_BASE;
+    if (!isInside(root, allowedRoot)) {
+      throw new ContentPackageError(
+        `${mode}_content_package_outside_root`,
+        `${mode} content packages must stay inside the configured repository root`,
+      );
+    }
+    return assertContentRoot(root);
+  }
+  if (process.env[PACKAGE_MODE_ENV] !== undefined) {
+    throw new ContentPackageError(
+      "content_package_mode_without_root",
+      `${PACKAGE_MODE_ENV} requires an explicit ${PACKAGE_ROOT_ENV}`,
+    );
+  }
+  return assertContentRoot(DEFAULT_CONTENT_ROOT);
+}
+
+function assertContentRoot(root: string): string {
+  if (!fs.existsSync(root)) {
+    throw new ContentPackageError("content_package_missing", "content package directory is missing");
+  }
+  const stat = fs.lstatSync(root);
+  if (stat.isSymbolicLink() || !stat.isDirectory()) {
+    throw new ContentPackageError("content_package_root_invalid", "content package root must be a real directory");
+  }
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) {
+        throw new ContentPackageError("content_package_symlink", "content package contains a symlink");
+      }
+      if (entry.isDirectory()) walk(full);
+    }
+  };
+  walk(root);
+  return root;
+}
+
+function readPackageManifest(root: string): ContentPackageManifest {
+  const manifestPath = path.join(root, "package.json");
+  if (!fs.existsSync(manifestPath) || fs.lstatSync(manifestPath).isSymbolicLink()) {
+    throw new ContentPackageError("content_package_manifest_missing", "content package package.json is missing or symlinked");
+  }
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch {
+    throw new ContentPackageError("content_package_manifest_invalid", "content package package.json is not valid JSON");
+  }
+  const checked = validateFile("content-package.schema.json", manifest);
+  if (!checked.valid) {
+    throw new ContentPackageError("content_package_manifest_invalid", "content package manifest failed schema validation");
+  }
+  return manifest as ContentPackageManifest;
+}
+
+function assertKnownPackageEntries(root: string): void {
+  const allowed = new Set(["package.json", "news", "retractions"]);
+  for (const entry of fs.readdirSync(root)) {
+    if (!allowed.has(entry)) {
+      throw new ContentPackageError("content_package_entry_unsupported", `unsupported content package entry: ${entry}`);
+    }
+  }
+}
+
+function packageManifest(root = getContentRoot()): ContentPackageManifest {
+  assertKnownPackageEntries(root);
+  return readPackageManifest(root);
+}
 
 /** content paths with an active retraction record（status=requested|active）。 */
 function retractedPaths(): Set<string> {
   return loadRetractions();
 }
 
-function loadRetractions(): Set<string> {
+function loadRetractions(contentRoot = getContentRoot()): Set<string> {
   const out = new Set<string>();
-  const root = path.join(REPO_ROOT, "content", "retractions");
+  const root = path.join(contentRoot, "retractions");
   if (!fs.existsSync(root)) return out;
+  if (fs.lstatSync(root).isSymbolicLink() || !fs.statSync(root).isDirectory()) {
+    throw new ContentPackageError("content_package_retractions_invalid", "retractions must be a real directory");
+  }
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) {
+        throw new ContentPackageError("content_package_symlink", `symlink in retractions: ${entry.name}`);
+      }
       if (entry.isDirectory()) walk(full);
       else if (entry.isFile() && entry.name.endsWith(".json")) {
         try {
-          const rec = JSON.parse(fs.readFileSync(full, "utf-8")) as {
-            content_path?: string;
-            status?: string;
-          };
+          const rec = JSON.parse(fs.readFileSync(full, "utf-8")) as Record<string, unknown>;
+          const checked = validateFile("retraction.schema.json", rec);
+          if (!checked.valid) {
+            throw new ContentPackageError(
+              "content_package_retraction_invalid",
+              checked.errors ?? `invalid retraction: ${path.relative(contentRoot, full)}`,
+            );
+          }
           if (
-            rec.content_path &&
+            typeof rec.content_path === "string" &&
             (rec.status === "requested" || rec.status === "active")
           ) {
             out.add(rec.content_path);
           }
-        } catch {
-          // malformed retraction record: ignore (schema validation is CI's gate)
+        } catch (error) {
+          if (error instanceof ContentPackageError) throw error;
+          throw new ContentPackageError(
+            "content_package_retraction_invalid",
+            `invalid retraction file: ${path.relative(contentRoot, full)}`,
+          );
         }
+      } else if (entry.isFile()) {
+        throw new ContentPackageError("content_package_entry_unsupported", `unsupported retraction entry: ${entry.name}`);
       }
     }
   };
@@ -93,7 +242,15 @@ type LocaleLang = (typeof LOCALE_LANGS)[number];
 
 function parseCanonical(filePath: string): { meta: ContentMeta; body: string } {
   const { data, content } = matter(fs.readFileSync(filePath, "utf-8"));
-  return { meta: normalizeContentMeta(data as Record<string, unknown>), body: content.trim() };
+  const record = { ...(data as Record<string, unknown>), body: content.trim() };
+  const checked = validateFile("content.schema.json", record);
+  if (!checked.valid) {
+    throw new ContentPackageError(
+      "content_package_content_invalid",
+      `${path.basename(filePath)} failed content schema validation: ${checked.errors ?? "invalid"}`,
+    );
+  }
+  return { meta: normalizeContentMeta(record), body: content.trim() };
 }
 
 /** Map frontmatter snake_case keys to the camelCase ContentMeta shape. */
@@ -124,6 +281,14 @@ function parseLocale(filePath: string): LocaleFile {
   const lang = path.basename(filePath).match(/^content\.(ja|zh|en)\.md$/)?.[1];
   if (!lang) throw new Error(`cannot infer lang from ${filePath}`);
   const d = data as Record<string, unknown>;
+  const record = { ...d, body: content.trim() };
+  const checked = validateFile("locale.schema.json", record);
+  if (!checked.valid) {
+    throw new ContentPackageError(
+      "content_package_locale_invalid",
+      `${path.basename(filePath)} failed locale schema validation: ${checked.errors ?? "invalid"}`,
+    );
+  }
   return {
     lang: lang as LocaleLang,
     meta: {
@@ -140,14 +305,19 @@ function parseLocale(filePath: string): LocaleFile {
   };
 }
 
-function loadNewsItem(dir: string): NewsItem {
+function loadNewsItem(contentRoot: string, dir: string): NewsItem {
   const { meta, body } = parseCanonical(path.join(dir, "index.md"));
   const locales: NewsItem["locales"] = {};
   for (const lang of LOCALE_LANGS) {
     const file = path.join(dir, `content.${lang}.md`);
-    if (fs.existsSync(file)) locales[lang] = parseLocale(file);
+    if (fs.existsSync(file)) {
+      if (fs.lstatSync(file).isSymbolicLink()) {
+        throw new ContentPackageError("content_package_symlink", `symlinked locale file: ${path.basename(file)}`);
+      }
+      locales[lang] = parseLocale(file);
+    }
   }
-  const rel = path.relative(path.join(REPO_ROOT, "content", "news"), dir);
+  const rel = path.relative(path.join(contentRoot, "news"), dir);
   return {
     slug: rel,
     canonical: meta,
@@ -158,24 +328,50 @@ function loadNewsItem(dir: string): NewsItem {
 
 /** Scan content/news/** and load every canonical item. */
 export function loadNews(): NewsItem[] {
-  const newsRoot = path.join(REPO_ROOT, "content", "news");
+  const contentRoot = getContentRoot();
+  const manifest = packageManifest(contentRoot);
+  // Validate every retraction record even for an empty package or before an
+  // item happens to ask for its status. A malformed package must fail closed.
+  loadRetractions(contentRoot);
+  const newsRoot = path.join(contentRoot, "news");
   const out: NewsItem[] = [];
-  if (!fs.existsSync(newsRoot)) return out;
+  if (!fs.existsSync(newsRoot)) {
+    if (manifest.status === "ready") {
+      throw new ContentPackageError("content_package_ready_without_news", "ready content package has no news directory");
+    }
+    return out;
+  }
+  if (fs.lstatSync(newsRoot).isSymbolicLink() || !fs.statSync(newsRoot).isDirectory()) {
+    throw new ContentPackageError("content_package_news_invalid", "news must be a real directory");
+  }
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) {
+        throw new ContentPackageError("content_package_symlink", `symlink in content package: ${entry.name}`);
+      }
       if (entry.isDirectory()) {
         walk(full);
-      } else if (entry.isFile() && entry.name === "index.md") {
-        out.push(loadNewsItem(dir));
+      } else if (entry.isFile()) {
+        if (entry.name === "index.md") {
+          out.push(loadNewsItem(contentRoot, dir));
+        } else if (!/^content\.(ja|zh|en)\.md$/.test(entry.name) && entry.name !== "editorial-history.json") {
+          throw new ContentPackageError("content_package_entry_unsupported", `unsupported news entry: ${entry.name}`);
+        }
       }
     }
   };
   walk(newsRoot);
-  // PUBLIC_BUILD=1 (public-release build): only reviewed/current content; the
-  // detail routes and bodies of draft/stale/retracted never enter the output
-  // (not replaced by noindex).
-  if (process.env.PUBLIC_BUILD === "1") {
+  if (manifest.status === "empty" && out.length > 0) {
+    throw new ContentPackageError("content_package_empty_with_content", "empty content package contains canonical content");
+  }
+  if (manifest.status === "ready" && out.length === 0) {
+    throw new ContentPackageError("content_package_ready_without_content", "ready content package contains no canonical content");
+  }
+  // Production builds are always public-safe. Draft/stale/retracted records
+  // are available only to an explicit test/dev package override, while
+  // PUBLIC_BUILD=1 also forces the same filter for that override.
+  if (process.env.PUBLIC_BUILD === "1" || process.env[PACKAGE_ROOT_ENV] === undefined) {
     return out.filter(isCurrentReviewed);
   }
   return out;

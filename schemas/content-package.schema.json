@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/content-package.schema.json",
+  "title": "Versioned content package manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["package_version", "content_schema_version", "status"],
+  "properties": {
+    "package_version": { "const": "1" },
+    "content_schema_version": { "const": "1" },
+    "status": { "enum": ["empty", "ready"] }
+  }
+}

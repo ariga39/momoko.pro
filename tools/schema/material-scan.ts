@@ -9,8 +9,7 @@ export const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta
  * 仓库内容不得包含官方图片/Logo/歌词/台词/音频/视频/抓取正文。
  * 返回违规文件列表（内容行命中关键词即视为违规）。
  */
-export function scanOutOfBoundsMaterial(): string[] {
-  const contentRoot = path.join(REPO_ROOT, "content");
+export function scanOutOfBoundsMaterial(contentRoot = path.join(REPO_ROOT, "content")): string[] {
   if (!fs.existsSync(contentRoot)) return [];
   const violations: string[] = [];
   // 内容文件内禁止出现：二进制媒体引用、歌词/台词整段、官方图片。
