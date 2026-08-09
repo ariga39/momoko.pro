@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -119,6 +120,38 @@ describe("CI/preview workflow — release-candidate quality", () => {
     expect(final?.run).toMatch(/https:\/\//);
     expect(final?.run).toMatch(/malformed deployment URL/);
     expect(final?.run).not.toMatch(/\$\{\{/);
+  });
+
+  it("preview deploy: project-name validation executes correctly (table-driven)", () => {
+    const doc = loadWorkflow("preview.yml");
+    const steps = (doc.jobs?.deploy?.steps ?? []) as Step[];
+    const validate = steps.find((s) => s.name?.includes("Validate Cloudflare project name"));
+    expect(validate?.run).toBeTruthy();
+    const script = ["set -euo pipefail", ...(validate!.run ?? "").split("\n")].join("\n");
+
+    const cases: Array<[string, boolean]> = [
+      ["momoko-pro-preview", true],
+      ["momoko", true],
+      ["a1-b2_c3", true],
+      ["-leading-dash", false],
+      ["has space", false],
+      ["has/slash", false],
+      ["has$", false],
+      ["has%20escaped", false],
+      ["x".repeat(101), false],
+      ["", false],
+    ];
+
+    for (const [name, shouldPass] of cases) {
+      const env = { ...process.env, CLOUDFLARE_PROJECT_NAME: name, GITHUB_ENV: "/dev/null" } as Record<string, string>;
+      let exitOk = true;
+      try {
+        execFileSync("bash", ["-c", script], { env, stdio: "pipe" });
+      } catch {
+        exitOk = false;
+      }
+      expect(exitOk, `name=${JSON.stringify(name)} should ${shouldPass ? "pass" : "fail"}`).toBe(shouldPass);
+    }
   });
 
   it("ci.yml upload-artifact conditional on failure AND evidence", () => {

@@ -153,11 +153,9 @@ jobs:
           if [ "${#name}" -gt 100 ]; then
             echo "::error::CLOUDFLARE_PROJECT_NAME too long (max 100 chars)"; exit 1
           fi
-          case "$name" in
-            -*-*)
-              echo "::error::CLOUDFLARE_PROJECT_NAME invalid: leading dash not allowed"; exit 1
-              ;;
-          esac
+          if [[ "$name" == -* ]]; then
+            echo "::error::CLOUDFLARE_PROJECT_NAME invalid: leading dash not allowed"; exit 1
+          fi
           if [[ "$name" == *[[:space:]]* ]] || [[ "$name" == */* ]] || [[ "$name" =~ [^A-Za-z0-9_-] ]]; then
             echo "::error::CLOUDFLARE_PROJECT_NAME invalid: only A-Za-z0-9_- (no whitespace, slash)"
             exit 1
