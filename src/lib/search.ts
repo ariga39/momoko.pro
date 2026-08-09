@@ -13,7 +13,7 @@ export interface SearchRow {
   sourceItemId: string;
 }
 
-/** 确定性本地搜索索引（ADR-05 fallback）：由 content 全量生成、客户端过滤。 */
+/** Deterministic local search index (ADR-05 fallback): built from content, client-filtered. */
 export function buildSearchIndex(items: NewsItem[]): SearchRow[] {
   return items
     .flatMap((item) =>

@@ -179,8 +179,8 @@ test("source-language detail page is self-canonical and NOT a fallback (no noind
   await expect(page.locator("body")).not.toContainText("缺译");
   await expect(page.locator("body")).not.toContainText("未翻訳");
 
-  // 002 canonical is ja (draft): still a source page, not fallback (no 缺译 notice),
-  // but draft content is noindex,follow per content status.
+  // 002 canonical is ja (draft): still a source page, not fallback (no
+  // missing-translation notice), but draft content is noindex,follow per content status.
   await page.goto("/ja/news/2026/S1-synth-2026-08-08-002/");
   await expect(page.locator("body")).not.toContainText("缺译");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -188,4 +188,12 @@ test("source-language detail page is self-canonical and NOT a fallback (no noind
     "https://momoko.pro/ja/news/2026/S1-synth-2026-08-08-002/",
   );
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
+});
+
+test("archive lists only reviewed/current content (no draft/retracted)", async ({ page }) => {
+  await page.goto("/zh/");
+  const body = await page.locator("body").innerText();
+  expect(body).toContain("夏フェス開催"); // reviewed 001
+  expect(body).not.toContain("新曲発売決定"); // draft 002
+  expect(body).not.toContain("撤回测试项"); // retracted 003
 });

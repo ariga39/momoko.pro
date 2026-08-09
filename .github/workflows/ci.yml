@@ -11,29 +11,28 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # PR 触发路径不注入任何 secret（§8.3）：无 CF token、无模型 key、不部署。
+    # PR-triggered path injects no secrets (§8.3): no CF token, no model key, no deploy.
     env:
       CI: "true"
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        with:
-          version: 9.15.9
-          run_install: false
-
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: 22
-          cache: pnpm
+          node-version: 24
+          # setup-node v5 auto-enables package-manager-cache from metadata, which
+          # looks for pnpm before Corepack activates it; disable explicitly.
+          package-manager-cache: false
 
-      - name: Install (frozen lockfile)
-        run: pnpm install --frozen-lockfile
+      - name: Enable corepack + install (frozen lockfile)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
 
       - name: Lint and typecheck
         run: pnpm check
@@ -51,10 +50,12 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           pnpm test:e2e
+        continue-on-error: false
 
-      - name: Upload browser artifacts (no secrets)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+      # Upload only on real failure with actual test-results/ evidence; silent otherwise.
+      - name: Upload browser artifacts (no secrets, conditional on evidence)
+        if: failure() && hashFiles('test-results/**') != ''
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: playwright-results
           path: test-results/
