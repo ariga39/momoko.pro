@@ -59,3 +59,14 @@
 - 版本/锁定：pnpm-lock.yaml 强制提交、CI frozen-lockfile；第三方 action 固定 full SHA。
 - 代价：供应商/框架锁定（Astro/Pagefind/CF）；可替换条件见 design.md §2。
 - 改变条件：构建复杂度超阈值、CJK 搜索夹具不通过需 fallback、团队主导语言变更——均需另开 ADR。
+
+## ADR-12 i18n 分层（ADR-I18N）
+- 决策：Astro 原生 i18n routing 负责 `/ja|zh|en` 路由、locale 校验与 URL helper；Paraglide JS 只负责导航、按钮、状态提示等 UI message catalog。静态构建按 Paraglide Astro SSG 指南在 prerender 时显式设置 locale，不引入运行时语言服务。
+- 路由：三种语言全部带前缀；`/` 保留 x-default 语言选择页，不读取 `Accept-Language`、不自动跳转。URL 是 locale 真相源。
+- 内容边界：编辑内容仍以 `content.<lang>.md`、`source_content_hash` 与 `review_status` 为唯一真相；Paraglide/Astro fallback 不得改变或推断审核状态。缺失或 stale 内容只能显式回退源语言并显示提示。
+- SEO：真实翻译必须 body 非空、`reviewed`、绑定当前源 hash 且未 retracted；真实翻译页 self-canonical。fallback 页使用源语言 `lang`/metadata、canonical 到源页并 `noindex,follow`，请求 locale 不进入 alternate。每个内容身份的 hreflang 集合使用全限定 URL、包含自身并在全部成员上双向一致；详情 `x-default` 指向源页，站点根选择页只服务入口/列表层。
+- CI 门：UI message key 必须类型检查；三语 catalog key 集合完整；Astro locale 集合与 Paraglide locale 集合完全相等；按内容身份验证真实翻译/fallback 的 `lang`、metadata、canonical、robots 与 hreflang 双向集合；构建保持静态、确定且离线。
+- 不采用：本切片不选 i18next；它是可行的 runtime i18n 方案，但 Paraglide 有直接的 Astro SSG 上游指南、编译期 message 类型安全且更少自建适配面。也不继续维护散落在组件中的手写三语对象。
+- 代价：增加 Paraglide 编译步骤、`project.inlang` 和生成代码；UI 与编辑内容有两个明确层次。收益是 UI key/参数类型安全、编译期发现拼写错误和后续翻译工具链兼容。
+- 改变条件：若 Paraglide 的 Astro SSG/Cloudflare 构建出现可复现兼容问题、维护停滞或生成物破坏确定性，回退为 Astro 原生 routing + 单一 typed local catalog；编辑内容模型不变。
+- 依据（2026-08-09）：<https://docs.astro.build/en/guides/internationalization/>、<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>、<https://www.i18next.com/overview/getting-started>、<https://developers.google.com/search/docs/specialty/international/localized-versions>、<https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls>。
