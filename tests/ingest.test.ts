@@ -725,3 +725,109 @@ function snapshotDraftTree(): string {
   walk(DRAFT_ROOT);
   return lines.sort().join("\n");
 }
+
+describe("NO-GO round-5 regressions (@Mirai)", () => {
+  function approvedCfg(sourceId = "S9") {
+    return { schema_version: "1", sources: [approvedSource({ source_id: sourceId })] };
+  }
+
+  it("importDiscovery fsync failure => structured error, zero state (no empty dir)", async () => {
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources-r5a.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(approvedCfg()), "utf8");
+    const rec = { schema_version: "1", source_id: "S9", source_item_id: "fs",
+      source_url: "https://example.com/fs", published_at: "2026-08-08T00:00:00+09:00",
+      title: "t", lang: "zh", note: "n" };
+    const origFsync = fs.fsyncSync;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (fs as any).fsyncSync = () => { throw new Error("injected fsync"); };
+    try {
+      const r = importDiscovery(rec, { sourcesPath: cfgPath });
+      expect(r.status).toBe("error");
+      expect(r.code).toBe("write_failed");
+      expect(r.error).toContain("injected fsync");
+      // no empty dir left under DRAFT_ROOT
+      expect(fs.existsSync(DRAFT_ROOT)).toBe(false);
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (fs as any).fsyncSync = origFsync;
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("runCron items array with null element => structured error, no write", async () => {
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources-r5b.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(approvedCfg()), "utf8");
+    const good = { schema_version: "1", source_id: "S9", source_item_id: "ok",
+      source_url: "https://example.com/ok", published_at: "2026-08-08T00:00:00+09:00",
+      title: "t", lang: "zh", note: "good" };
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch(): Promise<FetchResult> {
+        return { ok: true, items: [good, null] as never[] };
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(Object.values(r.errors).some((e) => e === "invalid_item")).toBe(true);
+      expect(r.produced).toBe(0);
+      expect(fs.existsSync(DRAFT_ROOT)).toBe(false); // whole batch aborted
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("commit swap failure => commit_failed with zero state change (old tree intact)", async () => {
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources-r5c.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(approvedCfg()), "utf8");
+    const rec1 = { schema_version: "1", source_id: "S9", source_item_id: "sw",
+      source_url: "https://example.com/sw", published_at: "2026-08-08T00:00:00+09:00",
+      title: "t", lang: "zh", note: "n1" };
+    const rec2 = { ...rec1, note: "n2 changed" };
+    let fetchCount = 0;
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch(): Promise<FetchResult> {
+        fetchCount += 1;
+        return { ok: true, items: [fetchCount === 1 ? rec1 : rec2] as never[] };
+      },
+    });
+    try {
+      expect((await runCron(cfgPath)).produced).toBe(1);
+      const before = snapshotDraftTree();
+      // Fail the final swap (staging -> root) by monkeypatching renameSync.
+      const origRename = fs.renameSync;
+      let failed = false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (fs as any).renameSync = (a: unknown, b: unknown) => {
+        if (!failed && String(a).includes("drafts-staging") && String(b).endsWith("ingest-drafts")) {
+          failed = true;
+          throw new Error("injected final swap failure");
+        }
+        return origRename(a as never, b as never);
+      };
+      let r;
+      try {
+        r = await runCron(cfgPath);
+      } finally {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (fs as any).renameSync = origRename;
+      }
+      expect(Object.values(r.errors).some((e) => e.includes("commit_failed"))).toBe(true);
+      // zero state change: old tree intact, no new version
+      expect(snapshotDraftTree()).toEqual(before);
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("phase2b handoff is present in the committed tree", () => {
+    const handoff = path.join(process.cwd(), "notes", "phase2b-ingestion-handoff.md");
+    expect(fs.existsSync(handoff)).toBe(true);
+    const text = fs.readFileSync(handoff, "utf8");
+    expect(text).toContain("翼（tsubasa）"); // no-@ signature
+    expect(text).not.toContain("@tsubasa");
+  });
+});

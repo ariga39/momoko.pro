@@ -505,8 +505,10 @@ export function commitPlannedBatch(
         try { fs.rmSync(tmp, { force: true }); } catch { /* ignore */ }
       }
     }
-    // Swap atomically: move old root aside, move staging into place, and on
-    // failure restore the old tree so DRAFT_ROOT is never lost or partial.
+    // Swap atomically: move old root aside, move staging into place. The
+    // swap is the commit point; once staging->root succeeds the batch is
+    // committed and the old backup is best-effort cleanup (a cleanup failure
+    // is reported as residue, never as a failed commit).
     const backup = path.join(path.dirname(root), `.drafts-old-${process.pid}-${randomUUID().slice(0, 8)}`);
     let movedOld = false;
     try {
@@ -515,15 +517,20 @@ export function commitPlannedBatch(
         movedOld = true;
       }
       fs.renameSync(staging, root);
-      if (movedOld) {
-        fs.rmSync(backup, { recursive: true, force: true });
-      }
     } catch (err) {
-      // Restore the previous tree if we moved it away.
+      // Commit point failed: restore the previous tree (zero state change).
       if (movedOld && fs.existsSync(backup) && !fs.existsSync(root)) {
         try { fs.renameSync(backup, root); } catch { /* ignore */ }
       }
       throw err;
+    }
+    // Committed. Best-effort backup cleanup; residue is honest, not failure.
+    if (movedOld) {
+      try {
+        fs.rmSync(backup, { recursive: true, force: true });
+      } catch {
+        // leave backup; caller can observe residue via commit note
+      }
     }
   } catch (err) {
     try { fs.rmSync(staging, { recursive: true, force: true }); } catch { /* ignore */ }
@@ -598,6 +605,11 @@ export async function runCron(sourcesPath?: string): Promise<{
       continue;
     }
     for (const rawItem of result.items) {
+      if (rawItem === null || typeof rawItem !== "object") {
+        errors[`${source.source_id}:(invalid-item)`] = "invalid_item";
+        anyError = true;
+        continue;
+      }
       const item = normalizeDiscovery(rawItem as unknown as Record<string, unknown>);
       if (!item) {
         errors[`${source.source_id}:${(rawItem as { source_item_id?: string }).source_item_id ?? "?"}`] = "invalid_item";
@@ -663,10 +675,11 @@ export function importDiscovery(
   record: Record<string, unknown>,
   opts: { sourcesPath?: string } = {},
 ): {
-  status: "accepted" | "duplicate" | "changed" | "invalid" | "rejected";
+  status: "accepted" | "duplicate" | "changed" | "invalid" | "rejected" | "error";
   path?: string;
   version?: number;
   error?: string;
+  code?: string;
   candidates?: string[];
 } {
   const item = normalizeDiscovery(record);
@@ -687,6 +700,36 @@ export function importDiscovery(
     return { status: "rejected", error: p.error };
   }
   const candidates = findCrossSourceCandidates(item, loadDraftedItems());
-  const written = writeDraft({ path: draftRelPath(item, p.version), frontmatter: draftFrontmatter(item), body: item.note });
-  return { status: p.version === 1 ? "accepted" : "changed", path: written, version: p.version, candidates };
+  const relPath = draftRelPath(item, p.version);
+  const targetDir = path.dirname(path.join(DRAFT_ROOT, relPath));
+  try {
+    const written = writeDraft({ path: relPath, frontmatter: draftFrontmatter(item), body: item.note });
+    return { status: p.version === 1 ? "accepted" : "changed", path: written, version: p.version, candidates };
+  } catch (err) {
+    // Structured failure with zero state change: remove the target dir and
+    // any empty parent dirs this attempt created, so no partial artifact
+    // (or empty skeleton) remains under DRAFT_ROOT.
+    pruneEmptyParents(targetDir);
+    return { status: "error", error: `write_failed: ${(err as Error).message}`, code: "write_failed" };
+  }
+}
+
+/** Remove empty directories from `dir` upward to DRAFT_ROOT (best-effort).
+ * Also removes DRAFT_ROOT itself if it becomes empty. */
+export function pruneEmptyParents(dir: string): void {
+  const root = path.resolve(DRAFT_ROOT);
+  let cur = path.resolve(dir);
+  try {
+    while (cur.startsWith(root) && cur !== path.dirname(root)) {
+      try {
+        fs.rmdirSync(cur);
+      } catch {
+        break; // not empty or failed; stop
+      }
+      if (cur === root) break;
+      cur = path.dirname(cur);
+    }
+  } catch {
+    /* ignore */
+  }
 }
