@@ -58,6 +58,41 @@ describe("CI/preview workflow — release-candidate quality", () => {
     expect(blob).not.toMatch(/pnpm\/action-setup/);
   });
 
+  it("setup-node does not require pnpm before corepack activates it (no `cache: pnpm`)", () => {
+    for (const f of ["ci.yml", "preview.yml"]) {
+      const doc = loadWorkflow(f);
+      for (const job of Object.values(doc.jobs ?? {})) {
+        const steps = (job.steps ?? []) as Step[];
+        const setupNode = steps.find((s) => s.name?.includes("Setup Node"));
+        if (!setupNode) continue;
+        expect(setupNode?.with?.["node-version"]).toBe(24);
+        expect(setupNode?.with?.["cache"], `${f}: no cache: pnpm before corepack`).toBeUndefined();
+        const nodeIdx = steps.indexOf(setupNode!);
+        const corepackIdx = steps.findIndex((s) => /corepack/.test(s.run ?? ""));
+        expect(corepackIdx, `${f}: corepack step after setup-node`).toBeGreaterThan(nodeIdx);
+      }
+    }
+  });
+
+  it("preview.yml never interpolates `inputs.*` directly inside run: blocks (shell injection guard)", () => {
+    const doc = loadWorkflow("preview.yml");
+    const jobs = doc.jobs ?? {};
+    for (const [jobName, job] of Object.entries(jobs)) {
+      for (const step of (job.steps ?? []) as Step[]) {
+        if (!step.run) continue;
+        expect(step.run, `${jobName} step "${step.name}"`).not.toMatch(
+          /\$\{\{\s*inputs\./,
+        );
+      }
+    }
+    // target_sha is mapped once through job env and referenced as a quoted shell var.
+    for (const job of Object.values(jobs)) {
+      expect((job as Job & { env?: Record<string, string> }).env?.["TARGET_SHA"]).toBe(
+        "${{ inputs.target_sha }}",
+      );
+    }
+  });
+
   it("ci.yml upload-artifact conditional on failure AND evidence", () => {
     const doc = loadWorkflow("ci.yml");
     const steps = (doc.jobs?.verify?.steps ?? []) as Step[];
@@ -127,7 +162,7 @@ describe("CI/preview workflow — release-candidate quality", () => {
     expect(preflight?.run).toMatch(/exit 1/);
     // deploy step uses full-SHA wrangler
     const wrangler = steps.find((s) => s.name?.includes("Deploy preview"));
-    expect(wrangler?.uses).toMatch(/^cloudflare\/wrangler-action@[0-9a-f]{40}$/);
+    expect(wrangler?.uses).toBe("cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0");
     const final = steps.find((s) => s.name?.includes("Final summary"));
     expect(final?.if).toBe("always()");
   });

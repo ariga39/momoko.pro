@@ -29,10 +29,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: "true"
+      # Map the dispatch inputs to shell variables once; never interpolate
+      # `${{ inputs.* }}` directly inside run: scripts (input values are data,
+      # not shell code).
+      TARGET_SHA: ${{ inputs.target_sha }}
+      DEPLOY_FLAG: ${{ inputs.deploy }}
     steps:
       - name: Validate target_sha (40-hex)
         run: |
-          if ! [[ "${{ inputs.target_sha }}" =~ ^[0-9a-f]{40}$ ]]; then
+          if ! [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::target_sha must be a full 40-hex commit SHA"
             exit 1
           fi
@@ -46,13 +51,13 @@ jobs:
       - name: Preflight — record dispatch main relation (target vs origin/main)
         run: |
           set -euo pipefail
-          git cat-file -t "${{ inputs.target_sha }}"
+          git cat-file -t "$TARGET_SHA"
           dispatch_main=$(git rev-parse origin/main)
           echo "dispatch_main_sha=$dispatch_main" >> "$GITHUB_ENV"
-          if [ "${{ inputs.target_sha }}" = "$dispatch_main" ]; then
+          if [ "$TARGET_SHA" = "$dispatch_main" ]; then
             echo "target_equals_dispatch_main=yes" >> "$GITHUB_ENV"
             echo "target_is_ancestor_of_dispatch_main=yes" >> "$GITHUB_ENV"
-          elif git merge-base --is-ancestor "${{ inputs.target_sha }}" "$dispatch_main" 2>/dev/null; then
+          elif git merge-base --is-ancestor "$TARGET_SHA" "$dispatch_main" 2>/dev/null; then
             echo "target_equals_dispatch_main=no" >> "$GITHUB_ENV"
             echo "target_is_ancestor_of_dispatch_main=yes" >> "$GITHUB_ENV"
           else
@@ -64,7 +69,6 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Enable corepack + install (frozen lockfile)
         run: |
@@ -98,14 +102,14 @@ jobs:
 
       - name: Publish preview summary
         run: |
-          if [ "${{ inputs.deploy }}" = "true" ]; then
+          if [ "$DEPLOY_FLAG" = "true" ]; then
             deploy_status=requested
           else
             deploy_status=artifact_only_public
           fi
           cat > "$GITHUB_STEP_SUMMARY" <<EOF
           ## momoko.pro preview
-          - target_sha: \`${{ inputs.target_sha }}\`
+          - target_sha: \`$TARGET_SHA\`
           - target_equals_dispatch_main: \`${{ env.target_equals_dispatch_main }}\`
           - target_is_ancestor_of_dispatch_main: \`${{ env.target_is_ancestor_of_dispatch_main }}\`
           - artifact hash: \`${{ env.preview_artifact_hash }}\`
@@ -124,6 +128,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+      TARGET_SHA: ${{ inputs.target_sha }}
     steps:
       - name: Validate required environment variables (no defaults)
         run: |
@@ -155,7 +160,7 @@ jobs:
           echo "preflight_ok=yes" >> "$GITHUB_ENV"
       - name: Deploy preview (full-SHA Cloudflare action)
         id: deploy
-        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         with:
@@ -175,7 +180,7 @@ jobs:
           echo "deploy_status=$status" >> "$GITHUB_ENV"
           cat > "$GITHUB_STEP_SUMMARY" <<EOF
           ## momoko.pro preview deploy
-          - target_sha: \`${{ inputs.target_sha }}\`
+          - target_sha: \`$TARGET_SHA\`
           - deploy_status: \`$status\`
           - preview url: \`$url\`
           EOF
