@@ -58,7 +58,7 @@ describe("CI/preview workflow — release-candidate quality", () => {
     expect(blob).not.toMatch(/pnpm\/action-setup/);
   });
 
-  it("setup-node does not require pnpm before corepack activates it (no `cache: pnpm`)", () => {
+  it("setup-node does not require pnpm before corepack activates it (no cache + explicit package-manager-cache off)", () => {
     for (const f of ["ci.yml", "preview.yml"]) {
       const doc = loadWorkflow(f);
       for (const job of Object.values(doc.jobs ?? {})) {
@@ -67,6 +67,10 @@ describe("CI/preview workflow — release-candidate quality", () => {
         if (!setupNode) continue;
         expect(setupNode?.with?.["node-version"]).toBe(24);
         expect(setupNode?.with?.["cache"], `${f}: no cache: pnpm before corepack`).toBeUndefined();
+        expect(
+          setupNode?.with?.["package-manager-cache"],
+          `${f}: package-manager-cache explicitly false (v5 default looks for pnpm pre-corepack)`,
+        ).toBe(false);
         const nodeIdx = steps.indexOf(setupNode!);
         const corepackIdx = steps.findIndex((s) => /corepack/.test(s.run ?? ""));
         expect(corepackIdx, `${f}: corepack step after setup-node`).toBeGreaterThan(nodeIdx);
