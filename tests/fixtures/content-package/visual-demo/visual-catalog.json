@@ -1,0 +1,90 @@
+{
+  "schema_version": "1",
+  "status": "demo",
+  "notice": {
+    "en": "DEMO / fictional example — not publication truth",
+    "ja": "DEMO / 架空の例 — 公開事実ではありません",
+    "zh": "DEMO / 架空示例 — 不代表可发布事实"
+  },
+  "encyclopedia": [
+    {
+      "id": "desk-notes",
+      "name": { "en": "Desk notes", "ja": "デスクノート", "zh": "编辑台笔记" },
+      "role": { "en": "Archive lens", "ja": "アーカイブの視点", "zh": "档案视角" },
+      "note": { "en": "A fictional index card for testing dense layouts.", "ja": "密度のあるレイアウト用の架空の索引カードです。", "zh": "用于测试信息密度布局的架空索引卡。" },
+      "tags": ["demo", "archive"]
+    },
+    {
+      "id": "stage-light",
+      "name": { "en": "Stage light", "ja": "ステージライト", "zh": "舞台灯" },
+      "role": { "en": "Visual motif", "ja": "ビジュアルモチーフ", "zh": "视觉母题" },
+      "note": { "en": "A typographic marker; no official artwork is included.", "ja": "公式画像を含まないタイポグラフィ用のマーカーです。", "zh": "纯文字标记，不包含官方图片。" },
+      "tags": ["demo", "motif"]
+    },
+    {
+      "id": "paper-trail",
+      "name": { "en": "Paper trail", "ja": "ペーパートレイル", "zh": "纸面轨迹" },
+      "role": { "en": "Editorial workflow", "ja": "編集ワークフロー", "zh": "编辑流程" },
+      "note": { "en": "A fictional reminder to show review states honestly.", "ja": "審査状態を正直に表示するための架空のリマインダーです。", "zh": "用于诚实显示审核状态的架空提醒。" },
+      "tags": ["demo", "review"]
+    }
+  ],
+  "songs_live": [
+    {
+      "id": "demo-song-1",
+      "year": 2024,
+      "kind": "song",
+      "date": "2024-03-12",
+      "title": { "en": "Paper Moon (DEMO)", "ja": "ペーパームーン（DEMO）", "zh": "纸月（DEMO）" },
+      "venue": { "en": "Studio A — fictional", "ja": "スタジオA — 架空", "zh": "A录音室 — 架空" },
+      "note": { "en": "Layout sample only; no lyrics or audio.", "ja": "レイアウト見本のみ。歌詞・音声はありません。", "zh": "仅为布局示例；不含歌词或音频。" }
+    },
+    {
+      "id": "demo-live-1",
+      "year": 2025,
+      "kind": "live",
+      "date": "2025-06-28",
+      "title": { "en": "Summer desk session (DEMO)", "ja": "サマーデスクセッション（DEMO）", "zh": "夏日编辑台现场（DEMO）" },
+      "venue": { "en": "Notebook Hall — fictional", "ja": "ノートブックホール — 架空", "zh": "笔记本会场 — 架空" },
+      "note": { "en": "A fictional timeline row for responsive testing.", "ja": "レスポンシブ検証用の架空タイムライン行です。", "zh": "用于响应式测试的架空时间线条目。" }
+    },
+    {
+      "id": "demo-live-2",
+      "year": 2026,
+      "kind": "live",
+      "date": "2026-09-05",
+      "title": { "en": "Archive room night (DEMO)", "ja": "アーカイブ室の夜（DEMO）", "zh": "档案室之夜（DEMO）" },
+      "venue": { "en": "Folio Stage — fictional", "ja": "フォリオステージ — 架空", "zh": "Folio舞台 — 架空" },
+      "note": { "en": "No real event claim; this only exercises filters and cards.", "ja": "実在イベントの主張ではなく、フィルターとカードの検証用です。", "zh": "不代表真实活动，仅用于筛选器和卡片测试。" }
+    },
+    {
+      "id": "demo-song-2",
+      "year": 2026,
+      "kind": "song",
+      "date": "2026-10-12",
+      "title": { "en": "Index of small stars (DEMO)", "ja": "小さな星の索引（DEMO）", "zh": "小星索引（DEMO）" },
+      "venue": { "en": "Practice room — fictional", "ja": "練習室 — 架空", "zh": "练习室 — 架空" },
+      "note": { "en": "A long-label fixture for narrow screens.", "ja": "狭い画面用の長いラベルのフィクスチャです。", "zh": "用于窄屏长标签测试的夹具。" }
+    }
+  ],
+  "anniversaries": [
+    {
+      "id": "demo-first-note",
+      "year": 2024,
+      "label": { "en": "The first note", "ja": "最初のノート", "zh": "第一张笔记" },
+      "note": { "en": "A fictional milestone for the archive grid.", "ja": "アーカイブグリッド用の架空マイルストーンです。", "zh": "用于档案网格的架空里程碑。" }
+    },
+    {
+      "id": "demo-paper-day",
+      "year": 2025,
+      "label": { "en": "Paper day", "ja": "ペーパーデー", "zh": "纸张日" },
+      "note": { "en": "A demo marker with no real-world claim.", "ja": "現実の事実を主張しないデモ用マーカーです。", "zh": "不代表现实事实的演示标记。" }
+    },
+    {
+      "id": "demo-next-page",
+      "year": 2026,
+      "label": { "en": "Next page", "ja": "次のページ", "zh": "下一页" },
+      "note": { "en": "A future-looking placeholder, visibly fictional.", "ja": "架空であることを明示した将来用プレースホルダーです。", "zh": "明确标记为架空的未来占位内容。" }
+    }
+  ]
+}
