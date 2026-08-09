@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/locale.schema.json",
+  "title": "译文文件",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "content_path", "lang", "source_content_hash", "content_hash", "review_status", "reviewed_by", "reviewed_at", "body"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "content_path": { "type": "string", "pattern": "^content/.*/index\\.md$" },
+    "lang": { "enum": ["ja", "zh", "en"] },
+    "source_content_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "content_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "review_status": { "enum": ["draft", "reviewed", "stale", "retracted"] },
+    "reviewed_by": { "type": ["string", "null"] },
+    "reviewed_at": { "type": ["string", "null"], "format": "date-time" },
+    "body": { "type": "string" }
+  },
+  "if": { "properties": { "review_status": { "const": "reviewed" } } },
+  "then": {
+    "properties": {
+      "reviewed_by": { "type": "string", "minLength": 1 },
+      "reviewed_at": { "type": "string", "format": "date-time" }
+    },
+    "required": ["reviewed_by", "reviewed_at"]
+  }
+}

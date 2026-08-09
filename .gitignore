@@ -1,0 +1,21 @@
+# env / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# node / build
+node_modules/
+dist/
+.wrangler/
+
+# local data
+*.sqlite
+*.sqlite3
+*.db
+wrangler.toml.local
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/
