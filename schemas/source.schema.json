@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/source.schema.json",
+  "title": "来源配置（config/sources.json）",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sources"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "$comment": { "type": "string" },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "source_id": {
+      "type": "string",
+      "pattern": "^S[0-9]+$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "name_zh", "canonical_url", "robots_txt_url", "robots_http", "robots_note", "terms_url", "terms_note", "automated_fetch", "fetch_frequency", "cache_boundary", "stop_condition"],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "name_zh": { "type": "string" },
+        "canonical_url": { "type": "string", "format": "uri" },
+        "robots_txt_url": { "type": ["string", "null"], "format": "uri" },
+        "robots_http": { "type": ["string", "null"], "pattern": "^[0-9]{3}$" },
+        "robots_note": { "type": "string" },
+        "terms_url": { "type": ["string", "null"], "format": "uri" },
+        "terms_note": { "type": "string" },
+        "automated_fetch": { "const": false },
+        "fetch_frequency": { "const": "manual" },
+        "cache_boundary": { "type": "string" },
+        "stop_condition": { "type": "string" }
+      }
+    }
+  }
+}
