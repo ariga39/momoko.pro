@@ -18,6 +18,7 @@ const t = ml("ja");
   bodyData={{ "data-search-index": indexJson }}
 >
   <h1 class="text-2xl">{t.searchHeading()}</h1>
+  {index.length === 0 && <p>{t.newsEmpty()}</p>}
   <form role="search" onsubmit="return false;">
     <label>
       {t.searchQuery()}

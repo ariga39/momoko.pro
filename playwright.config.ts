@@ -15,7 +15,7 @@ export default defineConfig({
     // Self-contained gate: full static build + postbuild from an empty dist before preview,
     // never depending on leftover workspace dist.
     command:
-      "rm -rf dist .astro && pnpm build && pnpm build:post && pnpm exec astro preview --port 4321",
+      "rm -rf dist .astro && MOMOKO_CONTENT_PACKAGE_MODE=test MOMOKO_CONTENT_PACKAGE_PREVIEW=1 MOMOKO_CONTENT_PACKAGE_ROOT=tests/fixtures/content-package/synthetic pnpm build && MOMOKO_CONTENT_PACKAGE_MODE=test MOMOKO_CONTENT_PACKAGE_PREVIEW=1 MOMOKO_CONTENT_PACKAGE_ROOT=tests/fixtures/content-package/synthetic pnpm build:post && pnpm exec astro preview --port 4321",
     port: 4321,
     reuseExistingServer: false,
     timeout: 120_000,

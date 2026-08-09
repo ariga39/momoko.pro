@@ -22,6 +22,7 @@ export function ml(lang: Locale) {
     langJa: () => m["lang.ja"]({}, options),
     langEn: () => m["lang.en"]({}, options),
     newsHeading: () => m["news.heading"]({}, options),
+    newsEmptyTitle: () => m["news.emptyTitle"]({}, options),
     newsEmpty: () => m["news.empty"]({}, options),
     newsMissingLocale: () => m["news.missingLocale"]({}, options),
     newsBackToList: () => m["news.backToList"]({}, options),
@@ -42,6 +43,10 @@ export function ml(lang: Locale) {
     policyIntro: () => m["policy.intro"]({}, options),
     policyNoCopy: () => m["policy.noCopy"]({}, options),
     policyAutomated: () => m["policy.automated"]({}, options),
+    policyAiUse: () => m["policy.aiUse"]({}, options),
     policyCurrentSources: () => m["policy.currentSources"]({}, options),
+    policyNoCurrentSources: () => m["policy.noCurrentSources"]({}, options),
+    policyCorrectionTitle: () => m["policy.correctionTitle"]({}, options),
+    policyCorrectionBody: () => m["policy.correctionBody"]({}, options),
   };
 }

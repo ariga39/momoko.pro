@@ -163,6 +163,17 @@ def _locale(**over) -> dict:
 CASES: list[tuple[str, dict, bool]] = [
     # config
     ("source.schema.json", json.loads((CONFIG / "sources.json").read_text()), True),
+    # content package manifest: only versioned empty/ready states are valid
+    (
+        "content-package.schema.json",
+        {"package_version": "1", "content_schema_version": "1", "status": "empty"},
+        True,
+    ),
+    (
+        "content-package.schema.json",
+        {"package_version": "1", "content_schema_version": "1", "status": "ready", "fallback": True},
+        False,
+    ),
     # source: positive — approved automated_fetch=true with non-manual frequency
     (
         "source.schema.json",
