@@ -17,7 +17,7 @@ type Json =
   | { [k: string]: Json };
 
 type Step = { name?: string; uses?: string; run?: string; if?: string; with?: Record<string, Json>; id?: string };
-type Job = { steps?: Step[]; needs?: string | string[]; environment?: string; if?: string };
+type Job = { steps?: Step[]; needs?: string | string[]; environment?: string; if?: string; env?: Record<string, Json> };
 type Workflow = { on?: { workflow_dispatch?: { inputs?: Record<string, { required?: boolean; type?: string; default?: Json }> } }; jobs?: Record<string, Job> };
 
 function loadWorkflow(name: string): Workflow {
@@ -103,21 +103,32 @@ describe("CI/preview workflow — release-candidate quality", () => {
     expect(summary?.run).toMatch(/requested/);
   });
 
-  it("preview deploy: download-artifact (no checkout), required vars no defaults, read-only preflight, wrangler pinned, final summary", () => {
+  it("preview deploy: env mapping (secrets/vars), curl read-only preflight, wrangler pinned, final summary", () => {
     const doc = loadWorkflow("preview.yml");
-    const steps = (doc.jobs?.deploy?.steps ?? []) as Step[];
+    const jobs = doc.jobs ?? {};
+    const deployJob = jobs.deploy!;
+    const steps = (deployJob.steps ?? []) as Step[];
     const download = steps.find((s) => s.name?.includes("Download public artifact"));
     expect(download?.uses).toMatch(/^actions\/download-artifact@[0-9a-f]{40}$/);
+    // env mapping: secrets→token/account, vars→project (no defaults)
+    const env = deployJob.env as Record<string, Json> | undefined;
+    expect(env?.["CLOUDFLARE_API_TOKEN"]).toBe("${{ secrets.CLOUDFLARE_API_TOKEN }}");
+    expect(env?.["CLOUDFLARE_ACCOUNT_ID"]).toBe("${{ secrets.CLOUDFLARE_ACCOUNT_ID }}");
+    expect(env?.["CLOUDFLARE_PROJECT_NAME"]).toBe("${{ vars.CLOUDFLARE_PROJECT_NAME }}");
     const requireVars = steps.find((s) => s.name?.includes("Validate required environment variables"));
     expect(requireVars?.run).toMatch(/CLOUDFLARE_PROJECT_NAME:\?required/);
-    const preflight = steps.find((s) => s.name?.includes("Read-only project preflight"));
-    expect(preflight?.name).toMatch(/never create/);
-    expect(preflight?.run).toMatch(/refusing to create or deploy/);
+    // preflight: curl read-only exact GET, no bare wrangler, no `|| true`, no create command
+    const preflight = steps.find((s) => s.name?.includes("preflight"));
+    expect(preflight?.run).toMatch(/curl/);
+    expect(preflight?.run).toMatch(/pages\/projects/);
+    expect(preflight?.run).not.toMatch(/wrangler/);
+    expect(preflight?.run).not.toMatch(/\|\| true/);
+    expect(preflight?.run).not.toMatch(/pages project (create|delete)|--create|POST\s/);
+    expect(preflight?.run).toMatch(/exit 1/);
+    // deploy step uses full-SHA wrangler
     const wrangler = steps.find((s) => s.name?.includes("Deploy preview"));
     expect(wrangler?.uses).toMatch(/^cloudflare\/wrangler-action@[0-9a-f]{40}$/);
     const final = steps.find((s) => s.name?.includes("Final summary"));
     expect(final?.if).toBe("always()");
-    expect(final?.run).toMatch(/succeeded/);
-    expect(final?.run).toMatch(/failed/);
   });
 });

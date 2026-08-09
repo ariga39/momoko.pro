@@ -1,6 +1,6 @@
 # Phase 3A release-candidate / QA / deploy seam — handoff
 
-Task #13 (momoko 2026-08-09). Final candidate after two NO-GO rounds; contract
+Task #13 (momoko 2026-08-09). Final candidate after three NO-GO rounds; contract
 confirmed by momoko (msg f9fd5c02). Baseline: current GitHub main
 `481bfc6308a819eec3e8584d982db9ebff83697b`.
 
@@ -19,11 +19,14 @@ confirmed by momoko (msg f9fd5c02). Baseline: current GitHub main
     `deploy_status=artifact_only_public` (deploy=false) or `requested`
     (deploy=true).
   - `deploy` (`needs: build`, `environment: preview`, `if: inputs.deploy`):
-    download public artifact (no checkout / no target-code run); require
-    CLOUDFLARE_API_TOKEN/ACCOUNT_ID/PROJECT_NAME (no defaults); read-only
-    project preflight (refuses to create); full-SHA
-    `cloudflare/wrangler-action@9acf94a...`; final `if: always()` summary writes
-    requested→succeeded/failed + preview URL.
+    download public artifact (no checkout / no target-code run); job env maps
+    `CLOUDFLARE_API_TOKEN`/`ACCOUNT_ID` from `${{ secrets.* }}` and
+    `CLOUDFLARE_PROJECT_NAME` from `${{ vars.* }}` (no defaults); required-vars
+    gate; read-only preflight via runner `curl` to the Cloudflare Pages
+    exact-project GET (verify HTTP 200 + exact name; no bare `wrangler`, no
+    `|| true` swallowing auth/404/network errors, no create command);
+    full-SHA `cloudflare/wrangler-action@9acf94a...`; final `if: always()`
+    summary writes requested→succeeded/failed + preview URL.
 - **public build mode** (`PUBLIC_BUILD=1` → `pnpm build:public`): `loadNews()`
   filters to reviewed/current; draft/stale/retracted detail routes and bodies
   are NOT produced (not replaced by noindex). Default local build keeps the

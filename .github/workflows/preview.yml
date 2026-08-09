@@ -120,6 +120,10 @@ jobs:
     if: ${{ inputs.deploy }}
     env:
       CI: "true"
+      # 显式映射 environment secret/var → shell env（GitHub 不会自动同名注入）。
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
     steps:
       - name: Validate required environment variables (no defaults)
         run: |
@@ -132,14 +136,23 @@ jobs:
         with:
           name: momoko-preview-public-${{ inputs.target_sha }}
           path: dist-public
-      - name: Read-only project preflight (must exist; never create)
+      - name: Read-only project preflight via Cloudflare API (exact GET; no create)
         run: |
           set -euo pipefail
-          wrangler pages project list >/dev/null 2>&1 || true
-          if ! wrangler pages project list 2>/dev/null | grep -q "$CLOUDFLARE_PROJECT_NAME"; then
-            echo "::error::Cloudflare project '$CLOUDFLARE_PROJECT_NAME' does not exist; refusing to create or deploy."
+          status=$(curl -sS -o /tmp/cf_project.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}")
+          if [ "$status" != "200" ]; then
+            echo "::error::Cloudflare preflight returned HTTP $status (project '${CLOUDFLARE_PROJECT_NAME}' missing or unauthorized); refusing to create or deploy."
             exit 1
           fi
+          # 校验 exact project name（只读，不做任何创建/写入）。
+          actual=$(python3 -c "import json,sys; d=json.load(open('/tmp/cf_project.json')); print(d.get('result',{}).get('name',''))")
+          if [ "$actual" != "$CLOUDFLARE_PROJECT_NAME" ]; then
+            echo "::error::Cloudflare project name mismatch ('$actual' != '$CLOUDFLARE_PROJECT_NAME'); refusing to deploy."
+            exit 1
+          fi
+          echo "preflight_ok=yes" >> "$GITHUB_ENV"
       - name: Deploy preview (full-SHA Cloudflare action)
         id: deploy
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
