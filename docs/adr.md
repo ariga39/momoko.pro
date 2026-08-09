@@ -14,14 +14,14 @@
 - 改变条件：用户提供授权。
 
 ## ADR-03 自动发布分级（T0/T1/T2）
-- T0：只自动生成文件/PR（人工事实/allowlist 卡片，无 AI 改写）；**仍需人工 review + merge，MVP 不自动合并/发布任何新内容**。
+- T0：只自动生成文件/PR（人工事实/allowlist 卡片，无 AI 改写）；**仍需独立 reviewer review（T2 必须 human）+ 具 merge 权限合并，MVP 不自动合并/发布任何新内容**。
 - T1：默认草稿 + 质量证据后人工开启 + 抽检/熔断/一键撤回。
 - T2：永久人工（人物/健康/争议/纠错/来源冲突/法律版权/悼念/模型不确定）。
 - future：T0 auto-merge 需另开 ADR + 签名来源/独立批准门。
 - 改变条件：质量证据/政策。
 
 ## ADR-04 三语与审核状态
-- AI 草稿 → 人工校对；原文变 → 译文 stale；不撒谎。状态机：draft → reviewed（人工 GitHub review 后 merge 时写，reviewer/time 非空）→ published（main merge 后 build 派生 manifest，不回写 canonical）；stale / retracted。自动化上限见 design.md §3.2；无 promote-review/自动晋级。published 永不回写 canonical。
+- AI 草稿 → 独立 reviewer 校对；原文变 → 译文 stale；不撒谎。状态机：draft → reviewed（仓库授权的独立 reviewer 在 merge 前显式提交，reviewer/time 非空；T2 必须 human）→ published（main merge 后 build 派生 manifest，不回写 canonical）；stale / retracted。自动化上限见 design.md §3.2；无 promote-review/自动晋级。published 永不回写 canonical。
 
 ## ADR-05 搜索（ADR-SEARCH）
 - **MVP：build-time 搜索（Pagefind 首选）**，只有通过 zh/ja/en 验收夹具后才采用；**若夹具不通过，确定性 fallback = 构建期生成的本地 JSON 索引（/search.json，客户端过滤）**；MVP 至少启用二者之一。

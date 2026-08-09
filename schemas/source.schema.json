@@ -32,11 +32,21 @@
         "robots_note": { "type": "string" },
         "terms_url": { "type": ["string", "null"], "format": "uri" },
         "terms_note": { "type": "string" },
-        "automated_fetch": { "const": false },
-        "fetch_frequency": { "const": "manual" },
+        "automated_fetch": { "type": "boolean" },
+        "fetch_frequency": { "enum": ["manual", "daily", "weekly"] },
         "cache_boundary": { "type": "string" },
         "stop_condition": { "type": "string" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "automated_fetch": { "const": true } } },
+          "then": { "properties": { "fetch_frequency": { "not": { "const": "manual" } } } }
+        },
+        {
+          "if": { "properties": { "automated_fetch": { "const": false } } },
+          "then": { "properties": { "fetch_frequency": { "const": "manual" } } }
+        }
+      ]
     }
   }
 }

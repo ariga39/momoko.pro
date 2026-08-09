@@ -122,6 +122,25 @@ def _content(**over) -> dict:
     return base
 
 
+def _source(**over) -> dict:
+    base = {
+        "source_id": "S9",
+        "name_zh": "合成探针来源",
+        "canonical_url": "https://example.com/",
+        "robots_txt_url": "https://example.com/robots.txt",
+        "robots_http": "200",
+        "robots_note": "Allow: /",
+        "terms_url": "https://example.com/terms",
+        "terms_note": "公开条款允许抓取",
+        "automated_fetch": False,
+        "fetch_frequency": "manual",
+        "cache_boundary": "仅归档 URL，不复制正文",
+        "stop_condition": "条款变更即停止",
+    }
+    base.update(over)
+    return base
+
+
 def _locale(**over) -> dict:
     base = {
         "schema_version": "1",
@@ -142,6 +161,30 @@ def _locale(**over) -> dict:
 CASES: list[tuple[str, dict, bool]] = [
     # config
     ("source.schema.json", json.loads((CONFIG / "sources.json").read_text()), True),
+    # source: positive — approved automated_fetch=true with non-manual frequency
+    (
+        "source.schema.json",
+        {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily")]},
+        True,
+    ),
+    # source: negative — automated_fetch=true cannot be manual frequency
+    (
+        "source.schema.json",
+        {"schema_version": "1", "sources": [_source(automated_fetch=True)]},
+        False,
+    ),
+    # source: negative — automated_fetch=false cannot have non-manual frequency
+    (
+        "source.schema.json",
+        {"schema_version": "1", "sources": [_source(automated_fetch=False, fetch_frequency="weekly")]},
+        False,
+    ),
+    # source: negative — fetch_frequency not in enum
+    (
+        "source.schema.json",
+        {"schema_version": "1", "sources": [_source(fetch_frequency="hourly")]},
+        False,
+    ),
     # content: positive (reviewed requires reviewer+time)
     (
         "content.schema.json",

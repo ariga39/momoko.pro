@@ -21,7 +21,7 @@
 - **三语与审核不撒谎**：翻译与人工审核状态显式可查；原文变化后旧译文必须标记失效，不得继续显示为已审核。
 - **无评论/投稿/登录用户**（MVP）：关闭所有 UGC 面。
 - **风险分级发布（T0/T1/T2）**：
-  - **T0 可自动生成文件/PR**：人工维护的生日/周年结构化事实；allowlist 官方源的原始标题、日期、permalink 卡片（经 schema/去重/allowlisted hostname+source_id 校验，无 AI 改写）。**T0 仍需人工 review+merge，MVP 不自动合并/发布任何新内容**（见 §3.3 与 ADR-03）。
+  - **T0 可自动生成文件/PR**：人工维护的生日/周年结构化事实；allowlist 官方源的原始标题、日期、permalink 卡片（经 schema/去重/allowlisted hostname+source_id 校验，无 AI 改写）。**T0 仍需独立 reviewer review（T2 必须 human）+ 具 merge 权限合并，MVP 不自动合并/发布任何新内容**（见 §3.3 与 ADR-03）。
   - **T1 默认草稿**：任何 AI 摘要或翻译默认 draft；只有某 source×content_type 积累抽样质量证据后，才可由人显式开启，且保留抽检、熔断与一键撤回。
   - **T2 永久人工**：人物/声优、健康、争议、纠错/下架、来源冲突、法律/版权、悼念以及模型不确定内容。
 
@@ -96,7 +96,7 @@
 > **`reviewed` 条件约束**：schema 用条件约束强制 `review_status=reviewed` 时 `reviewed_by` 与 `reviewed_at` 必须存在且非空；缺失/为 null 即校验失败。
 
 > **正/反状态转移表**（CI 校验，非法转移 fail）：
-> - 正：`draft → reviewed`（人 review 通过后合入 merge 时写，reviewer/time 非空）；`reviewed → published`（main merge+构建派生）；`published → stale`（源变化，manifest 派生层）；`* → retracted`（下架，经 build 过滤）。
+> - 正：`draft → reviewed`（仓库授权独立 reviewer 在 merge 前显式提交，reviewer/time 非空）；`reviewed → published`（main merge+构建派生）；`published → stale`（源变化，manifest 派生层）；`* → retracted`（下架，经 build 过滤）。
 > - 反（禁止）：`reviewed → draft`、`published → draft`、跳过 `draft` 直接 `published`、同状态重复（幂等除外）。
 
 **发布流（reviewer-before-merge + human-merge）**：
@@ -135,7 +135,7 @@
 
 ---
 
-## 5. 内容管线（MVP：人工 discovery → schema → AI 草稿 → PR）
+## 5. 内容管线（MVP：cron+manual 双 seam → schema → AI 草稿 → PR）
 
 ### 5.1 管线
 
@@ -190,7 +190,7 @@ momoko.pro/
 ├── schemas/*.json              # B: JSON Schema（含 manifest.schema.json）
 ├── tools/
 │   ├── schema/**               # B: 校验/规范化/迁移/双重构建确定性
-│   ├── ingest/**               # C: manual-import / discovery
+│   ├── ingest/**               # C: cron（automated_fetch=true）+ manual-import 双 seam
 │   └── editorial/**            # D: ai-draft / stale-check / retraction
 ├── tests/                      # E: 单元/集成（B/D 提供模块+契约）
 ├── e2e/                        # A: Playwright
@@ -414,7 +414,7 @@ sequenceDiagram
   O->>CI: discovery record（source_id/item_id/URL/标题/日期/人工笔记）
   CI->>CI: allowlisted hostname+source_id + schema + 去重
   CI->>P: 生成内容文件 PR（draft；manifest 仅构建期生成）
-  P->>O: 人工 review 后 merge
+  P->>O: 独立 reviewer 在 merge 前提交 reviewed，再由具 merge 权限的 human/agent 合并
 ```
 
 ---
@@ -442,8 +442,8 @@ sequenceDiagram
 |---|---|---|---|---|---|
 | **A. frontend/design-system** | `src/**`、`e2e/**` | 只读 content + build 产物契约（§6） | 无（示例内容先行） | 三语路由、响应式、hreflang、CSP、缺译回退、语言选择页 | B 契约后并行 |
 | **B. content-schema/CI** | `schemas/**`、`tools/schema/**`、`config/*.json`（校验） | schema+manifest 契约、job 输入/输出、schema_version/唯一键、content_hash | 无 | schema 正/反实例校验、幂等、无变化静默、双重构建确定性、迁移空库/旧库、CJK 搜索夹具+fallback | **先冻结** |
-| **C. ingestion（manual-import）** | `tools/ingest/**` | B 的 schema/PR 接口、错误 enum、allowlist | B | 来源 allowlist、去重、错误 enum、bounded-root 文件写入、无自动抓取断言 | B 后 |
-| **D. i18n/editorial** | `content/*/content.<lang>.md`、`tools/editorial/**` | B schema + A 渲染契约；AI 只消费人工笔记；状态转移写入者 | B+C | 三语不撒谎、T 分级、stale、retract 原子、AI 输入边界、人工 review 审计 | B+C 后 |
+| **C. ingestion（cron+manual 双 seam）** | `tools/ingest/**` | B 的 schema/PR 接口、错误 enum、allowlist | B | 来源 allowlist、去重、错误 enum、bounded-root 文件写入、cron 只跑 `automated_fetch=true` 已验证 adapter（false 走 manual-import；无允许来源/无变化静默） | B 后 |
+| **D. i18n/editorial** | `content/*/content.<lang>.md`、`tools/editorial/**` | B schema + A 渲染契约；AI 只消费人工笔记；状态转移写入者 | B+C | 三语不撒谎、T 分级、stale、retract 原子、AI 输入边界、独立 reviewer 审计 | B+C 后 |
 | **E. QA/deploy** | `.github/workflows/**`、`.github/CODEOWNERS`、`tests/**`、CI/CD | A–D 产物；**workflows 唯一属 E**；secret 隔离、人工 merge 发布 | A–D | MVP 测试矩阵、STRIDE 回归、恢复演练、secret 隔离、action pinning | 收尾 |
 
 集成顺序：**B 冻结契约 → A/C/D 并行 → E 收尾**；feature/package 分支各自 PR，merge 前 rebase，冲突 fail-closed。
@@ -462,8 +462,8 @@ sequenceDiagram
 |---|---|---|
 | 技术栈 | Astro+TS+pnpm+Ajv+Vitest+Playwright+Pagefind（ADR-11） | 否（已定） |
 | 内容真相 | content/**+config canonical；manifest 不提交，构建期生成到 dist | 否（已定） |
-| 审核状态机 | human-merge：agent 只开 Draft PR（draft），人工 GitHub review 后 merge；published=build 派生 manifest，不在 canonical enum；无 promote-review/自动晋级 | 否（已定） |
-| T0 发布 | 只自动生成文件/PR，仍人工 merge；auto-merge 未来 ADR | 否（已定） |
+| 审核状态机 | reviewer-before-merge：生成 agent 只开 Draft PR（draft），独立 reviewer 在 merge 前提交 reviewed，具 merge 权限 human/agent 合并；published=build 派生 manifest，不在 canonical enum；无 promote-review/自动晋级 | 否（已定） |
+| T0 发布 | 只自动生成文件/PR，仍独立 reviewer（T2 必须 human）+ 具 merge 权限合并；auto-merge 未来 ADR | 否（已定） |
 | 部署面 | GitHub Actions Direct Upload（唯一） | 否（已定） |
 | X 展示 | 人工 permalink 卡片；embed/API 未来需法律评审 | 否（已定） |
 | 自动抓取 | future 条件分支，需 robots/terms 证据+批准 | 否（future） |
