@@ -104,6 +104,10 @@ jobs:
           echo "preview_artifact_hash=$(cat /tmp/dist-hash)" >> "$GITHUB_ENV"
 
       - name: Publish preview summary
+        env:
+          TARGET_EQUALS_MAIN: ${{ env.target_equals_dispatch_main }}
+          TARGET_IS_ANCESTOR: ${{ env.target_is_ancestor_of_dispatch_main }}
+          PREVIEW_ARTIFACT_HASH: ${{ env.preview_artifact_hash }}
         run: |
           if [ "$DEPLOY_FLAG" = "true" ]; then
             deploy_status=requested
@@ -113,9 +117,9 @@ jobs:
           cat > "$GITHUB_STEP_SUMMARY" <<EOF
           ## momoko.pro preview
           - target_sha: \`$TARGET_SHA\`
-          - target_equals_dispatch_main: \`${{ env.target_equals_dispatch_main }}\`
-          - target_is_ancestor_of_dispatch_main: \`${{ env.target_is_ancestor_of_dispatch_main }}\`
-          - artifact hash: \`${{ env.preview_artifact_hash }}\`
+          - target_equals_dispatch_main: \`$TARGET_EQUALS_MAIN\`
+          - target_is_ancestor_of_dispatch_main: \`$TARGET_IS_ANCESTOR\`
+          - artifact hash: \`$PREVIEW_ARTIFACT_HASH\`
           - deploy_status: \`$deploy_status\`
           EOF
           echo "deploy_status=$deploy_status" >> "$GITHUB_ENV"
@@ -139,6 +143,26 @@ jobs:
           : "${CLOUDFLARE_API_TOKEN:?required for deploy}"
           : "${CLOUDFLARE_ACCOUNT_ID:?required for deploy}"
           : "${CLOUDFLARE_PROJECT_NAME:?required for deploy}"
+      - name: Validate Cloudflare project name (Pages-safe syntax/length)
+        run: |
+          set -euo pipefail
+          name="$CLOUDFLARE_PROJECT_NAME"
+          if [ -z "$name" ]; then
+            echo "::error::CLOUDFLARE_PROJECT_NAME must not be empty"; exit 1
+          fi
+          if [ "${#name}" -gt 100 ]; then
+            echo "::error::CLOUDFLARE_PROJECT_NAME too long (max 100 chars)"; exit 1
+          fi
+          case "$name" in
+            -*-*)
+              echo "::error::CLOUDFLARE_PROJECT_NAME invalid: leading dash not allowed"; exit 1
+              ;;
+          esac
+          if [[ "$name" == *[[:space:]]* ]] || [[ "$name" == */* ]] || [[ "$name" =~ [^A-Za-z0-9_-] ]]; then
+            echo "::error::CLOUDFLARE_PROJECT_NAME invalid: only A-Za-z0-9_- (no whitespace, slash)"
+            exit 1
+          fi
+          echo "project_name_valid=yes" >> "$GITHUB_ENV"
       - name: Download public artifact (do NOT checkout or run target code)
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -169,17 +193,34 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist-public --project-name=$CLOUDFLARE_PROJECT_NAME
+          # wrangler-action v4 runs `command` via @actions/exec (no shell), so a
+          # literal `$CLOUDFLARE_PROJECT_NAME` would be passed verbatim; use the
+          # validated GitHub var value, already checked by the validation step.
+          command: pages deploy dist-public --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
       - name: Final summary (requested → succeeded/failed with URL)
         if: always()
+        env:
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
-          if [ "${{ steps.deploy.outcome }}" = "success" ]; then
+          if [ "$DEPLOY_OUTCOME" = "success" ]; then
             status=succeeded
-            url="${{ steps.deploy.outputs.deployment-url }}"
+            url="$DEPLOY_URL"
           else
             status=failed
             url=""
           fi
+          # validate: single HTTPS URL or omit (fail-visible)
+          case "$url" in
+            https://*)
+              if [[ "$url" == *[[:space:]]* ]] || [[ "$url" =~ [^A-Za-z0-9:/._~?#&=%+-] ]]; then
+                echo "::error::malformed deployment URL; omitting"; url=""
+              fi
+              ;;
+            *)
+              echo "::error::malformed deployment URL; omitting"; url=""
+              ;;
+          esac
           echo "deploy_status=$status" >> "$GITHUB_ENV"
           cat > "$GITHUB_STEP_SUMMARY" <<EOF
           ## momoko.pro preview deploy

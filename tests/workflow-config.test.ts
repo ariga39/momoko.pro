@@ -16,7 +16,7 @@ type Json =
   | Json[]
   | { [k: string]: Json };
 
-type Step = { name?: string; uses?: string; run?: string; if?: string; with?: Record<string, Json>; id?: string };
+type Step = { name?: string; uses?: string; run?: string; if?: string; with?: Record<string, Json>; id?: string; env?: Record<string, Json> };
 type Job = { steps?: Step[]; needs?: string | string[]; environment?: string; if?: string; env?: Record<string, Json> };
 type Workflow = { on?: { workflow_dispatch?: { inputs?: Record<string, { required?: boolean; type?: string; default?: Json }> } }; jobs?: Record<string, Job> };
 
@@ -78,23 +78,47 @@ describe("CI/preview workflow — release-candidate quality", () => {
     }
   });
 
-  it("preview.yml never interpolates `inputs.*` directly inside run: blocks (shell injection guard)", () => {
-    const doc = loadWorkflow("preview.yml");
-    const jobs = doc.jobs ?? {};
-    for (const [jobName, job] of Object.entries(jobs)) {
-      for (const step of (job.steps ?? []) as Step[]) {
-        if (!step.run) continue;
-        expect(step.run, `${jobName} step "${step.name}"`).not.toMatch(
-          /\$\{\{\s*inputs\./,
-        );
+  it("no `${{ ... }}` interpolation inside run: blocks (expressions via env or non-shell fields only)", () => {
+    for (const f of ["ci.yml", "preview.yml"]) {
+      const doc = loadWorkflow(f);
+      const jobs = doc.jobs ?? {};
+      for (const [jobName, job] of Object.entries(jobs)) {
+        for (const step of (job.steps ?? []) as Step[]) {
+          if (!step.run) continue;
+          expect(step.run, `${f} ${jobName} step "${step.name}"`).not.toMatch(
+            /\$\{\{/,
+          );
+        }
       }
     }
-    // target_sha is mapped once through job env and referenced as a quoted shell var.
-    for (const job of Object.values(jobs)) {
+    // inputs are mapped once through job env and referenced as quoted shell vars.
+    const doc = loadWorkflow("preview.yml");
+    for (const job of Object.values(doc.jobs ?? {})) {
       expect((job as Job & { env?: Record<string, string> }).env?.["TARGET_SHA"]).toBe(
         "${{ inputs.target_sha }}",
       );
     }
+  });
+
+  it("preview deploy: project name validated, wrangler command uses GitHub var (no literal shell var)", () => {
+    const doc = loadWorkflow("preview.yml");
+    const steps = (doc.jobs?.deploy?.steps ?? []) as Step[];
+    const validate = steps.find((s) => s.name?.includes("Validate Cloudflare project name"));
+    expect(validate?.run).toMatch(/CLOUDFLARE_PROJECT_NAME/);
+    expect(validate?.run).toMatch(/leading dash/);
+    expect(validate?.run).toMatch(/\[\[space\]\]|\[\[:space:\]\]/);
+    const wrangler = steps.find((s) => s.name?.includes("Deploy preview"));
+    expect(wrangler?.uses).toBe("cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0");
+    const cmd = String(wrangler?.with?.["command"]);
+    expect(cmd).toContain("${{ vars.CLOUDFLARE_PROJECT_NAME }}");
+    expect(cmd).not.toMatch(/\$CLOUDFLARE_PROJECT_NAME/);
+    const final = steps.find((s) => s.name?.includes("Final summary"));
+    const finalEnv = final?.env as Record<string, string> | undefined;
+    expect(finalEnv?.["DEPLOY_OUTCOME"]).toBe("${{ steps.deploy.outcome }}");
+    expect(finalEnv?.["DEPLOY_URL"]).toBe("${{ steps.deploy.outputs.deployment-url }}");
+    expect(final?.run).toMatch(/https:\/\//);
+    expect(final?.run).toMatch(/malformed deployment URL/);
+    expect(final?.run).not.toMatch(/\$\{\{/);
   });
 
   it("ci.yml upload-artifact conditional on failure AND evidence", () => {
