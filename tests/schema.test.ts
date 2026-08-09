@@ -16,13 +16,21 @@ const fakeSource = (over: Record<string, unknown> = {}) => ({
   canonical_url: "https://example.com/",
   robots_txt_url: "https://example.com/robots.txt",
   robots_http: "200",
+  robots_result: "rules_available",
+  robots_path_decision: "allow",
+  checked_path: "/",
+  retrieved_at: "2026-08-08",
+  evidence: "Allow: / (synthetic evidence)",
   robots_note: "Allow: /",
   terms_url: "https://example.com/terms",
   terms_note: "公开条款允许抓取",
+  access_control: "public",
+  terms_status: "not_evaluated",
   robots_approved: { allowed: false, evidence: "未批准（默认）" },
   terms_approved: { allowed: false, evidence: "未批准（默认）" },
   automated_fetch: false,
   fetch_frequency: "manual",
+  fetch_paths: ["/"],
   cache_boundary: "仅归档 URL",
   stop_condition: "条款变更即停止",
   ...over,
@@ -35,10 +43,28 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
     const r = validateFile("source.schema.json", wrap(fakeSource({
       automated_fetch: true,
       fetch_frequency: "daily",
-      robots_approved: { allowed: true, evidence: "robots Allow: /（2026-08-09 核验）" },
-      terms_approved: { allowed: true, evidence: "条款明确允许抓取（2026-08-09 核验）" },
     })));
     expect(r.valid).toBe(true);
+  });
+
+  it("does not require deprecated robots_approved for a new config", () => {
+    const source: Record<string, unknown> = fakeSource({ automated_fetch: true, fetch_frequency: "daily" });
+    delete source.robots_approved;
+    expect(validateFile("source.schema.json", wrap(source)).valid).toBe(true);
+  });
+
+  it("requires explicit fetch paths for automated sources", () => {
+    const source: Record<string, unknown> = fakeSource({ automated_fetch: true, fetch_frequency: "daily" });
+    delete source.fetch_paths;
+    expect(validateFile("source.schema.json", wrap(source)).valid).toBe(false);
+  });
+
+  it("requires explicit access and terms states for automated sources", () => {
+    const missingAccess: Record<string, unknown> = fakeSource({ automated_fetch: true, fetch_frequency: "daily" });
+    delete missingAccess.access_control;
+    const invalidTerms = fakeSource({ automated_fetch: true, fetch_frequency: "daily", terms_status: "unknown" });
+    expect(validateFile("source.schema.json", wrap(missingAccess)).valid).toBe(false);
+    expect(validateFile("source.schema.json", wrap(invalidTerms)).valid).toBe(false);
   });
 
   it("automated_fetch=true cannot be manual frequency", () => {
@@ -56,6 +82,56 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
     expect(r.valid).toBe(false);
   });
 
+  it("robots result and path decision use explicit RFC 9309 vocabularies", () => {
+    const unavailable = validateFile("source.schema.json", wrap(fakeSource({ robots_http: "404", robots_result: "unavailable", robots_path_decision: "allow" })));
+    const unknownResult = validateFile("source.schema.json", wrap(fakeSource({ robots_result: "unknown" })));
+    const unknownPath = validateFile("source.schema.json", wrap(fakeSource({ robots_path_decision: "unknown" })));
+    const missingSource: Record<string, unknown> = fakeSource();
+    delete missingSource.robots_result;
+    delete missingSource.robots_path_decision;
+    const missing = validateFile("source.schema.json", wrap(missingSource));
+    expect(unavailable.valid).toBe(true);
+    expect(unknownResult.valid).toBe(false);
+    expect(unknownPath.valid).toBe(false);
+    expect(missing.valid).toBe(true); // v1 config shape remains readable; crawler gate fails closed.
+  });
+
+  it("rejects illegal result/path/evidence combinations", () => {
+    const unavailableDisallow = validateFile("source.schema.json", wrap(fakeSource({
+      robots_result: "unavailable",
+      robots_path_decision: "disallow",
+    })));
+    const unreachableAllow = validateFile("source.schema.json", wrap(fakeSource({
+      robots_result: "unreachable",
+      robots_path_decision: "allow",
+    })));
+    const notApplicableWithEvidence = validateFile("source.schema.json", wrap(fakeSource({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: "/",
+      retrieved_at: "2026-08-08",
+      evidence: "invalid evidence for not_applicable",
+    })));
+    const rulesNotEvaluated = validateFile("source.schema.json", wrap(fakeSource({
+      robots_result: "rules_available",
+      robots_path_decision: "not_evaluated",
+    })));
+    const automatedNotApplicable = validateFile("source.schema.json", wrap(fakeSource({
+      automated_fetch: true,
+      fetch_frequency: "daily",
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    })));
+    expect(unavailableDisallow.valid).toBe(false);
+    expect(unreachableAllow.valid).toBe(false);
+    expect(notApplicableWithEvidence.valid).toBe(false);
+    expect(rulesNotEvaluated.valid).toBe(false);
+    expect(automatedNotApplicable.valid).toBe(false);
+  });
+
   it("config/sources.json validates and all S1-S5 are manual (current evidence)", () => {
     const r = validateSources();
     expect(r.valid).toBe(true);
@@ -63,7 +139,25 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
     for (const s of cfg.sources) {
       expect(s.automated_fetch).toBe(false);
       expect(s.fetch_frequency).toBe("manual");
+      expect(s.access_control).toBe("public");
+      expect(s.terms_status).toBe("not_evaluated");
     }
+    expect(cfg.sources.find((s: { source_id: string }) => s.source_id === "S1")).toMatchObject({
+      robots_http: "404",
+      robots_result: "unavailable",
+      robots_path_decision: "allow",
+      checked_path: "/",
+    });
+    expect(cfg.sources.find((s: { source_id: string }) => s.source_id === "S4")).toMatchObject({
+      robots_http: "404",
+      robots_result: "unavailable",
+      robots_path_decision: "allow",
+    });
+    expect(cfg.sources.find((s: { source_id: string }) => s.source_id === "S5")).toMatchObject({
+      robots_http: "200",
+      robots_result: "rules_available",
+      robots_path_decision: "allow",
+    });
   });
 });
 

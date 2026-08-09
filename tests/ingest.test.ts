@@ -14,6 +14,7 @@ import {
   registerSourceAdapter,
   resetAdapters,
   runCron,
+  decideSourceAccess,
   sourceAllowedToFetch,
   type SourceConfig,
   urlInScope,
@@ -47,13 +48,21 @@ const fakeSource = (over: Record<string, unknown> = {}): SourceConfig => ({
   canonical_url: "https://example.com/",
   robots_txt_url: "https://example.com/robots.txt",
   robots_http: "200",
+  robots_result: "rules_available",
+  robots_path_decision: "allow",
+  checked_path: "/",
+  retrieved_at: "2026-08-08",
+  evidence: "Allow: / (synthetic evidence)",
   robots_note: "Allow: /",
   terms_url: "https://example.com/terms",
   terms_note: "公开条款允许抓取",
+  access_control: "public",
+  terms_status: "not_evaluated",
   robots_approved: { allowed: false, evidence: "未批准（默认）" },
   terms_approved: { allowed: false, evidence: "未批准（默认）" },
   automated_fetch: false,
   fetch_frequency: "manual",
+  fetch_paths: ["/"],
   cache_boundary: "仅归档 URL",
   stop_condition: "条款变更即停止",
   ...over,
@@ -63,8 +72,6 @@ function approvedSource(over: Record<string, unknown> = {}): SourceConfig {
   return fakeSource({
     automated_fetch: true,
     fetch_frequency: "daily",
-    robots_approved: { allowed: true, evidence: "robots Allow: /（2026-08-09 核验）" },
-    terms_approved: { allowed: true, evidence: "条款明确允许抓取（2026-08-09 核验）" },
     ...over,
   });
 }
@@ -99,28 +106,177 @@ class FakeAdapter {
 
 describe("sourceAllowedToFetch", () => {
   it("false when automated_fetch is false (S1-S5 default)", () => {
-    expect(sourceAllowedToFetch(fakeSource())).toBe(false);
+    expect(sourceAllowedToFetch(fakeSource(), "/")).toBe(false);
   });
-  it("false when approvals missing even if automated_fetch true + robots 2xx", () => {
-    // robots_http 200 alone is NOT approval.
-    expect(sourceAllowedToFetch(fakeSource({ automated_fetch: true, robots_http: "200" }))).toBe(false);
+  it("does not use deprecated robots_approved as an extra gate", () => {
+    expect(sourceAllowedToFetch(approvedSource(), "/")).toBe(true);
   });
-  it("false when only robots approved, terms not", () => {
-    expect(sourceAllowedToFetch(fakeSource({
-      automated_fetch: true,
-      robots_approved: { allowed: true, evidence: "robots ok" },
-      terms_approved: { allowed: false, evidence: "not approved" },
-    }))).toBe(false);
+  it("treats 404 as unavailable plus path allow for a crawler", () => {
+    expect(sourceAllowedToFetch(approvedSource({
+      robots_http: "404",
+      robots_result: "unavailable",
+      robots_path_decision: "allow",
+    }), "/")).toBe(true);
+    expect(sourceAllowedToFetch(approvedSource({
+      robots_http: "500",
+      robots_result: "unreachable",
+      robots_path_decision: "disallow",
+    }), "/")).toBe(false);
   });
-  it("false when approval allowed but evidence empty", () => {
-    expect(sourceAllowedToFetch(fakeSource({
-      automated_fetch: true,
-      robots_approved: { allowed: true, evidence: "" },
-      terms_approved: { allowed: true, evidence: "" },
-    }))).toBe(false);
+  it("evaluates a path disallow independently from an allowed path", () => {
+    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: "allow" }), "/")).toBe(true);
+    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: "disallow" }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ checked_path: "/other" }), "/")).toBe(false);
   });
-  it("true only when automated_fetch true AND both approvals allowed with evidence", () => {
-    expect(sourceAllowedToFetch(approvedSource())).toBe(true);
+  it("fails closed when the result or path evidence is missing", () => {
+    expect(sourceAllowedToFetch(approvedSource({ robots_result: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ robots_path_decision: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ evidence: undefined }), "/")).toBe(false);
+  });
+  it("requires an explicit target path and never treats root allow as private-path allow", () => {
+    expect(sourceAllowedToFetch(approvedSource(), "/private")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource(), undefined as unknown as string)).toBe(false);
+  });
+  it("fails closed when access control or terms state is missing or invalid", () => {
+    expect(sourceAllowedToFetch(approvedSource({ access_control: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ access_control: "unknown" }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ terms_status: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ terms_status: "unknown" }), "/")).toBe(false);
+  });
+  it("fails closed for an automated source with not_applicable robots state", () => {
+    expect(sourceAllowedToFetch(approvedSource({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    }), "/")).toBe(false);
+  });
+});
+
+describe("decideSourceAccess", () => {
+  const crawler = (over: Record<string, unknown> = {}) => ({
+    access_mode: "scheduled_or_recursive_crawler" as const,
+    automated_fetch: true,
+    robots_result: "rules_available" as const,
+    robots_path_decision: "allow" as const,
+    checked_path: "/news/1",
+    requested_path: "/news/1",
+    retrieved_at: "2026-08-09T00:00:00Z",
+    evidence: "synthetic robots evidence",
+    access_control: "public" as const,
+    terms_status: "not_evaluated" as const,
+    ...over,
+  });
+
+  it("allows a 404 unavailable result for an approved crawler path", () => {
+    expect(decideSourceAccess(crawler({ robots_result: "unavailable" }))).toMatchObject({ allowed: true });
+  });
+
+  it("temporarily denies a 5xx/unreachable result", () => {
+    expect(decideSourceAccess(crawler({ robots_result: "unreachable", robots_path_decision: "disallow" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_unreachable_disallow",
+    });
+  });
+
+  it("allows and denies separate paths under one valid rules result", () => {
+    expect(decideSourceAccess(crawler({ robots_path_decision: "allow" })).allowed).toBe(true);
+    expect(decideSourceAccess(crawler({ robots_path_decision: "disallow" })).allowed).toBe(false);
+  });
+
+  it("rejects result/path/evidence combinations that are not fail-closed states", () => {
+    expect(decideSourceAccess(crawler({ robots_result: "unavailable", robots_path_decision: "disallow" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_unavailable_requires_allow",
+    });
+    expect(decideSourceAccess(crawler({ robots_result: "unreachable", robots_path_decision: "allow" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_unreachable_requires_disallow",
+    });
+    expect(decideSourceAccess(crawler({ robots_result: "not_applicable", robots_path_decision: "not_evaluated" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_not_applicable_state_invalid",
+    });
+    expect(decideSourceAccess(crawler({ robots_result: "rules_available", robots_path_decision: "not_evaluated" }))).toMatchObject({
+      allowed: false,
+      reason: "robots_rules_path_not_evaluated",
+    });
+    expect(decideSourceAccess(crawler({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    }))).toMatchObject({ allowed: false, reason: "robots_not_applicable_for_crawler" });
+  });
+
+  it("requires non-empty string path evidence and exact null not-applicable fields", () => {
+    expect(decideSourceAccess(crawler({ retrieved_at: {} }))).toMatchObject({
+      allowed: false,
+      reason: "robots_path_evidence_missing_or_mismatched",
+    });
+    expect(decideSourceAccess(crawler({ evidence: 42 }))).toMatchObject({
+      allowed: false,
+      reason: "robots_path_evidence_missing_or_mismatched",
+    });
+    expect(decideSourceAccess(crawler({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: undefined,
+      retrieved_at: undefined,
+      evidence: undefined,
+    }))).toMatchObject({
+      allowed: false,
+      reason: "robots_not_applicable_state_invalid",
+    });
+  });
+
+  it("fails closed for crawler not_applicable even with exact null evidence", () => {
+    expect(decideSourceAccess(crawler({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    })).allowed).toBe(false);
+  });
+
+  it("allows a human-directed single page despite missing robots and automation", () => {
+    expect(decideSourceAccess({
+      access_mode: "human_directed_single_page",
+      automated_fetch: false,
+      access_control: "public",
+      terms_status: "not_evaluated",
+    })).toMatchObject({ allowed: true });
+  });
+
+  it("does not bypass access controls or explicit terms", () => {
+    expect(decideSourceAccess({
+      access_mode: "human_directed_single_page",
+      automated_fetch: false,
+      access_control: "login_required",
+      terms_status: "not_evaluated",
+    }).allowed).toBe(false);
+    expect(decideSourceAccess({
+      access_mode: "human_directed_single_page",
+      automated_fetch: false,
+      access_control: "public",
+      terms_status: "prohibited",
+    }).allowed).toBe(false);
+  });
+
+  it("requires independent permission and citation boundary for reuse", () => {
+    const base = {
+      access_mode: "reuse_or_republication" as const,
+      automated_fetch: false,
+      robots_result: "rules_available" as const,
+      robots_path_decision: "allow" as const,
+      access_control: "public" as const,
+      terms_status: "not_evaluated" as const,
+    };
+    expect(decideSourceAccess(base).allowed).toBe(false);
+    expect(decideSourceAccess({ ...base, reuse_permitted: true, citation_boundary: true }).allowed).toBe(true);
   });
 });
 
@@ -346,9 +502,12 @@ describe("cron with an allowed (true) source", () => {
       source_url: "https://example.com/cron/1", published_at: "2026-08-08T00:00:00+09:00",
       title: "cron title", lang: "zh", note: "cron note",
     };
+    const requestedPaths: string[] = [];
     registerSourceAdapter({
       source_id: "S9",
-      async fetch(): Promise<FetchResult> {
+      async fetch(source, requestedPath): Promise<FetchResult> {
+        void source;
+        requestedPaths.push(requestedPath);
         return { ok: true, items: [recordA] as never[] };
       },
     });
@@ -357,6 +516,7 @@ describe("cron with an allowed (true) source", () => {
       expect(r1.fetched).toEqual(["S9"]);
       expect(r1.produced).toBe(1);
       expect(r1.errors).toEqual({});
+      expect(requestedPaths).toEqual(["/"]);
       // re-run: same content => duplicate suppressed, silent
       const r2 = await runCron(cfgPath);
       expect(r2.produced).toBe(0);
@@ -393,11 +553,16 @@ describe("cron with an allowed (true) source", () => {
     }
   });
 
-  it("robots 4xx blocks even an automated_fetch=true source", async () => {
+  it("robots 4xx does not block an independently approved source", async () => {
     const cfg = {
       schema_version: "1",
       sources: [
-        fakeSource({ automated_fetch: true, fetch_frequency: "daily", robots_approved: { allowed: false, evidence: "robots 403" }, terms_approved: { allowed: false, evidence: "not approved" }, source_id: "S9" }),
+        approvedSource({
+          source_id: "S9",
+          robots_http: "404",
+          robots_result: "unavailable",
+          robots_path_decision: "allow",
+        }),
       ],
     };
     const cfgPath = path.join(process.cwd(), ".ingest-test-sources.json");
@@ -407,14 +572,111 @@ describe("cron with an allowed (true) source", () => {
       source_id: "S9",
       async fetch() {
         called += 1;
-        return { ok: true, items: [item({ source_id: "S9", source_url: "https://example.com/x" })] };
+        return { ok: true, items: [] };
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(r.fetched).toEqual(["S9"]);
+      expect(called).toBe(1);
+      expect(r.produced).toBe(0);
+      expect(r.errors).toEqual({});
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed for an explicit path disallow", async () => {
+    const cfg = {
+      schema_version: "1",
+      sources: [
+        approvedSource({
+          source_id: "S9",
+          robots_http: "200",
+          robots_result: "rules_available",
+          robots_path_decision: "disallow",
+        }),
+      ],
+    };
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg), "utf8");
+    let called = 0;
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch() {
+        called += 1;
+        return { ok: true, items: [] };
       },
     });
     try {
       const r = await runCron(cfgPath);
       expect(r.fetched).toEqual([]);
-      expect(called).toBe(0); // gate prevents fetch
+      expect(called).toBe(0);
       expect(r.produced).toBe(0);
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("does not let root allow authorize a private fetch target", async () => {
+    const cfg = {
+      schema_version: "1",
+      sources: [
+        approvedSource({ source_id: "S9", fetch_paths: ["/private"] }),
+      ],
+    };
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg), "utf8");
+    let called = 0;
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch() {
+        called += 1;
+        return { ok: true, items: [] };
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(called).toBe(0);
+      expect(r.fetched).toEqual([]);
+      expect(r.produced).toBe(0);
+      expect(r.errors["S9:/private"]).toBe("fetch_target_not_allowed");
+    } finally {
+      fs.rmSync(cfgPath, { force: true });
+      fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  it("does not invoke an adapter for automated not_applicable robots state", async () => {
+    const cfg = {
+      schema_version: "1",
+      sources: [approvedSource({
+        source_id: "S9",
+        robots_result: "not_applicable",
+        robots_path_decision: "not_evaluated",
+        checked_path: null,
+        retrieved_at: null,
+        evidence: null,
+      })],
+    };
+    const cfgPath = path.join(process.cwd(), ".ingest-test-sources.json");
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg), "utf8");
+    let called = 0;
+    registerSourceAdapter({
+      source_id: "S9",
+      async fetch() {
+        called += 1;
+        return { ok: true, items: [] };
+      },
+    });
+    try {
+      const r = await runCron(cfgPath);
+      expect(called).toBe(0);
+      expect(r.fetched).toEqual([]);
+      expect(r.produced).toBe(0);
+      expect(r.errors["S9:/"]).toBe("fetch_target_not_allowed");
     } finally {
       fs.rmSync(cfgPath, { force: true });
       fs.rmSync(DRAFT_ROOT, { recursive: true, force: true });
