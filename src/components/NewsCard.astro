@@ -1,0 +1,32 @@
+---
+import type { NewsItem } from "../lib/content.ts";
+import * as m from "../paraglide/messages.js";
+
+interface Props {
+  item: NewsItem;
+  lang: "ja" | "zh" | "en";
+  translated: boolean;
+}
+
+const { item, lang, translated } = Astro.props;
+---
+
+<li class="rounded border border-border bg-surface px-6 py-4">
+  <article>
+    <h3 class="mt-0">
+      <a href={`/${lang}/news/${item.slug}/`} lang={lang}>
+        {item.canonical.title}
+      </a>
+    </h3>
+    <p>
+      <time datetime={item.canonical.publishedAt} class="text-sm text-text-secondary">
+        {item.canonical.publishedAt}
+      </time>
+      {!translated && (
+        <span class="ml-2 border-l-[3px] border-accent pl-3 text-sm text-text-secondary">
+          {m["news.missingLocale"]()}
+        </span>
+      )}
+    </p>
+  </article>
+</li>

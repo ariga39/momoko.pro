@@ -1,53 +1,53 @@
 ---
+import SiteLayout from "../components/SiteLayout.astro";
 import { loadNews } from "../lib/content.ts";
 import { buildSearchIndex } from "../lib/search.ts";
+import * as m from "../paraglide/messages.js";
 
-// 确定性本地 JSON 索引（ADR-05 fallback）：构建期生成到 /search.json，客户端过滤，无外部服务。
+// 确定性本地 JSON 索引（ADR-05 fallback）：构建期生成，客户端过滤，无外部服务。
 const index = buildSearchIndex(loadNews());
 const indexJson = JSON.stringify(index);
 ---
 
-<!doctype html>
-<html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>搜索 / Search · momoko.pro</title>
-  </head>
-  <body data-search-index={indexJson}>
-    <h1>搜索 / Search</h1>
-    <form role="search" onsubmit="return false;">
-      <label>
-        关键词：
-        <input id="q" type="search" name="q" autocomplete="off" />
-      </label>
-    </form>
-    <ul id="results"></ul>
-    <script is:inline>
-      const index = JSON.parse(document.body.dataset.searchIndex);
-      const q = document.getElementById("q");
-      const results = document.getElementById("results");
-      const norm = (s) => (s ?? "").toLowerCase();
-      function render() {
-        const query = norm(q.value).trim();
-        const hits = query
-          ? index.filter(
-              (row) => norm(row.title).includes(query) || norm(row.body).includes(query),
+<SiteLayout
+  lang="ja"
+  title={`${m["search.heading"]()} · ${m.home()}`}
+  canonicalPath="/search"
+  noindex
+  bodyData={{ "data-search-index": indexJson }}
+>
+  <h1 class="text-2xl">{m["search.heading"]()}</h1>
+  <form role="search" onsubmit="return false;">
+    <label>
+      {m["search.query"]()}
+      <input id="q" type="search" name="q" autocomplete="off" />
+    </label>
+  </form>
+  <ul id="results"></ul>
+  <script is:inline>
+    const index = JSON.parse(document.body.dataset.searchIndex || "[]");
+    const q = document.getElementById("q");
+    const results = document.getElementById("results");
+    const norm = (s) => (s ?? "").toLowerCase();
+    function render() {
+      const query = norm(q.value).trim();
+      const hits = query
+        ? index.filter(
+            (row) => norm(row.title).includes(query) || norm(row.body).includes(query),
+          )
+        : [];
+      results.innerHTML = hits.length
+        ? hits
+            .map(
+              (row) =>
+                `<li><a href="${row.path}" lang="${row.lang}">${row.slug}</a> · ${row.lang}</li>`,
             )
-          : [];
-        results.innerHTML = hits.length
-          ? hits
-              .map(
-                (row) =>
-                  `<li><a href="${row.path}" lang="${row.lang}">${row.slug}</a> · ${row.lang}</li>`,
-              )
-              .join("")
-          : query
-            ? "<li>无结果。</li>"
-            : "";
-      }
-      q.addEventListener("input", render);
-      render();
-    </script>
-  </body>
-</html>
+            .join("")
+        : query
+          ? "<li>无结果 / No results.</li>"
+          : "";
+    }
+    q.addEventListener("input", render);
+    render();
+  </script>
+</SiteLayout>

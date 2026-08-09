@@ -1,0 +1,33 @@
+---
+import SiteLayout from "../../../components/SiteLayout.astro";
+import { loadNews } from "../../../lib/content.ts";
+import * as m from "../../../paraglide/messages.js";
+
+export function getStaticPaths() {
+  return [
+    { params: { lang: "zh" } },
+    { params: { lang: "ja" } },
+    { params: { lang: "en" } },
+  ];
+}
+
+const { lang } = Astro.params as { lang: "ja" | "zh" | "en" };
+const sources = loadNews();
+---
+
+<SiteLayout lang={lang} title={`${m["policy.title"]()} · ${m.home()}`} canonicalPath={`/${lang}/source-policy/`}>
+  <h1 class="text-2xl">{m["policy.title"]()}</h1>
+  <p>{m["policy.intro"]()}</p>
+  <ul class="list-disc pl-6">
+    <li>{m["policy.noCopy"]()}</li>
+    <li>{m["policy.automated"]()}</li>
+  </ul>
+  <h2 class="text-xl">{m["policy.currentSources"]()}</h2>
+  <ul class="list-disc pl-6">
+    {sources.map((s) => (
+      <li>
+        <strong>{s.canonical.sourceId}</strong> — {s.canonical.sourceUrl}
+      </li>
+    ))}
+  </ul>
+</SiteLayout>

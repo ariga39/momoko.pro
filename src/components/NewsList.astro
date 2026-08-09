@@ -1,0 +1,24 @@
+---
+import { hasTranslation, loadNews } from "../lib/content.ts";
+import * as m from "../paraglide/messages.js";
+import NewsCard from "./NewsCard.astro";
+
+interface Props {
+  lang: "ja" | "zh" | "en";
+}
+
+const { lang } = Astro.props;
+const items = loadNews().sort((a, b) =>
+  b.canonical.publishedAt.localeCompare(a.canonical.publishedAt),
+);
+---
+
+{items.length === 0 ? (
+  <p>{m["news.empty"]()}</p>
+) : (
+  <ul class="grid gap-6">
+    {items.map((item) => (
+      <NewsCard item={item} lang={lang} translated={hasTranslation(item, lang)} />
+    ))}
+  </ul>
+)}

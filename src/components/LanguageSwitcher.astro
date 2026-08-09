@@ -1,0 +1,39 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import * as m from "../paraglide/messages.js";
+
+interface Props {
+  current: "ja" | "zh" | "en";
+}
+
+const { current } = Astro.props;
+const langs = [
+  { code: "zh", label: m["lang.zh"]() },
+  { code: "ja", label: m["lang.ja"]() },
+  { code: "en", label: m["lang.en"]() },
+];
+---
+
+<nav aria-label="语言切换 / Language switcher">
+  <ul class="flex gap-2 text-sm">
+    {langs.map((l) => (
+      <li
+        class={
+          l.code !== "zh"
+            ? "before:content-['·'] before:mr-2 before:text-text-secondary"
+            : ""
+        }
+      >
+        {l.code === current ? (
+          <span aria-current="true" lang={l.code}>
+            {l.label}
+          </span>
+        ) : (
+          <a href={getRelativeLocaleUrl(l.code as "ja" | "zh" | "en", "/")} hreflang={l.code} lang={l.code} class="text-link">
+            {l.label}
+          </a>
+        )}
+      </li>
+    ))}
+  </ul>
+</nav>

@@ -1,0 +1,80 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import "../styles/global.css";
+import * as m from "../paraglide/messages.js";
+import LanguageSwitcher from "./LanguageSwitcher.astro";
+
+interface Props {
+  lang: "ja" | "zh" | "en";
+  title: string;
+  description?: string;
+  canonicalPath?: string;
+  noindex?: boolean;
+  /** e.g. "noindex,follow" for fallback pages（design §1.2） */
+  robots?: string;
+  bodyData?: Record<string, string>;
+  alternates?: Array<{ hreflang: string; href: string }>;
+}
+
+const { lang, title, description, canonicalPath, noindex, robots, bodyData, alternates } =
+  Astro.props;
+const robotsContent = robots ?? (noindex ? "noindex" : undefined);
+const nav = [
+  { href: getRelativeLocaleUrl(lang, "/"), label: m["nav.news"]() },
+  { href: getRelativeLocaleUrl(lang, "/about/"), label: m["nav.about"]() },
+  { href: getRelativeLocaleUrl(lang, "/source-policy/"), label: m["nav.sourcePolicy"]() },
+  { href: "/search", label: m["nav.search"]() },
+];
+const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    {robotsContent && <meta name="robots" content={robotsContent} />}
+    {(alternates ?? [
+      { hreflang: "zh", href: "https://momoko.pro/zh/" },
+      { hreflang: "ja", href: "https://momoko.pro/ja/" },
+      { hreflang: "en", href: "https://momoko.pro/en/" },
+    ]).map((alt) => (
+      <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href="https://momoko.pro/" />
+    <link rel="canonical" href={`https://momoko.pro${canonical}`} />
+    <title>{title}</title>
+  </head>
+  <body {...(bodyData ?? {})}>
+    <a class="skip-link" href="#main">{m["skipToContent"]()}</a>
+    <header class="border-b border-border bg-surface">
+      <div class="mx-auto flex max-w-content flex-wrap items-center justify-between gap-4 p-4">
+        <a href="/" aria-label={m.home()} class="text-text no-underline hover:text-accent">
+          <strong>{m.home()}</strong>
+        </a>
+        <nav aria-label="主导航">
+          <ul class="flex flex-wrap gap-4">
+            {nav.map((item) => (
+              <li>
+                <a href={item.href} lang={lang} class="text-text no-underline hover:text-accent">
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <LanguageSwitcher current={lang} />
+      </div>
+    </header>
+    <main id="main" class="mx-auto max-w-content p-4 py-6">
+      <slot />
+    </main>
+    <footer class="mt-8 border-t border-border bg-surface">
+      <div class="mx-auto max-w-content p-4 py-6 text-sm text-text-secondary">
+        <p>{m["footer.notice"]()}</p>
+        <p lang={lang}>{m["footer.docs"]()}</p>
+      </div>
+    </footer>
+  </body>
+</html>

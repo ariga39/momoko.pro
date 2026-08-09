@@ -1,0 +1,19 @@
+---
+import SiteLayout from "../../../components/SiteLayout.astro";
+import * as m from "../../../paraglide/messages.js";
+
+export function getStaticPaths() {
+  return [
+    { params: { lang: "zh" } },
+    { params: { lang: "ja" } },
+    { params: { lang: "en" } },
+  ];
+}
+
+const { lang } = Astro.params as { lang: "ja" | "zh" | "en" };
+---
+
+<SiteLayout lang={lang} title={`${m["about.title"]()} · ${m.home()}`} canonicalPath={`/${lang}/about/`}>
+  <h1 class="text-2xl">{m["about.title"]()}</h1>
+  <p lang={lang}>{m["about.body"]()}</p>
+</SiteLayout>

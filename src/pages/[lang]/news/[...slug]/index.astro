@@ -1,5 +1,7 @@
 ---
+import SiteLayout from "../../../../components/SiteLayout.astro";
 import { hasTranslation, loadNews, resolveLocale } from "../../../../lib/content.ts";
+import * as m from "../../../../paraglide/messages.js";
 
 export function getStaticPaths() {
   const paths = [];
@@ -11,38 +13,47 @@ export function getStaticPaths() {
   return paths;
 }
 
-const { lang, slug } = Astro.params as { lang: "zh" | "ja" | "en"; slug: string | undefined };
+const { lang, slug } = Astro.params as { lang: "ja" | "zh" | "en"; slug: string | undefined };
 const slugPath = slug ?? "";
 const item = loadNews().find((i) => i.slug === slugPath);
 const locale = item ? resolveLocale(item, lang) : undefined;
 const translated = item ? hasTranslation(item, lang) : false;
+// 真实翻译页 vs fallback 页（i18n §1.2）：fallback 用源语言 canonical + noindex,follow。
+const sourceLang = item?.canonical.lang ?? "ja";
+const alternates = ["zh", "ja", "en"].map((l) => ({
+  hreflang: l,
+  href: `https://momoko.pro/${l}/news/${item?.slug}/`,
+}));
 ---
 
-<!doctype html>
-<html lang={lang}>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="alternate" hreflang="zh" href={`https://momoko.pro/zh/news/${item?.slug}/`} />
-    <link rel="alternate" hreflang="ja" href={`https://momoko.pro/ja/news/${item?.slug}/`} />
-    <link rel="alternate" hreflang="en" href={`https://momoko.pro/en/news/${item?.slug}/`} />
-    <link rel="alternate" hreflang="x-default" href="https://momoko.pro/" />
-    <title>{item?.canonical.title ?? "momoko.pro"}</title>
-  </head>
-  <body>
-    <a href={`/${lang}`}>← 返回列表</a>
-    {item && locale ? (
-      <>
-        <h1 lang={lang}>{item.canonical.title}</h1>
-        <p>
-          发布于 <time datetime={item.canonical.publishedAt}>{item.canonical.publishedAt}</time>
-          {translated ? "" : " · （当前语言缺译，回退源语言）"}
-        </p>
-        <p>风险分级: {item.canonical.riskTier} · 审核: {item.canonical.reviewStatus}</p>
-        <article>{locale.body}</article>
-      </>
-    ) : (
-      <p>内容不存在。</p>
-    )}
-  </body>
-</html>
+<SiteLayout
+  lang={translated ? lang : sourceLang}
+  title={item?.canonical.title ?? m.home()}
+  canonicalPath={translated ? `/${lang}/news/${item?.slug}/` : `/${sourceLang}/news/${item?.slug}/`}
+  {...(translated ? { alternates } : {})}
+  {...(translated ? {} : { robots: "noindex,follow" as const })}
+>
+  {item && locale ? (
+    <>
+      <p><a href={`/${lang}/`}>{m["news.backToList"]()}</a></p>
+      <h1 class="text-2xl" lang={translated ? lang : sourceLang}>{item.canonical.title}</h1>
+      <p>
+        <time datetime={item.canonical.publishedAt} class="text-sm text-text-secondary">
+          {item.canonical.publishedAt}
+        </time>
+        {!translated && (
+          <span class="ml-2 border-l-[3px] border-accent pl-3 text-sm text-text-secondary">
+            {m["news.missingLocale"]()}
+          </span>
+        )}
+      </p>
+      <p class="text-sm text-text-secondary">
+        {m["news.riskTier"]({ tier: item.canonical.riskTier })} · {m["news.reviewStatus"]({ status: item.canonical.reviewStatus })} ·{" "}
+        {m["news.source"]({ source: item.canonical.sourceId })}
+      </p>
+      <article>{locale.body}</article>
+    </>
+  ) : (
+    <p>{m["news.empty"]()}</p>
+  )}
+</SiteLayout>

@@ -1,5 +1,7 @@
 ---
-import { hasTranslation, loadNews } from "../lib/content.ts";
+import SiteLayout from "../components/SiteLayout.astro";
+import NewsList from "../components/NewsList.astro";
+import * as m from "../paraglide/messages.js";
 
 export function getStaticPaths() {
   return [
@@ -9,54 +11,12 @@ export function getStaticPaths() {
   ];
 }
 
-const { lang } = Astro.params as { lang: "zh" | "ja" | "en" };
-const items = loadNews();
-const entries = items
-  .map((item) => ({ item }))
-  .sort((a, b) => b.item.canonical.publishedAt.localeCompare(a.item.canonical.publishedAt));
-
-const langNames = { zh: "中文", ja: "日本語", en: "English" } as const;
-const canonical = `https://momoko.pro/${lang}`;
+const { lang } = Astro.params as { lang: "ja" | "zh" | "en" };
+const langNames = { zh: m["lang.zh"](), ja: m["lang.ja"](), en: m["lang.en"]() };
 ---
 
-<!doctype html>
-<html lang={lang}>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="alternate" hreflang="zh" href="https://momoko.pro/zh" />
-    <link rel="alternate" hreflang="ja" href="https://momoko.pro/ja" />
-    <link rel="alternate" hreflang="en" href="https://momoko.pro/en" />
-    <link rel="alternate" hreflang="x-default" href="https://momoko.pro/" />
-    <link rel="canonical" href={canonical} />
-    <title>{langNames[lang]} · momoko.pro</title>
-  </head>
-  <body>
-    <h1>{langNames[lang]} · momoko.pro</h1>
-    <nav>
-      <ul>
-        <li><a href="/zh" hreflang="zh" lang="zh">中文</a></li>
-        <li><a href="/ja" hreflang="ja" lang="ja">日本語</a></li>
-        <li><a href="/en" hreflang="en" lang="en">English</a></li>
-      </ul>
-    </nav>
-    <main>
-      <h2>{langNames[lang]} 新闻列表</h2>
-      {entries.length === 0 ? (
-        <p>暂无内容。</p>
-      ) : (
-        <ul>
-          {entries.map(({ item }) => (
-            <li>
-              <a href={`/${lang}/news/${item.slug}/`} lang={lang}>
-                {item.canonical.title}
-              </a>
-              <span> · {item.canonical.publishedAt}</span>
-              {!hasTranslation(item, lang) && <span> ·（缺译回退源语言）</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
-  </body>
-</html>
+<SiteLayout lang={lang} title={`${langNames[lang]} · ${m.home()}`} canonicalPath={`/${lang}/`}>
+  <h1 class="text-2xl">{langNames[lang]} · {m.home()}</h1>
+  <h2 class="text-xl">{m["news.heading"]()}</h2>
+  <NewsList lang={lang} />
+</SiteLayout>
