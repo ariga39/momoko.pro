@@ -56,6 +56,8 @@ const fakeSource = (over: Record<string, unknown> = {}): SourceConfig => ({
   robots_note: "Allow: /",
   terms_url: "https://example.com/terms",
   terms_note: "公开条款允许抓取",
+  access_control: "public",
+  terms_status: "not_evaluated",
   robots_approved: { allowed: false, evidence: "未批准（默认）" },
   terms_approved: { allowed: false, evidence: "未批准（默认）" },
   automated_fetch: false,
@@ -135,6 +137,12 @@ describe("sourceAllowedToFetch", () => {
     expect(sourceAllowedToFetch(approvedSource(), "/private")).toBe(false);
     expect(sourceAllowedToFetch(approvedSource(), undefined as unknown as string)).toBe(false);
   });
+  it("fails closed when access control or terms state is missing or invalid", () => {
+    expect(sourceAllowedToFetch(approvedSource({ access_control: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ access_control: "unknown" }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ terms_status: undefined }), "/")).toBe(false);
+    expect(sourceAllowedToFetch(approvedSource({ terms_status: "unknown" }), "/")).toBe(false);
+  });
 });
 
 describe("decideSourceAccess", () => {
@@ -185,6 +193,34 @@ describe("decideSourceAccess", () => {
       allowed: false,
       reason: "robots_rules_path_not_evaluated",
     });
+    expect(decideSourceAccess(crawler({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: null,
+      retrieved_at: null,
+      evidence: null,
+    }))).toMatchObject({ allowed: true, reason: "robots_not_applicable" });
+  });
+
+  it("requires non-empty string path evidence and exact null not-applicable fields", () => {
+    expect(decideSourceAccess(crawler({ retrieved_at: {} }))).toMatchObject({
+      allowed: false,
+      reason: "robots_path_evidence_missing_or_mismatched",
+    });
+    expect(decideSourceAccess(crawler({ evidence: 42 }))).toMatchObject({
+      allowed: false,
+      reason: "robots_path_evidence_missing_or_mismatched",
+    });
+    expect(decideSourceAccess(crawler({
+      robots_result: "not_applicable",
+      robots_path_decision: "not_evaluated",
+      checked_path: undefined,
+      retrieved_at: undefined,
+      evidence: undefined,
+    }))).toMatchObject({
+      allowed: false,
+      reason: "robots_not_applicable_state_invalid",
+    });
   });
 
   it("allows a human-directed single page despite missing robots and automation", () => {
@@ -201,6 +237,7 @@ describe("decideSourceAccess", () => {
       access_mode: "human_directed_single_page",
       automated_fetch: false,
       access_control: "login_required",
+      terms_status: "not_evaluated",
     }).allowed).toBe(false);
     expect(decideSourceAccess({
       access_mode: "human_directed_single_page",
@@ -217,6 +254,7 @@ describe("decideSourceAccess", () => {
       robots_result: "rules_available" as const,
       robots_path_decision: "allow" as const,
       access_control: "public" as const,
+      terms_status: "not_evaluated" as const,
     };
     expect(decideSourceAccess(base).allowed).toBe(false);
     expect(decideSourceAccess({ ...base, reuse_permitted: true, citation_boundary: true }).allowed).toBe(true);

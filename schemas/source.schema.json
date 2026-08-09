@@ -85,6 +85,14 @@
         "robots_note": { "type": "string" },
         "terms_url": { "type": ["string", "null"], "format": "uri" },
         "terms_note": { "type": "string" },
+        "access_control": {
+          "enum": ["public", "login_required", "paywall", "captcha", "explicitly_blocked"],
+          "description": "Explicit access-control state; unknown or omitted state cannot authorize automated access"
+        },
+        "terms_status": {
+          "enum": ["not_evaluated", "permitted", "prohibited"],
+          "description": "Explicit terms state; not_evaluated is not reuse permission"
+        },
         "robots_approved": {
           "$ref": "#/$defs/approval",
           "deprecated": true,
@@ -103,7 +111,7 @@
             "properties": {
               "fetch_frequency": { "not": { "const": "manual" } }
             },
-            "required": ["fetch_paths"]
+            "required": ["fetch_paths", "access_control", "terms_status"]
           }
         },
         {

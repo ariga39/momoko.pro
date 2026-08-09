@@ -136,6 +136,18 @@ export type SourceAccessMode =
 export type AccessControl = "public" | "login_required" | "paywall" | "captcha" | "explicitly_blocked";
 export type TermsStatus = "not_evaluated" | "permitted" | "prohibited";
 
+function isAccessControl(value: unknown): value is AccessControl {
+  return typeof value === "string" && ["public", "login_required", "paywall", "captcha", "explicitly_blocked"].includes(value);
+}
+
+function isTermsStatus(value: unknown): value is TermsStatus {
+  return typeof value === "string" && ["not_evaluated", "permitted", "prohibited"].includes(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
 /** A fetch target is an origin-relative URL path, never a query or fragment. */
 export function isFetchPath(value: unknown): value is string {
   return Boolean(
@@ -174,7 +186,9 @@ function denied(reason: string): SourceAccessDecision {
 }
 
 function commonAccessDecision(request: SourceAccessRequest): SourceAccessDecision | null {
+  if (!isAccessControl(request.access_control)) return denied("access_control_missing_or_invalid");
   if (request.access_control !== "public") return denied("access_control_blocked");
+  if (!isTermsStatus(request.terms_status)) return denied("terms_status_missing_or_invalid");
   if (request.terms_status === "prohibited") return denied("explicit_terms_prohibited");
   return null;
 }
@@ -184,8 +198,8 @@ function hasPathBoundEvidence(request: SourceAccessRequest): boolean {
     isFetchPath(request.requested_path) &&
       isFetchPath(request.checked_path) &&
       request.checked_path === request.requested_path &&
-      request.retrieved_at &&
-      request.evidence,
+      isNonEmptyString(request.retrieved_at) &&
+      isNonEmptyString(request.evidence),
   );
 }
 
@@ -202,9 +216,9 @@ function robotsStateError(request: SourceAccessRequest): string | null {
   if (request.robots_result === "not_applicable") {
     if (
       request.robots_path_decision !== "not_evaluated" ||
-      (request.checked_path !== null && request.checked_path !== undefined) ||
-      (request.retrieved_at !== null && request.retrieved_at !== undefined) ||
-      (request.evidence !== null && request.evidence !== undefined)
+      request.checked_path !== null ||
+      request.retrieved_at !== null ||
+      request.evidence !== null
     ) {
       return "robots_not_applicable_state_invalid";
     }
@@ -231,9 +245,6 @@ function robotsStateError(request: SourceAccessRequest): string | null {
 export function decideSourceAccess(request: SourceAccessRequest): SourceAccessDecision {
   if (!(["human_directed_single_page", "scheduled_or_recursive_crawler", "reuse_or_republication"] as string[]).includes(request.access_mode)) {
     return denied("access_mode_invalid");
-  }
-  if (request.terms_status !== undefined && !(["not_evaluated", "permitted", "prohibited"] as string[]).includes(request.terms_status)) {
-    return denied("terms_status_invalid");
   }
   const common = commonAccessDecision(request);
   if (common) return common;
@@ -268,12 +279,13 @@ export function decideSourceAccess(request: SourceAccessRequest): SourceAccessDe
  */
 export function sourceAllowedToFetch(source: SourceConfig, requestedPath: string): boolean {
   if (!isFetchPath(requestedPath)) return false;
+  if (!isAccessControl(source.access_control) || !isTermsStatus(source.terms_status)) return false;
   return decideSourceAccess({
     access_mode: "scheduled_or_recursive_crawler",
     automated_fetch: source.automated_fetch,
     requested_path: requestedPath,
-    access_control: source.access_control ?? "public",
-    terms_status: source.terms_status ?? "not_evaluated",
+    access_control: source.access_control,
+    terms_status: source.terms_status,
     ...(source.robots_result !== undefined ? { robots_result: source.robots_result } : {}),
     ...(source.robots_path_decision !== undefined ? { robots_path_decision: source.robots_path_decision } : {}),
     ...(source.checked_path !== undefined ? { checked_path: source.checked_path } : {}),

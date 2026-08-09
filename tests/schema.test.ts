@@ -24,6 +24,8 @@ const fakeSource = (over: Record<string, unknown> = {}) => ({
   robots_note: "Allow: /",
   terms_url: "https://example.com/terms",
   terms_note: "公开条款允许抓取",
+  access_control: "public",
+  terms_status: "not_evaluated",
   robots_approved: { allowed: false, evidence: "未批准（默认）" },
   terms_approved: { allowed: false, evidence: "未批准（默认）" },
   automated_fetch: false,
@@ -55,6 +57,14 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
     const source: Record<string, unknown> = fakeSource({ automated_fetch: true, fetch_frequency: "daily" });
     delete source.fetch_paths;
     expect(validateFile("source.schema.json", wrap(source)).valid).toBe(false);
+  });
+
+  it("requires explicit access and terms states for automated sources", () => {
+    const missingAccess: Record<string, unknown> = fakeSource({ automated_fetch: true, fetch_frequency: "daily" });
+    delete missingAccess.access_control;
+    const invalidTerms = fakeSource({ automated_fetch: true, fetch_frequency: "daily", terms_status: "unknown" });
+    expect(validateFile("source.schema.json", wrap(missingAccess)).valid).toBe(false);
+    expect(validateFile("source.schema.json", wrap(invalidTerms)).valid).toBe(false);
   });
 
   it("automated_fetch=true cannot be manual frequency", () => {
@@ -119,6 +129,8 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
     for (const s of cfg.sources) {
       expect(s.automated_fetch).toBe(false);
       expect(s.fetch_frequency).toBe("manual");
+      expect(s.access_control).toBe("public");
+      expect(s.terms_status).toBe("not_evaluated");
     }
     expect(cfg.sources.find((s: { source_id: string }) => s.source_id === "S1")).toMatchObject({
       robots_http: "404",

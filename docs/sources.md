@@ -49,7 +49,7 @@
 
 ## 3. 内容来源（机器配置见 config/sources.json）
 
-字段：`automated_fetch`（全部 `false`）、`fetch_frequency`（manual）、`fetch_paths`（自动来源必填）、`robots_result`、`robots_path_decision`、`checked_path`、`retrieved_at`、`evidence`、`cache_boundary`、`stop_condition`；robots/terms HTTP 结果与时间均为 2026-08-08 实测。`robots_result` 是 RFC 9309 的结果类别，`robots_path_decision` 只绑定 `checked_path`；旧 `robots_approved` 仅为兼容字段，不参与新决策。自动 adapter 每次接收显式 target path，不能用根路径授权其他路径。**逐项汇总：**
+字段：`automated_fetch`（全部 `false`）、`fetch_frequency`（manual）、`fetch_paths`（自动来源必填）、`access_control`、`terms_status`、`robots_result`、`robots_path_decision`、`checked_path`、`retrieved_at`、`evidence`、`cache_boundary`、`stop_condition`；robots/terms HTTP 结果与时间均为 2026-08-08 实测。`access_control` 与 `terms_status` 是显式状态，未知状态不能授权自动抓取；`robots_result` 是 RFC 9309 的结果类别，`robots_path_decision` 只绑定 `checked_path`；旧 `robots_approved` 仅为兼容字段，不参与新决策。自动 adapter 每次接收显式 target path，不能用根路径授权其他路径。**逐项汇总：**
 
 | source_id | 名称 | canonical URL | robots.txt 结果与 checked path | terms/guideline 结论 |
 |---|---|---|---|---|

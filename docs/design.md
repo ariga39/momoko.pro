@@ -133,7 +133,7 @@ i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 U
 
 - 只官方/本人/经纪事务所/主办方来源；**X 用人工维护的普通官方 permalink 卡片**（只存 account/date/permalink/人工原创说明，不复制 post 文本/图片）。
 - 不托管官方图像/Logo/完整台词/歌词/音频；不做声线克隆。
-- 来源机器配置：`config/sources.json`（`robots_result` 记录 RFC 9309 的结果类别，`robots_path_decision` 绑定 `checked_path`；旧 `robots_approved` 只为兼容读取并标记弃用，不参与新决策；当前 S1–S5 全部 `automated_fetch=false`；自动来源必须声明非空 `fetch_paths`；**cron seam 允许**：项目显式启用且每个请求路径有 robots 证据后才可抓取——见 §5.3）。
+- 来源机器配置：`config/sources.json`（`access_control` 与 `terms_status` 是显式状态，未知状态不能授权自动抓取；`robots_result` 记录 RFC 9309 的结果类别，`robots_path_decision` 绑定 `checked_path`；旧 `robots_approved` 只为兼容读取并标记弃用，不参与新决策；当前 S1–S5 全部 `automated_fetch=false`；自动来源必须声明非空 `fetch_paths`；**cron seam 允许**：项目显式启用且每个请求路径有 robots 证据后才可抓取——见 §5.3）。
 - Prompt-injection：外部正文隔离渲染 + 不进系统提示（覆盖人工粘贴与 agent 抓取）。
 
 ### 4.1 X 产品决策（事实摘录，不做法律裁定）

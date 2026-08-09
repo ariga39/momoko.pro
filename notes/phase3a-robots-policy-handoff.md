@@ -27,7 +27,8 @@ the allowlist, enable `automated_fetch`, add a crawler, or touch visual task
   - Human single-page access is not blocked by `automated_fetch=false` or
     missing robots, but public access and non-prohibited terms are required.
   - Crawler access requires `automated_fetch=true` and a path-bound allowed
-    robots decision.
+  robots decision, plus explicit `access_control` and `terms_status` states;
+  missing or invalid access-control state fails closed.
 - Reuse/republication requires independent reuse permission and a citation
   boundary; robots allow alone is insufficient.
 - Automated adapters must declare non-empty `fetch_paths`; `runCron()` passes
@@ -43,7 +44,8 @@ the allowlist, enable `automated_fetch`, add a crawler, or touch visual task
   `rules_available + allow` for `/`.
 - The schema keeps new fields optional so a v1 config lacking them remains
   readable. The runtime crawler gate rejects such a config until a reviewed
-  migration explicitly adds result, path, retrieval, and evidence state.
+  migration explicitly adds result, path, retrieval, evidence,
+  `access_control`, and `terms_status` state.
 - Existing `robots_approved` values remain readable and are annotated as
   deprecated. They are not copied into or used as a new path decision. No
   database migration is involved.
@@ -61,9 +63,11 @@ the allowlist, enable `automated_fetch`, add a crawler, or touch visual task
 - Phase 3A synthetic proof still makes zero HTTP calls and zero writes under
   the checked-in all-manual policy.
 - Source schema validation covers both result/path vocabularies, illegal
-  result/path/evidence combinations, explicit automated `fetch_paths`, and
-  old-shape readability; the source-policy page exposes the distinction in
-  zh/ja/en.
+  result/path/evidence combinations, exact-null `not_applicable` fields,
+  non-empty string evidence, explicit automated `fetch_paths`, and the
+  `access_control`/`terms_status` enums; old-shape readability remains
+  available but the crawler wrapper rejects missing authorization state. The
+  source-policy page exposes the distinction in zh/ja/en.
 
 ## Privacy and side effects
 
@@ -74,7 +78,7 @@ were changed.
 ## Successor verification
 
 The narrow successor reran the focused source-policy/schema/ingest suite with
-75 passing tests and the full suite with 129 passing tests. `pnpm check` has
+78 passing tests and the full suite with 132 passing tests. `pnpm check` has
 0 errors, warnings, and hints; schema cases pass; the static build produced 12
 pages; `build:post` succeeded; `build:verify` found 16 byte-identical files;
 E2E passed 14 tests; and `git diff --check` is clean.

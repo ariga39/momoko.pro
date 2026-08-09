@@ -137,6 +137,8 @@ def _source(**over) -> dict:
         "robots_note": "Allow: /",
         "terms_url": "https://example.com/terms",
         "terms_note": "公开条款允许抓取",
+        "access_control": "public",
+        "terms_status": "not_evaluated",
         "robots_approved": {"allowed": False, "evidence": "未批准（默认）"},
         "terms_approved": {"allowed": False, "evidence": "未批准（默认）"},
         "automated_fetch": False,
@@ -190,6 +192,11 @@ CASES: list[tuple[str, dict, bool]] = [
     (
         "source.schema.json",
         {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily", fetch_paths=[])]},
+        False,
+    ),
+    (
+        "source.schema.json",
+        {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily", access_control=None)]},
         False,
     ),
     (
