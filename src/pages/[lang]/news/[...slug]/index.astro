@@ -1,0 +1,48 @@
+---
+import { hasTranslation, loadNews, resolveLocale } from "../../../../lib/content.ts";
+
+export function getStaticPaths() {
+  const paths = [];
+  for (const item of loadNews()) {
+    for (const lang of ["zh", "ja", "en"]) {
+      paths.push({ params: { lang, slug: item.slug } });
+    }
+  }
+  return paths;
+}
+
+const { lang, slug } = Astro.params as { lang: "zh" | "ja" | "en"; slug: string | undefined };
+const slugPath = slug ?? "";
+const item = loadNews().find((i) => i.slug === slugPath);
+const locale = item ? resolveLocale(item, lang) : undefined;
+const translated = item ? hasTranslation(item, lang) : false;
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="alternate" hreflang="zh" href={`https://momoko.pro/zh/news/${item?.slug}/`} />
+    <link rel="alternate" hreflang="ja" href={`https://momoko.pro/ja/news/${item?.slug}/`} />
+    <link rel="alternate" hreflang="en" href={`https://momoko.pro/en/news/${item?.slug}/`} />
+    <link rel="alternate" hreflang="x-default" href="https://momoko.pro/" />
+    <title>{item?.canonical.title ?? "momoko.pro"}</title>
+  </head>
+  <body>
+    <a href={`/${lang}`}>← 返回列表</a>
+    {item && locale ? (
+      <>
+        <h1 lang={lang}>{item.canonical.title}</h1>
+        <p>
+          发布于 <time datetime={item.canonical.publishedAt}>{item.canonical.publishedAt}</time>
+          {translated ? "" : " · （当前语言缺译，回退源语言）"}
+        </p>
+        <p>风险分级: {item.canonical.riskTier} · 审核: {item.canonical.reviewStatus}</p>
+        <article>{locale.body}</article>
+      </>
+    ) : (
+      <p>内容不存在。</p>
+    )}
+  </body>
+</html>

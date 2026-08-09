@@ -1,0 +1,25 @@
+# A–E owned-file boundaries（互斥目录，无重叠；见 design.md §6.1）
+# A 仅 src/** + e2e/**；B 仅 schemas/** + tools/schema/** + config/*.json 校验；
+# C 仅 tools/ingest/**；D 仅 content/*/content.<lang>.md + tools/editorial/**；
+# E 仅 .github/workflows/** + .github/CODEOWNERS + tests/** + CI/CD 配置。
+
+# E: CI/CD 与测试
+.github/workflows/ @momoko
+.github/CODEOWNERS @momoko
+tests/ @momoko
+
+# A: 前端
+src/ @momoko
+e2e/ @momoko
+
+# B: schema 与校验
+schemas/ @momoko
+tools/schema/ @momoko
+config/ @momoko
+
+# C: 内容管线（cron + manual-import 双 seam）
+tools/ingest/ @momoko
+
+# D: 内容与编辑
+content/ @momoko
+tools/editorial/ @momoko
