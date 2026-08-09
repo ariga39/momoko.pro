@@ -4,7 +4,42 @@ import matter from "gray-matter";
 
 import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+export const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+
+/** content paths with an active retraction record（status=requested|active）。 */
+function retractedPaths(): Set<string> {
+  return loadRetractions();
+}
+
+function loadRetractions(): Set<string> {
+  const out = new Set<string>();
+  const root = path.join(REPO_ROOT, "content", "retractions");
+  if (!fs.existsSync(root)) return out;
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile() && entry.name.endsWith(".json")) {
+        try {
+          const rec = JSON.parse(fs.readFileSync(full, "utf-8")) as {
+            content_path?: string;
+            status?: string;
+          };
+          if (
+            rec.content_path &&
+            (rec.status === "requested" || rec.status === "active")
+          ) {
+            out.add(rec.content_path);
+          }
+        } catch {
+          // malformed retraction record: ignore (schema validation is CI's gate)
+        }
+      }
+    }
+  };
+  walk(root);
+  return out;
+}
 
 /** Canonical index.md (content.schema.json): the source-language facts. */
 export interface ContentMeta {
@@ -141,19 +176,44 @@ export function loadNews(): NewsItem[] {
 }
 
 /**
- * Resolve a display locale: exact translation, else fall back to the source
- * language (index.md). `hasTranslation` distinguishes fallback rendering.
+ * A locale file is a REAL translation only when（design §1.2）:
+ *  - body is non-empty,
+ *  - review_status === "reviewed",
+ *  - source_content_hash === canonical content_hash（未漂移）,
+ *  - and the item is not retracted.
+ * Anything else is fail-closed → treated as missing (fallback to source).
+ */
+export function isRealTranslation(item: NewsItem, lang: LocaleLang): boolean {
+  const loc = item.locales[lang];
+  if (!loc) return false;
+  if (!loc.body || !loc.body.trim()) return false;
+  if (loc.meta.reviewStatus !== "reviewed") return false;
+  if (loc.meta.sourceContentHash !== item.canonical.contentHash) return false;
+  if (isRetracted(item)) return false;
+  return true;
+}
+
+/** True when this item has an active retraction record. */
+export function isRetracted(item: NewsItem): boolean {
+  return retractedPaths().has(`content/news/${item.slug}/index.md`);
+}
+
+/**
+ * Resolve a display locale: strict real translation, else fall back to the
+ * source language (index.md). `translated` distinguishes fallback rendering.
  */
 export function resolveLocale(
   item: NewsItem,
   lang: LocaleLang,
 ): { body: string; translated: boolean } {
-  const loc = item.locales[lang];
-  if (loc) return { body: loc.body, translated: true };
+  if (isRealTranslation(item, lang)) {
+    const loc = item.locales[lang]!;
+    return { body: loc.body, translated: true };
+  }
   return { body: item.canonicalBody, translated: false };
 }
 
-/** True when an exact translation exists for this lang. */
+/** True when a strict real translation exists for this lang. */
 export function hasTranslation(item: NewsItem, lang: LocaleLang): boolean {
-  return Boolean(item.locales[lang]);
+  return isRealTranslation(item, lang);
 }

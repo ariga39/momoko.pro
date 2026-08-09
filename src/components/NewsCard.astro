@@ -1,0 +1,33 @@
+---
+import type { NewsItem } from "../lib/content.ts";
+import { ml, type Locale } from "../lib/messages.ts";
+
+interface Props {
+  item: NewsItem;
+  lang: Locale;
+  translated: boolean;
+}
+
+const { item, lang, translated } = Astro.props;
+const t = ml(lang);
+---
+
+<li class="rounded border border-border bg-surface px-6 py-4">
+  <article>
+    <h3 class="mt-0">
+      <a href={`/${lang}/news/${item.slug}/`} lang={lang}>
+        {item.canonical.title}
+      </a>
+    </h3>
+    <p>
+      <time datetime={item.canonical.publishedAt} class="text-sm text-text-secondary">
+        {item.canonical.publishedAt}
+      </time>
+      {!translated && (
+        <span class="ml-2 border-l-[3px] border-accent pl-3 text-sm text-text-secondary">
+          {t.newsMissingLocale()}
+        </span>
+      )}
+    </p>
+  </article>
+</li>
