@@ -25,6 +25,7 @@ test("locale page lists the synthetic news item with hreflang alternates", async
   await page.goto("/zh/");
   await expect(page.locator("h1")).toHaveText(/中文/);
   await expect(page.locator("main a").first()).toHaveAttribute("lang", "zh");
+  await expect(page.locator("main")).not.toContainText("S1-synth-2026-08-08-002");
   await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
     "href",
     "https://momoko.pro/",
@@ -58,7 +59,9 @@ test("search page filters the deterministic local index client-side", async ({ p
   const input = page.locator("#q");
   const results = page.locator("#results li");
   await input.fill("合成");
-  await expect(results).toHaveCount(6);
+  // Draft records remain available to the review workflow but do not enter
+  // public search/build indexes; only the reviewed fixture has three locale rows.
+  await expect(results).toHaveCount(3);
   await expect(results.first()).toContainText("S1-synth-2026-08-08-001");
 });
 

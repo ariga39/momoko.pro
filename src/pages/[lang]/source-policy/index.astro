@@ -1,6 +1,6 @@
 ---
 import SiteLayout from "../../../components/SiteLayout.astro";
-import { loadNews } from "../../../lib/content.ts";
+import { loadPublishedNews } from "../../../lib/content.ts";
 import { ml, type Locale } from "../../../lib/messages.ts";
 
 export function getStaticPaths() {
@@ -13,7 +13,7 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = ml(lang);
-const sources = loadNews();
+const sources = loadPublishedNews();
 ---
 
 <SiteLayout lang={lang} title={`${t.policyTitle()} · ${t.home()}`} canonicalPath={`/${lang}/source-policy/`}>

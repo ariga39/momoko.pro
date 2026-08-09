@@ -1,5 +1,5 @@
 ---
-import { loadNews, hasTranslation } from "../lib/content.ts";
+import { loadPublishedNews, hasTranslation } from "../lib/content.ts";
 import { ml, type Locale } from "../lib/messages.ts";
 import NewsCard from "./NewsCard.astro";
 
@@ -9,7 +9,7 @@ interface Props {
 
 const { lang } = Astro.props;
 const t = ml(lang);
-const items = loadNews().sort((a, b) =>
+const items = loadPublishedNews().sort((a, b) =>
   b.canonical.publishedAt.localeCompare(a.canonical.publishedAt),
 );
 ---
