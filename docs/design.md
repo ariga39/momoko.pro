@@ -48,10 +48,13 @@
 ### 1.2 三语路由
 
 - `/zh/...`, `/ja/...`, `/en/...`。`/` 为 **x-default 语言选择页**（无 Worker/Functions，**不做服务端 Accept-Language 读取**）或固定静态 302 到默认语言（如 `/ja`）。
-- canonical（源语言/主要语言）+ alternate/hreflang（三语 + x-default）。
+- canonical/alternate 按**页面内容身份 + 已审核版本**生成，而不是按“路由存在”生成；具体 SEO 规则见下。
 - 路由由 Astro 原生 `i18n` 配置统一声明：`locales=["ja","zh","en"]`、`defaultLocale="ja"`、`prefixDefaultLocale=true`；页面链接使用 `astro:i18n` helper，避免手拼 locale URL。`/` 仍是显式 x-default 选择页，不启用浏览器语言自动跳转。
 - **界面文案与内容译文分层**：导航、按钮、状态提示等 UI chrome 使用 Paraglide JS 的类型安全 message catalog；新闻/百科等编辑内容继续使用 `content.<lang>.md` + review state schema。i18n runtime 不得覆盖 `draft/reviewed/stale/retracted`，也不得把缺译自动伪装成已审核译文。
-- 不启用 Astro/Paraglide 的内容级静默 rewrite fallback。缺失或 stale 的编辑内容继续由现有 renderer 回退到源语言，并显示 `LocaleNotice`；canonical/hreflang 只为真实存在且可发布的 locale 生成。
+- 不启用 Astro/Paraglide 的内容级静默 rewrite fallback。缺失或 stale 的编辑内容继续由现有 renderer 回退到源语言，并显示 `LocaleNotice`；它不是请求 locale 的翻译版本。
+- **真实翻译页**：只有 locale 文件 body 非空、`review_status=reviewed`、`source_content_hash` 等于当前源版本且未 retracted，才是可发布语言版本；该页 `<html lang>`、title/OG 与正文语言一致并 self-canonical。
+- **fallback 页**：使用源语言正文、`<html lang=source_lang>`、源语言 title/OG，canonical 指向源语言 URL，并设置 `noindex,follow`；`LocaleNotice` 明示请求语言缺译/失效。该请求 locale 不进入 hreflang 集合。
+- **hreflang 集合**：按同一内容身份计算，只含源语言页及满足上述条件的真实翻译页；使用全限定 URL，包含自身，并由每个集合成员输出完全相同的双向集合。新闻/百科详情的 `x-default` 指向该内容的源语言页；站点根语言选择页只作为站点入口/列表层的 `x-default`，不冒充每篇详情的 alternate。
 
 ---
 
@@ -70,7 +73,7 @@
 | Pages 部署 | **GitHub Actions Direct Upload**（wrangler） | 见 §8.3（唯一部署面） | ADR-06 |
 | AI 摘要/翻译 | provider-neutral（未选） | 不锁定；未选前不启用 | ADR-08 |
 
-i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 URL helper（<https://docs.astro.build/en/guides/internationalization/>）；Paraglide 提供 Astro/Vite 集成、类型安全 message function 与静态生成方案（<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>）。i18next core 成熟，但当前没有 Astro 官方集成；社区 `astro-i18next` 仍为 beta 且不作为本项目基础依赖。
+i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 URL helper（<https://docs.astro.build/en/guides/internationalization/>）；Paraglide 提供 Astro/Vite 集成、类型安全 message function 与静态生成方案（<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>）。i18next core 是可行的 runtime i18n 方案（<https://www.i18next.com/overview/getting-started>），但本项目选择对 Astro SSG 有直接上游指南、编译期类型安全的 Paraglide，减少本切片的自建适配面。多语言 SEO 规则依据 Google Search Central（<https://developers.google.com/search/docs/specialty/international/localized-versions>、<https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls>）。
 
 ---
 
