@@ -103,17 +103,20 @@ test("UI chrome renders in each page locale (Paraglide pinned to route)", async 
   await page.goto("/en/about/");
   await expect(page.locator("h1")).toHaveText("About momoko.pro");
   await expect(page).toHaveTitle(/About momoko\.pro/);
-  await expect(page.locator("nav[aria-label='主导航']")).toContainText("News");
-  await expect(page.locator("nav[aria-label='主导航']")).toContainText("Source Policy");
+  await expect(page.locator("nav[aria-label='Main navigation']")).toContainText("News");
+  await expect(page.locator("nav[aria-label='Main navigation']")).toContainText("Source Policy");
+  await expect(page.locator("nav[aria-label='Language switcher']")).toBeVisible();
   await expect(page.locator("body")).toContainText("unofficial fan site");
 
   await page.goto("/zh/about/");
   await expect(page.locator("h1")).toHaveText("关于 momoko.pro");
   await expect(page.locator("nav[aria-label='主导航']")).toContainText("新闻");
+  await expect(page.locator("nav[aria-label='语言切换 / Language switcher']")).toBeVisible();
 
   await page.goto("/ja/about/");
   await expect(page.locator("h1")).toHaveText("momoko.pro について");
-  await expect(page.locator("nav[aria-label='主导航']")).toContainText("ニュース");
+  await expect(page.locator("nav[aria-label='メインナビゲーション']")).toContainText("ニュース");
+  await expect(page.locator("nav[aria-label='言語切り替え']")).toBeVisible();
 });
 
 test("fallback page emits content-identity alternates only (source excluded from request-locale)", async ({ page }) => {
@@ -144,4 +147,26 @@ test("real translation page emits full content-identity hreflang set", async ({ 
     "https://momoko.pro/ja/news/2026/S1-synth-2026-08-08-001/",
   );
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+});
+
+test("source-language detail page is self-canonical and NOT a fallback (no noindex)", async ({ page }) => {
+  // 001 canonical is ja: /ja/...001/ must be the indexable source page.
+  await page.goto("/ja/news/2026/S1-synth-2026-08-08-001/");
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://momoko.pro/ja/news/2026/S1-synth-2026-08-08-001/",
+  );
+  await expect(page.locator("body")).not.toContainText("缺译");
+  await expect(page.locator("body")).not.toContainText("未翻訳");
+
+  // 002 canonical is ja (draft): still a source page, not fallback (no 缺译 notice),
+  // but draft content is noindex,follow per content status.
+  await page.goto("/ja/news/2026/S1-synth-2026-08-08-002/");
+  await expect(page.locator("body")).not.toContainText("缺译");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://momoko.pro/ja/news/2026/S1-synth-2026-08-08-002/",
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
 });

@@ -32,5 +32,7 @@
   "policy.intro": "This site's sourcing and copyright boundaries are as follows (machine config lives in config/sources.json):",
   "policy.noCopy": "We do not reproduce official images, logos, lyrics, quotes, audio, or scraped bodies — only human fact notes and links.",
   "policy.automated": "No automated fetching is active (S1–S5 automated_fetch=false); a source is only enabled after robots/terms evidence and human approval.",
-  "policy.currentSources": "Current sources"
+  "policy.currentSources": "Current sources",
+  "nav.main": "Main navigation",
+  "nav.language": "Language switcher"
 }

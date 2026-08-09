@@ -32,5 +32,7 @@
   "policy.intro": "本站内容的来源与版权边界如下（机器配置以 config/sources.json 为准）：",
   "policy.noCopy": "不复制官方图片、Logo、歌词、台词、音频或抓取正文；仅保存人工事实笔记与链接。",
   "policy.automated": "当前无自动抓取（S1–S5 automated_fetch=false）；任何来源须经 robots/terms 证据并经人工批准后才可能启用。",
-  "policy.currentSources": "当前来源"
+  "policy.currentSources": "当前来源",
+  "nav.main": "主导航",
+  "nav.language": "语言切换 / Language switcher"
 }

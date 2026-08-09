@@ -16,6 +16,8 @@ export function ml(lang: Locale) {
     navAbout: () => m["nav.about"]({}, options),
     navSourcePolicy: () => m["nav.sourcePolicy"]({}, options),
     navSearch: () => m["nav.search"]({}, options),
+    navMain: () => m["nav.main"]({}, options),
+    navLanguage: () => m["nav.language"]({}, options),
     langZh: () => m["lang.zh"]({}, options),
     langJa: () => m["lang.ja"]({}, options),
     langEn: () => m["lang.en"]({}, options),

@@ -15,7 +15,7 @@ const langs = [
 ];
 ---
 
-<nav aria-label="语言切换 / Language switcher">
+<nav aria-label={t.navLanguage()}>
   <ul class="flex gap-2 text-sm">
     {langs.map((l) => (
       <li

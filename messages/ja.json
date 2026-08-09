@@ -32,5 +32,7 @@
   "policy.intro": "当サイトの出典と著作権の境界は以下の通りです（機械設定は config/sources.json が正）。",
   "policy.noCopy": "公式画像・ロゴ・歌詞・台詞・音声・取得本文を複製しません。人工の事実メモとリンクのみ保存します。",
   "policy.automated": "現在は自動取得なし（S1–S5 automated_fetch=false）。robots/terms の証拠と人工承認後にのみ有効化可能。",
-  "policy.currentSources": "現在の出典"
+  "policy.currentSources": "現在の出典",
+  "nav.main": "メインナビゲーション",
+  "nav.language": "言語切り替え"
 }

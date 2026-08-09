@@ -20,9 +20,18 @@ const t = ml(lang);
 const locale = item ? resolveLocale(item, lang) : undefined;
 const translated = item ? hasTranslation(item, lang) : false;
 const sourceLang = item?.canonical.lang ?? "ja";
+// 源语言页面（lang===canonical.lang）本身就是内容身份的源页面：
+// self-canonical、按内容状态索引、不显示缺译提示、不 noindex/follow。
+// 仅「非源语言请求且无真实译文」才是 fallback 页（noindex,follow + 缺译提示）。
+const isSourcePage = item ? lang === sourceLang : false;
+const isFallback = !isSourcePage && !translated;
+const effectiveLang = translated || isSourcePage ? lang : sourceLang;
+// 源语言页 robots 按内容状态：reviewed→可索引；draft/stale→noindex,follow。
+const sourceRobots =
+  item?.canonical.reviewStatus === "reviewed" ? undefined : ("noindex,follow" as const);
 
 // 内容身份 alternate 集合（design §1.2）：只含源语言页 + 真实翻译页，
-// 请求 locale 若缺译不得进入集合；x-default 指向源语言页。
+// 缺译的请求 locale 不得进入集合；x-default 指向源语言页。
 const contentAlternates = item
   ? (["ja", "zh", "en"] as Locale[])
       .filter((l) => l === sourceLang || hasTranslation(item, l))
@@ -34,22 +43,22 @@ const contentAlternates = item
 ---
 
 <SiteLayout
-  lang={translated ? lang : sourceLang}
+  lang={effectiveLang}
   title={item?.canonical.title ?? t.home()}
-  canonicalPath={translated ? `/${lang}/news/${item?.slug}/` : `/${sourceLang}/news/${item?.slug}/`}
+  canonicalPath={`/${effectiveLang}/news/${item?.slug}/`}
   alternates={contentAlternates}
-  {...(translated || !item ? {} : { robots: "noindex,follow" as const })}
+  {...(isFallback ? { robots: "noindex,follow" as const } : isSourcePage && sourceRobots ? { robots: sourceRobots } : {})}
   {...(item ? { xDefaultHref: `https://momoko.pro/${sourceLang}/news/${item.slug}/` } : {})}
 >
   {item && locale ? (
     <>
       <p><a href={`/${lang}/`}>{t.newsBackToList()}</a></p>
-      <h1 class="text-2xl" lang={translated ? lang : sourceLang}>{item.canonical.title}</h1>
+      <h1 class="text-2xl" lang={effectiveLang}>{item.canonical.title}</h1>
       <p>
         <time datetime={item.canonical.publishedAt} class="text-sm text-text-secondary">
           {item.canonical.publishedAt}
         </time>
-        {!translated && (
+        {isFallback && (
           <span class="ml-2 border-l-[3px] border-accent pl-3 text-sm text-text-secondary">
             {t.newsMissingLocale()}
           </span>
