@@ -4,9 +4,10 @@ import { ml, type Locale } from "../lib/messages.ts";
 
 interface Props {
   current: Locale;
+  ariaLabel?: string;
 }
 
-const { current } = Astro.props;
+const { current, ariaLabel } = Astro.props;
 const t = ml(current);
 const langs = [
   { code: "zh", label: t.langZh() },
@@ -15,7 +16,7 @@ const langs = [
 ];
 ---
 
-<nav aria-label={t.navLanguage()}>
+<nav aria-label={ariaLabel ?? t.navLanguage()}>
   <ul class="flex gap-2 text-sm">
     {langs.map((l) => (
       <li
