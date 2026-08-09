@@ -31,7 +31,7 @@
 - [ ] stale-check：源 hash 变化 → 三语 reviewed 译文原子置 stale
 - [ ] retraction：合并后同一 build 原子过滤
 - [ ] schema_version 迁移：空库/旧库可迁移；迁移脚本可重入；`tools/schema/migrations/*` 单次执行
-- [ ] **schema 正/反实例全量校验**：每 canonical 类型（content/locale/discovery/anniversary/retraction/manifest）至少各 1 正例+1 反例，`tools/schema/validate_schemas.py` 通过
+- [ ] **schema 正/反实例全量校验**：每 canonical 类型（content/locale/discovery/anniversary/retraction/manifest + reviewers）至少各 1 正例+1 反例，含 published 拒绝、reviewed 无 reviewer/time 拒绝、空/重复 reviewer handle 拒绝、uri/date-time format 拒绝（严格 RFC3339：date-only/无时区/非法日拒绝，hostname 拒绝 `-x`/`..`）；`tools/schema/validate_schemas.py` 用真实 FormatChecker 通过
 - [ ] **MVP 无自动抓取断言**：无抓取重试/死信/raw store 代码路径
 
 ## 版权/来源边界

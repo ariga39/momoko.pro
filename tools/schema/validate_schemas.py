@@ -12,6 +12,7 @@ Exit code 0 = all pass; any failure prints the failing instance and raises.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, date
 from pathlib import Path
 from urllib.parse import urlparse
@@ -47,7 +48,18 @@ def _build_format_checker() -> jsonschema.FormatChecker:
     def _date_time(value: str) -> bool:
         if not isinstance(value, str):
             return True
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        # Strict RFC 3339: YYYY-MM-DD[Tt]HH:MM:SS(.fff)?(Z|[+-]HH:MM).
+        # Rejects date-only strings and timestamps without a timezone.
+        m = re.fullmatch(
+            r"(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(\.\d+)?"
+            r"([Zz]|[+-]\d{2}:\d{2})",
+            value,
+        )
+        if not m:
+            return False
+        year, month, day, hh, mm, ss = (int(g) for g in m.groups()[:6])
+        date(year, month, day)
+        datetime(year, month, day, hh, mm, ss)
         return True
 
     @fc.checks("date", raises=(ValueError,))
@@ -61,7 +73,16 @@ def _build_format_checker() -> jsonschema.FormatChecker:
     def _hostname(value: str) -> bool:
         if not isinstance(value, str):
             return True
-        return bool(value) and " " not in value and "/" not in value
+        # RFC 1123 hostname: labels of 1..63 chars [A-Za-z0-9-], not starting
+        # or ending with '-', joined by single dots; max 253 chars.
+        if not value or len(value) > 253:
+            return False
+        for label in value.rstrip(".").split("."):
+            if not label or len(label) > 63:
+                return False
+            if not re.fullmatch(r"[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?", label):
+                return False
+        return True
 
     return fc
 
@@ -146,7 +167,10 @@ CASES: list[tuple[str, dict, bool]] = [
     # content: negative — bad uri / bad date-time formats caught by FormatChecker
     ("content.schema.json", _content(source_url="not-a-uri"), False),
     ("content.schema.json", _content(published_at="not-a-datetime"), False),
-    # content: negative — unknown field rejected
+    # strict RFC 3339 probes: date-only and missing-timezone must be rejected
+    ("content.schema.json", _content(published_at="2026-08-08"), False),
+    ("content.schema.json", _content(published_at="2026-08-08T12:00:00"), False),
+    # unknown field rejected
     ("content.schema.json", {**_content(), "not_a_field": True}, False),
     # content: negative — review_status not in enum
     ("content.schema.json", _content(review_status="bogus"), False),

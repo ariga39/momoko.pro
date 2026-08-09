@@ -104,7 +104,7 @@ Git 上无法在 merge commit 之后回写 canonical 状态，因此锁定的可
    - 输入：`pr_number`、`head_sha`、`reviewer_handle`。
    - **只通过 GitHub API 校验**：PR 仍开放、`head.sha == head_sha`、存在该 reviewer 的 APPROVE review（author≠reviewer，reviewer ∈ `config/reviewers.json`）。
    - **绝不在 CI 中 checkout/执行 PR 分支脚本**；只用 Contents API 在该精确 head 的 content 文件上写 `reviewed`+`reviewed_by/reviewed_at` 并提交。
-   - 最小权限：Contents API 写权限仅限该 PR head；并发/幂等：同一 head 重复触发只产生一次状态提交（以目标文件当前内容 hash 判断）。
+   - 最小权限：App token 为 repo-scoped credential，实际边界由 default-branch-owned workflow + API 精确 ref 校验 + 拒绝 fork PR + branch protection 构成；promote-review 只写该 PR head 的 content 文件。并发/幂等：同一 head 重复触发只产生一次状态提交（以目标文件当前内容 hash 判断）。
    - 分支/作者限制：仅允许对 `config/reviewers.json` 内 reviewer 且 author≠reviewer 的 PR 生效。
 4. 分支保护要求 bot 提交后重新满足 approval（GitHub 对 push 重置 review）。
 5. reviewer 再次批准 → merge 到 main → build 派生 `published`。
@@ -350,7 +350,7 @@ erDiagram
   - 触发：受控 `workflow_dispatch`（default-branch-owned 可信 workflow；输入 `pr_number`/`head_sha`/`reviewer_handle`），**不**由 `pull_request` 事件触发，也不从 PR checkout 运行。
   - 校验：只用 GitHub API 校验 PR 开放、`head.sha==head_sha`、reviewer 的真实 APPROVE review（author≠reviewer，reviewer ∈ reviewers.json）。
   - 写入：只用 **Contents API** 在该精确 head 的 content 文件写 `reviewed`+`reviewed_by/reviewed_at` 并提交；**绝不在 CI 中 checkout/执行 PR 分支脚本**。
-  - 权限：App token 最小（Contents 写仅限该 PR head + 只读 PR/review）；并发/幂等按目标文件当前 hash 判断；分支/作者限制（reviewer 白名单、author≠reviewer）；bot 提交后需重新 approval。
+  - 权限：GitHub App token 是 **repo-scoped** credential（非"仅限该 head"）；实际安全边界由 default-branch-owned workflow + 显式 API 精确 ref（PR/head/reviewer）校验 + 拒绝 fork PR + 并发/幂等按目标文件当前 hash 判断 + branch protection + required approval 构成。promote-review 只写该 PR head 的 content 文件，不触碰其它 ref。
 - RBAC：GitHub 分支保护、`config/reviewers.json`（真实 GitHub 身份）reviewer 名单、CODEOWNERS。
 
 ### 8.4 manual-import 文件写入安全
