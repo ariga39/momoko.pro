@@ -27,17 +27,17 @@
 - [ ] 幂等/去重：同 `(source_id, source_item_id, lang)` + hash 不重复；重跑无 diff（静默）
 - [ ] manual-import：allowlisted hostname+source_id 校验、schema 校验、去重、生成 PR；错误 enum 映射正确；**不提交 manifest**
 - [ ] ai-draft：**只消费人工事实笔记/批准短摘录，不打开 URL**；外部正文不入 repo/prompt log/artifact；输出恒 draft
-- [ ] human-merge：agent 只开 Draft PR（draft），人工/授权 agent GitHub review 内容判断后人工 merge；默认永不自动合并；无 promote-review/自动晋级残留
+- [ ] reviewer-before-merge：独立 reviewer（human/授权 agent，非生成 agent）在 merge 前显式提交 reviewed_by/reviewed_at（T2 必须 human）；生成 agent 只开 Draft PR、不自审/自合；具 merge 权限 human/agent 合并；无 promote-review bot / workflow 写回 / 硬编码 reviewer 身份
 - [ ] stale-check：源 hash 变化 → 三语 reviewed 译文原子置 stale
 - [ ] retraction：合并后同一 build 原子过滤
 - [ ] schema_version 迁移：空库/旧库可迁移；迁移脚本可重入；`tools/schema/migrations/*` 单次执行
 - [ ] **schema 正/反实例全量校验**：每 canonical 类型（content/locale/discovery/anniversary/retraction/manifest + reviewers）至少各 1 正例+1 反例，含 published 拒绝、reviewed 无 reviewer/time 拒绝、空/重复 reviewer handle 拒绝、uri/date-time format 拒绝（严格 RFC3339：date-only/无时区/非法日拒绝，hostname 拒绝 `-x`/`..`）；`tools/schema/validate_schemas.py` 用真实 FormatChecker 通过
-- [ ] **MVP 无自动抓取断言**：无抓取重试/死信/raw store 代码路径
+- [ ] **cron seam**：cron 只运行 `automated_fetch=true` 且 robots/terms 已验证的来源 adapter；false 来源只走 manual-import；无允许来源/无变化静默；当前 S1–S5 全 false 时 cron 无输出
 
 ## 版权/来源边界
 - [ ] 无 X embed/iframe、无 X API、无 X 抓取（X 仅人工 permalink 卡片；**不复制 post 文本/图片**，只存 account/date/permalink/人工说明）
 - [ ] 无官方素材托管/声线克隆；**无完整台词/台词库/随机台词渲染**
-- [ ] 来源只来自 `config/sources.json` allowlist；robots/terms 证据与 config 一致；`automated_fetch` 全 false
+- [ ] 来源只来自 `config/sources.json` allowlist；robots/terms 证据与 config 一致；`automated_fetch` 值与证据一致（当前全 false）
 - [ ] 无硬编码 reviewer 身份/自动晋级（momoko 自动化上限）；内容判断由人工/授权 agent 在 GitHub review 完成
 - [ ] 机器配置（config/sources.json）与人类证据（docs/sources.md）一致
 

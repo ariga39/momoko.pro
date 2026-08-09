@@ -4,7 +4,7 @@
 
 ## ADR-01 抓取范围
 - 默认：只官方/本人/经纪事务所/主办方；**X 用人工维护的普通官方 permalink 卡片（只存 account/date/permalink/人工原创说明，不复制 post 文本/图片，不 embed/API/抓取——见 sources.md §2）**；内容源在存在公开 robots/terms 证据前不自动抓取，仅人工发现/录入。
-- MVP 管线：**人工 discovery → schema → AI 草稿 → PR → 人工 review/merge**；无 daily-fetch、无抓取重试/死信、无 raw store、工具不打开 URL。
+- MVP 管线：**发现（cron `automated_fetch=true` 或人工）→ schema → AI 草稿 → Draft PR → 独立 reviewer merge 前写 reviewed → 具 merge 权限 human/agent 合并**；cron 只跑已验证允许的来源，无允许来源/无变化静默；当前 S1–S5 全 false 走 manual-import。
 - 来源验证：allowlisted HTTPS hostname + source_id（MVP 无加密签名）。
 - 代价：缺失非官方/实时 X、自动抓取时效性受限（人工录入为主）。
 - 改变条件：用户明确需要且人工批准；或某来源取得公开 robots/terms 许可证据并经批准后开放自动抓取（届时才引入抓取链契约）。
@@ -36,7 +36,7 @@
 - 改变条件：出现非 Git 编辑者、秒级发布、构建瓶颈或复杂服务端查询（需量化证据）。
 
 ## ADR-07 编辑/审核入口（ADR-ADMIN）
-- **MVP 锁定：Git-based workflow（PR/commit 审核 + 人工 merge 发布）**——人工发现记录/AI 草稿生成 Draft PR（agent 只推分支，默认永不自动合并）；**内容判断=人工/授权 agent** 在 GitHub review 中完成（GitHub review/commit history 即审计）；merge 后 `published` 为 build 派生（不在 canonical enum）。
+- **MVP 锁定：Git-based workflow（PR/commit 审核 + 人工 merge 发布）**——人工发现记录/AI 草稿生成 Draft PR（agent 只推分支，默认永不自动合并）；**内容判断=独立 reviewer（human/授权 agent，非生成 agent）** 在 merge 前 GitHub review 中完成（GitHub review/commit history 即审计）；merge 后 `published` 为 build 派生（不在 canonical enum）。
 - **自动化上限**：MVP 不预埋 secret-bearing 自动写回、workflow_dispatch 内容写回、硬编码 reviewer 身份或第二套审批库（momoko 2026-08-09）。
 - **secret 边界**：PR 代码路径不注入任何 secret；CI/build 仅在 main merge 后由 default-branch-owned 可信 job 使用部署 secret。
 - future：如需非 Git 编辑者或秒级发布，引入受保护管理 API + 审核界面（X-Api-Key + IP allowlist）。
