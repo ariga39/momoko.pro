@@ -1,4 +1,6 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -107,6 +109,66 @@ describe("Phase 4A visual package boundary", () => {
       expect(() => loadNews()).toThrow(/public build cannot use a content override/);
     } finally {
       fs.rmSync(futureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a default ready visual package in an isolated production process", () => {
+    const isolatedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "phase4a-default-boundary-"));
+    const copy = (relativePath: string) => {
+      const source = path.join(root, relativePath);
+      const destination = path.join(isolatedRoot, relativePath);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
+    };
+    copy("src/lib/content.ts");
+    copy("tools/schema/validate.ts");
+    for (const entry of fs.readdirSync(path.join(root, "schemas"))) {
+      if (entry.endsWith(".schema.json")) copy(path.join("schemas", entry));
+    }
+    fs.mkdirSync(path.join(isolatedRoot, "content"), { recursive: true });
+    fs.writeFileSync(
+      path.join(isolatedRoot, "package.json"),
+      JSON.stringify({ type: "module" }),
+    );
+    fs.writeFileSync(
+      path.join(isolatedRoot, "content", "package.json"),
+      JSON.stringify({
+        package_version: "1",
+        content_schema_version: "1",
+        status: "ready",
+        visual_catalog: "visual-catalog.json",
+      }),
+    );
+    fs.writeFileSync(path.join(isolatedRoot, "content", "visual-catalog.json"), "{}");
+    fs.symlinkSync(path.join(root, "node_modules"), path.join(isolatedRoot, "node_modules"), "dir");
+    try {
+      const script = `
+        import { loadNews, readContentPackageManifest } from "./src/lib/content.ts";
+        for (const [label, operation] of [["manifest", readContentPackageManifest], ["news", loadNews]]) {
+          try {
+            operation();
+            console.log(label + ":unexpected_success");
+            process.exitCode = 1;
+          } catch (error) {
+            console.log(label + ":" + (error && typeof error === "object" ? error.code : "unknown"));
+          }
+        }
+      `;
+      const env = { ...process.env };
+      delete env.MOMOKO_CONTENT_PACKAGE_ROOT;
+      delete env.MOMOKO_CONTENT_PACKAGE_MODE;
+      delete env.PUBLIC_BUILD;
+      const output = execFileSync(
+        process.execPath,
+        ["--experimental-strip-types", "--input-type=module", "-e", script],
+        { cwd: isolatedRoot, env, encoding: "utf8" },
+      );
+      expect(output.trim().split(/\r?\n/)).toEqual([
+        "manifest:visual_catalog_mode_required",
+        "news:visual_catalog_mode_required",
+      ]);
+    } finally {
+      fs.rmSync(isolatedRoot, { recursive: true, force: true });
     }
   });
 });
