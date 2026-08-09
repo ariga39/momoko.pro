@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/content.schema.json",
+  "title": "内容文件（canonical，与 design.md §6.2 示例完全对齐）",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "kind", "source_id", "source_item_id", "published_at",
+    "content_hash", "risk_tier", "lang", "title", "source_url", "body",
+    "review_status"
+  ],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "kind": { "enum": ["news", "wiki", "anniversary", "live"] },
+    "source_id": { "$ref": "source.schema.json#/$defs/source_id" },
+    "source_item_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "published_at": { "type": "string", "format": "date-time" },
+    "content_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "risk_tier": { "enum": ["T0", "T1", "T2"] },
+    "ai_generated": { "type": "boolean" },
+    "model_version": { "type": ["string", "null"] },
+    "lang": { "enum": ["ja", "zh", "en"] },
+    "title": { "type": "string", "minLength": 1 },
+    "source_url": { "type": "string", "format": "uri" },
+    "original_title": { "type": ["string", "null"] },
+    "body": { "type": "string" },
+    "review_status": { "enum": ["draft", "reviewed", "stale", "retracted"] },
+    "reviewed_by": { "type": ["string", "null"] },
+    "reviewed_at": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "if": { "properties": { "review_status": { "const": "reviewed" } } },
+  "then": {
+    "properties": {
+      "reviewed_by": { "type": "string", "minLength": 1 },
+      "reviewed_at": { "type": "string", "format": "date-time" }
+    },
+    "required": ["reviewed_by", "reviewed_at"]
+  }
+}
