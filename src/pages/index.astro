@@ -1,0 +1,33 @@
+---
+import { loadNews } from "../lib/content.ts";
+
+const items = loadNews();
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="alternate" hreflang="zh" href="https://momoko.pro/zh" />
+    <link rel="alternate" hreflang="ja" href="https://momoko.pro/ja" />
+    <link rel="alternate" hreflang="en" href="https://momoko.pro/en" />
+    <link rel="alternate" hreflang="x-default" href="https://momoko.pro/" />
+    <title>momoko.pro</title>
+  </head>
+  <body>
+    <h1>momoko.pro</h1>
+    <p>非官方 周防桃子（Suō Momoko）fan site。语言选择 / Language / 言語選択。</p>
+    <nav>
+      <ul>
+        <li><a href="/zh" hreflang="zh" lang="zh">中文</a></li>
+        <li><a href="/ja" hreflang="ja" lang="ja">日本語</a></li>
+        <li><a href="/en" hreflang="en" lang="en">English</a></li>
+      </ul>
+    </nav>
+    <footer>
+      <p>items indexed: {items.length}</p>
+      <p>静态构建；无服务端 Accept-Language 读取。</p>
+    </footer>
+  </body>
+</html>

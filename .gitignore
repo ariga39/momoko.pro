@@ -7,6 +7,11 @@
 # node / build
 node_modules/
 dist/
+dist-a/
+dist-b/
+.astro/
+test-results/
+playwright-report/
 .wrangler/
 
 # local data
