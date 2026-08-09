@@ -13,5 +13,14 @@
       "const": "visual-catalog.json",
       "description": "Optional schema-validated test/dev visual catalog; never part of the public empty package."
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "empty" } },
+        "required": ["status"]
+      },
+      "then": { "not": { "required": ["visual_catalog"] } }
+    }
+  ]
 }

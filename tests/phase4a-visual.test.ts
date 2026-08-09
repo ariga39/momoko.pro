@@ -3,8 +3,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadVisualCatalog } from "../src/lib/visual-demo.ts";
-import { getContentRoot } from "../src/lib/content.ts";
-import { validateFile } from "../tools/schema/validate.ts";
+import { getContentRoot, loadNews } from "../src/lib/content.ts";
+import { collectContentFiles, validateContentFile, validateFile } from "../tools/schema/validate.ts";
 
 const root = path.resolve(process.cwd());
 const demoRoot = path.join(root, "tests/fixtures/content-package/visual-demo");
@@ -31,15 +31,39 @@ describe("Phase 4A visual package boundary", () => {
     process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
     expect(loadVisualCatalog().mode).toBe("demo");
     expect(loadVisualCatalog().notice.zh).toMatch(/DEMO/);
+    const news = loadNews();
+    expect(news.length).toBeGreaterThanOrEqual(1);
+    expect(news.every((item) => item.canonical.title.includes("DEMO") || item.canonicalBody.includes("DEMO"))).toBe(true);
+    for (const file of collectContentFiles(demoRoot)) {
+      expect(validateContentFile(file).valid, `${file.path} must satisfy its content schema`).toBe(true);
+    }
   });
 
-  it("keeps PUBLIC_BUILD on the production empty package even when a DEMO override is requested", () => {
+  it("rejects a DEMO override in PUBLIC_BUILD instead of disguising it as empty", () => {
     process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/visual-demo";
     process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
     process.env.PUBLIC_BUILD = "1";
     expect(() => getContentRoot()).toThrow(/public build cannot use a content override/);
+    expect(() => loadVisualCatalog()).toThrow(/public build cannot use a content override/);
+  });
+
+  it("uses the real checked-in empty package for an unconfigured PUBLIC_BUILD", () => {
+    delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
+    delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
+    process.env.PUBLIC_BUILD = "1";
     expect(loadVisualCatalog().mode).toBe("empty");
     expect(loadVisualCatalog().songsLive).toEqual([]);
+  });
+
+  it("does not allow an empty manifest to declare a visual catalog", () => {
+    expect(
+      validateFile("content-package.schema.json", {
+        package_version: "1",
+        content_schema_version: "1",
+        status: "empty",
+        visual_catalog: "visual-catalog.json",
+      }).valid,
+    ).toBe(false);
   });
 });
 
