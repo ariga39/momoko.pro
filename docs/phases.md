@@ -3,7 +3,7 @@
 ## 阶段 0（设计）
 - 本方案锁定（momoko GO）；sources 证据已清零（2026-08-08），机器配置 `config/sources.json`（当前全 `automated_fetch=false`；cron seam 允许逐项置 true——见 design.md §5.3）。
 - 技术栈 ADR-11 已定（Astro+TS+pnpm+Ajv+Vitest+Playwright+Pagefind；Pages 走 Actions Direct Upload）。
-- schema 正/反实例校验门已就绪：`tools/schema/validate_schemas.py`（当前 23 cases 通过）。
+- schema 正/反实例校验门已就绪：`tools/schema/validate_schemas.py` 全 cases 通过（计数以 `pnpm test`/`tests/schema.test.ts` 实际结果为准，不写死）。
 
 ## 阶段 1（MVP 并行工作包 A–E，互斥目录边界）
 
