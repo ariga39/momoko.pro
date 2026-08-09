@@ -124,16 +124,16 @@ describe("schemas/content.schema.json — reviewed 条件约束", () => {
 describe("content loader — 三语与缺译回退", () => {
   it("loads all news items and resolves locale with ja fallback", () => {
     const items = loadNews();
-    expect(items.length).toBe(2);
+    expect(items.length).toBe(3);
     const item1 = items.find((i) => i.slug.includes("001"));
     expect(item1?.locales.ja).toBeUndefined(); // index.md is canonical, not a locale file
     expect(item1?.locales.zh).toBeTruthy();
     expect(item1?.locales.en).toBeTruthy();
     expect(item1?.canonical.title).toBeTruthy();
-    // item2 is ja-only: resolve zh falls back to canonical (ja) body
+    // item2 carries a translation draft, which still falls back to canonical (ja) body
     const item2 = items.find((i) => i.slug.includes("002"));
-    expect(item2?.locales.zh).toBeUndefined();
-    expect(item2?.locales.en).toBeUndefined();
+    expect(item2?.locales.zh?.meta.reviewStatus).toBe("draft");
+    expect(item2?.locales.en?.meta.reviewStatus).toBe("draft");
     const resolved = resolveLocale(item2!, "zh");
     expect(resolved.translated).toBe(false);
     expect(resolved.body).toBe(item2!.canonicalBody);

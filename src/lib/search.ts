@@ -1,4 +1,4 @@
-import type { NewsItem } from "./content.ts";
+import { resolveLocale, type NewsItem } from "./content.ts";
 
 export const SEARCH_LOCALES = ["ja", "zh", "en"] as const;
 type Lang = (typeof SEARCH_LOCALES)[number];
@@ -18,13 +18,13 @@ export function buildSearchIndex(items: NewsItem[]): SearchRow[] {
   return items
     .flatMap((item) =>
       SEARCH_LOCALES.map((lang): SearchRow => {
-        const loc = item.locales[lang];
+        const resolved = resolveLocale(item, lang);
         return {
           lang,
           slug: item.slug,
           path: `/${lang}/news/${item.slug}/`,
           title: item.canonical.title,
-          body: loc?.body ?? item.canonicalBody,
+          body: resolved.body,
           sourceId: item.canonical.sourceId,
           sourceItemId: item.canonical.sourceItemId,
         };

@@ -14,7 +14,7 @@ import {
 // source_content_hash === canonical hash、未 retracted，否则 fail-closed 回退。
 
 describe("translation eligibility — fail-closed", () => {
-  it("fixture 001 zh is a real translation; 002 zh is not (no zh file)", () => {
+  it("fixture 001 zh is a real translation; 002 zh is a draft record and not eligible", () => {
     const items = loadNews();
     const item1 = items.find((i) => i.slug.includes("001"))!;
     const item2 = items.find((i) => i.slug.includes("002"))!;
@@ -22,6 +22,7 @@ describe("translation eligibility — fail-closed", () => {
     expect(hasTranslation(item1, "zh")).toBe(true);
     expect(resolveLocale(item1, "zh").translated).toBe(true);
     expect(isRealTranslation(item2, "zh")).toBe(false);
+    expect(item2.locales.zh?.meta.reviewStatus).toBe("draft");
     expect(resolveLocale(item2, "zh").translated).toBe(false);
     expect(resolveLocale(item2, "zh").body).toBe(item2.canonicalBody);
   });
@@ -65,6 +66,7 @@ describe("translation eligibility — fail-closed", () => {
     const item1 = items.find((i) => i.slug.includes("001"))!;
     // write a temp retraction record pointing at item1, then reload
     const retrDir = path.join(REPO_ROOT, "content", "retractions");
+    const retrDirExisted = fs.existsSync(retrDir);
     fs.mkdirSync(retrDir, { recursive: true });
     const file = path.join(retrDir, "probe.json");
     fs.writeFileSync(
@@ -85,7 +87,7 @@ describe("translation eligibility — fail-closed", () => {
       expect(resolveLocale(reloaded, "zh").translated).toBe(false);
     } finally {
       fs.rmSync(file, { force: true });
-      fs.rmdirSync(retrDir, { recursive: true });
+      if (!retrDirExisted) fs.rmdirSync(retrDir, { recursive: true });
     }
   });
 });

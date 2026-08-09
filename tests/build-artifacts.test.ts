@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { loadNews } from "../src/lib/content.ts";
+import { loadNews, loadPublishedNews } from "../src/lib/content.ts";
 import { buildManifest } from "../tools/schema/postbuild.ts";
 import { buildSearchIndex } from "../src/lib/search.ts";
 import { validateFile } from "../tools/schema/validate.ts";
 
 describe("manifest.json（build-time artifact）", () => {
-  it("covers every content item with schema-shaped entries", () => {
-    const items = loadNews();
+  it("covers every public content item with schema-shaped entries", () => {
+    const items = loadPublishedNews();
     const manifest = buildManifest(items);
     expect(manifest.entries.length).toBe(items.length);
     const required = ["path", "kind", "source_id", "source_item_id", "content_hash", "review_status", "locales"];

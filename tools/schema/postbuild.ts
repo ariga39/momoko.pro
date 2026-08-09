@@ -5,7 +5,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { loadNews, type NewsItem } from "../../src/lib/content.ts";
+import {
+  isRealTranslation,
+  isRetracted,
+  isCurrentReviewed,
+  loadPublishedNews,
+  type NewsItem,
+} from "../../src/lib/content.ts";
 import { buildSearchIndex } from "../../src/lib/search.ts";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
@@ -16,8 +22,10 @@ type Lang = (typeof LOCALES)[number];
 
 export function buildManifest(items: NewsItem[]) {
   const entries = items
+    .filter(isCurrentReviewed)
     .map((item) => {
       const c = item.canonical;
+      const published = c.reviewStatus === "reviewed" && !isRetracted(item);
       const locales: Record<
         Lang,
         { status: string; hash: string | null; reviewed_by: string | null; stale_at: string | null }
@@ -25,11 +33,13 @@ export function buildManifest(items: NewsItem[]) {
       for (const lang of LOCALES) {
         const loc = item.locales[lang];
         locales[lang] = {
-          // Missing translation falls back to canonical (source) content_hash,
-          // mirroring the render-layer fallback; status stays the source's.
-          status: loc?.meta.reviewStatus ?? c.reviewStatus,
+          // A reviewed/current canonical source is published for its source
+          // locale; a non-source locale requires a real current translation.
+          status: published && (lang === c.lang || isRealTranslation(item, lang))
+            ? "published"
+            : loc?.meta.reviewStatus ?? c.reviewStatus,
           hash: loc?.meta.contentHash ?? c.contentHash,
-          reviewed_by: loc?.meta.reviewedBy ?? null,
+          reviewed_by: loc?.meta.reviewedBy ?? (lang === c.lang ? c.reviewedBy ?? null : null),
           stale_at: null,
         };
       }
@@ -39,7 +49,7 @@ export function buildManifest(items: NewsItem[]) {
         source_id: c.sourceId,
         source_item_id: c.sourceItemId,
         content_hash: c.contentHash,
-        review_status: c.reviewStatus,
+        review_status: published ? "published" : c.reviewStatus,
         locales,
       };
     })
@@ -50,7 +60,7 @@ export function buildManifest(items: NewsItem[]) {
 }
 
 async function main() {
-  const items = loadNews();
+  const items = loadPublishedNews();
   const published = items.map((it) => it.canonical.publishedAt).filter(Boolean).sort();
   const generatedAt = published.length
     ? published[published.length - 1]
@@ -60,7 +70,7 @@ async function main() {
     generated_at: generatedAt,
     entries: buildManifest(items).entries,
   };
-  const searchIndex = buildSearchIndex(items);
+  const searchIndex = buildSearchIndex(loadPublishedNews());
 
   fs.mkdirSync(DIST, { recursive: true });
   fs.writeFileSync(
