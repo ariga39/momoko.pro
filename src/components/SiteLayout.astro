@@ -1,11 +1,11 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
 import "../styles/global.css";
-import * as m from "../paraglide/messages.js";
+import { ml, type Locale } from "../lib/messages.ts";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
 
 interface Props {
-  lang: "ja" | "zh" | "en";
+  lang: Locale;
   title: string;
   description?: string;
   canonicalPath?: string;
@@ -14,16 +14,19 @@ interface Props {
   robots?: string;
   bodyData?: Record<string, string>;
   alternates?: Array<{ hreflang: string; href: string }>;
+  /** x-default target；缺省为站点根。详情页按内容身份指向源语言页。 */
+  xDefaultHref?: string;
 }
 
-const { lang, title, description, canonicalPath, noindex, robots, bodyData, alternates } =
+const { lang, title, description, canonicalPath, noindex, robots, bodyData, alternates, xDefaultHref } =
   Astro.props;
+const t = ml(lang);
 const robotsContent = robots ?? (noindex ? "noindex" : undefined);
 const nav = [
-  { href: getRelativeLocaleUrl(lang, "/"), label: m["nav.news"]() },
-  { href: getRelativeLocaleUrl(lang, "/about/"), label: m["nav.about"]() },
-  { href: getRelativeLocaleUrl(lang, "/source-policy/"), label: m["nav.sourcePolicy"]() },
-  { href: "/search", label: m["nav.search"]() },
+  { href: getRelativeLocaleUrl(lang, "/"), label: t.navNews() },
+  { href: getRelativeLocaleUrl(lang, "/about/"), label: t.navAbout() },
+  { href: getRelativeLocaleUrl(lang, "/source-policy/"), label: t.navSourcePolicy() },
+  { href: "/search", label: t.navSearch() },
 ];
 const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
 ---
@@ -42,16 +45,16 @@ const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
     ]).map((alt) => (
       <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />
     ))}
-    <link rel="alternate" hreflang="x-default" href="https://momoko.pro/" />
+    <link rel="alternate" hreflang="x-default" href={xDefaultHref ?? "https://momoko.pro/"} />
     <link rel="canonical" href={`https://momoko.pro${canonical}`} />
     <title>{title}</title>
   </head>
   <body {...(bodyData ?? {})}>
-    <a class="skip-link" href="#main">{m["skipToContent"]()}</a>
+    <a class="skip-link" href="#main">{t.skipToContent()}</a>
     <header class="border-b border-border bg-surface">
       <div class="mx-auto flex max-w-content flex-wrap items-center justify-between gap-4 p-4">
-        <a href="/" aria-label={m.home()} class="text-text no-underline hover:text-accent">
-          <strong>{m.home()}</strong>
+        <a href="/" aria-label={t.home()} class="text-text no-underline hover:text-accent">
+          <strong>{t.home()}</strong>
         </a>
         <nav aria-label="主导航">
           <ul class="flex flex-wrap gap-4">
@@ -72,8 +75,8 @@ const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
     </main>
     <footer class="mt-8 border-t border-border bg-surface">
       <div class="mx-auto max-w-content p-4 py-6 text-sm text-text-secondary">
-        <p>{m["footer.notice"]()}</p>
-        <p lang={lang}>{m["footer.docs"]()}</p>
+        <p>{t.footerNotice()}</p>
+        <p lang={lang}>{t.footerDocs()}</p>
       </div>
     </footer>
   </body>

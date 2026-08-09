@@ -1,17 +1,19 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
 import SiteLayout from "../components/SiteLayout.astro";
-import * as m from "../paraglide/messages.js";
+import { ml } from "../lib/messages.ts";
+
+const t = ml("ja");
 ---
 
-<SiteLayout lang="ja" title={m.home()} canonicalPath="/">
-  <h1 class="text-2xl">{m.home()}</h1>
-  <p>{m.homeTagline()}</p>
+<SiteLayout lang="ja" title={t.home()} canonicalPath="/">
+  <h1 class="text-2xl">{t.home()}</h1>
+  <p>{t.homeTagline()}</p>
   <nav aria-label="语言选择">
     <ul class="flex gap-3">
-      <li><a href={getRelativeLocaleUrl("zh", "/")} hreflang="zh" lang="zh">{m["lang.zh"]()}</a></li>
-      <li><a href={getRelativeLocaleUrl("ja", "/")} hreflang="ja" lang="ja">{m["lang.ja"]()}</a></li>
-      <li><a href={getRelativeLocaleUrl("en", "/")} hreflang="en" lang="en">{m["lang.en"]()}</a></li>
+      <li><a href={getRelativeLocaleUrl("zh", "/")} hreflang="zh" lang="zh">{t.langZh()}</a></li>
+      <li><a href={getRelativeLocaleUrl("ja", "/")} hreflang="ja" lang="ja">{t.langJa()}</a></li>
+      <li><a href={getRelativeLocaleUrl("en", "/")} hreflang="en" lang="en">{t.langEn()}</a></li>
     </ul>
   </nav>
 </SiteLayout>

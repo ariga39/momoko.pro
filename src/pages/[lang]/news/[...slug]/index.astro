@@ -1,7 +1,7 @@
 ---
 import SiteLayout from "../../../../components/SiteLayout.astro";
 import { hasTranslation, loadNews, resolveLocale } from "../../../../lib/content.ts";
-import * as m from "../../../../paraglide/messages.js";
+import { ml, type Locale } from "../../../../lib/messages.ts";
 
 export function getStaticPaths() {
   const paths = [];
@@ -13,29 +13,37 @@ export function getStaticPaths() {
   return paths;
 }
 
-const { lang, slug } = Astro.params as { lang: "ja" | "zh" | "en"; slug: string | undefined };
+const { lang, slug } = Astro.params as { lang: Locale; slug: string | undefined };
 const slugPath = slug ?? "";
 const item = loadNews().find((i) => i.slug === slugPath);
+const t = ml(lang);
 const locale = item ? resolveLocale(item, lang) : undefined;
 const translated = item ? hasTranslation(item, lang) : false;
-// 真实翻译页 vs fallback 页（i18n §1.2）：fallback 用源语言 canonical + noindex,follow。
 const sourceLang = item?.canonical.lang ?? "ja";
-const alternates = ["zh", "ja", "en"].map((l) => ({
-  hreflang: l,
-  href: `https://momoko.pro/${l}/news/${item?.slug}/`,
-}));
+
+// 内容身份 alternate 集合（design §1.2）：只含源语言页 + 真实翻译页，
+// 请求 locale 若缺译不得进入集合；x-default 指向源语言页。
+const contentAlternates = item
+  ? (["ja", "zh", "en"] as Locale[])
+      .filter((l) => l === sourceLang || hasTranslation(item, l))
+      .map((l) => ({
+        hreflang: l,
+        href: `https://momoko.pro/${l}/news/${item.slug}/`,
+      }))
+  : [];
 ---
 
 <SiteLayout
   lang={translated ? lang : sourceLang}
-  title={item?.canonical.title ?? m.home()}
+  title={item?.canonical.title ?? t.home()}
   canonicalPath={translated ? `/${lang}/news/${item?.slug}/` : `/${sourceLang}/news/${item?.slug}/`}
-  {...(translated ? { alternates } : {})}
-  {...(translated ? {} : { robots: "noindex,follow" as const })}
+  alternates={contentAlternates}
+  {...(translated || !item ? {} : { robots: "noindex,follow" as const })}
+  {...(item ? { xDefaultHref: `https://momoko.pro/${sourceLang}/news/${item.slug}/` } : {})}
 >
   {item && locale ? (
     <>
-      <p><a href={`/${lang}/`}>{m["news.backToList"]()}</a></p>
+      <p><a href={`/${lang}/`}>{t.newsBackToList()}</a></p>
       <h1 class="text-2xl" lang={translated ? lang : sourceLang}>{item.canonical.title}</h1>
       <p>
         <time datetime={item.canonical.publishedAt} class="text-sm text-text-secondary">
@@ -43,17 +51,17 @@ const alternates = ["zh", "ja", "en"].map((l) => ({
         </time>
         {!translated && (
           <span class="ml-2 border-l-[3px] border-accent pl-3 text-sm text-text-secondary">
-            {m["news.missingLocale"]()}
+            {t.newsMissingLocale()}
           </span>
         )}
       </p>
       <p class="text-sm text-text-secondary">
-        {m["news.riskTier"]({ tier: item.canonical.riskTier })} · {m["news.reviewStatus"]({ status: item.canonical.reviewStatus })} ·{" "}
-        {m["news.source"]({ source: item.canonical.sourceId })}
+        {t.newsRiskTier({ tier: item.canonical.riskTier })} · {t.newsReviewStatus({ status: item.canonical.reviewStatus })} ·{" "}
+        {t.newsSource({ source: item.canonical.sourceId })}
       </p>
       <article>{locale.body}</article>
     </>
   ) : (
-    <p>{m["news.empty"]()}</p>
+    <p>{t.newsEmpty()}</p>
   )}
 </SiteLayout>

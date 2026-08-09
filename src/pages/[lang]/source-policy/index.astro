@@ -1,7 +1,7 @@
 ---
 import SiteLayout from "../../../components/SiteLayout.astro";
 import { loadNews } from "../../../lib/content.ts";
-import * as m from "../../../paraglide/messages.js";
+import { ml, type Locale } from "../../../lib/messages.ts";
 
 export function getStaticPaths() {
   return [
@@ -11,18 +11,19 @@ export function getStaticPaths() {
   ];
 }
 
-const { lang } = Astro.params as { lang: "ja" | "zh" | "en" };
+const { lang } = Astro.params as { lang: Locale };
+const t = ml(lang);
 const sources = loadNews();
 ---
 
-<SiteLayout lang={lang} title={`${m["policy.title"]()} · ${m.home()}`} canonicalPath={`/${lang}/source-policy/`}>
-  <h1 class="text-2xl">{m["policy.title"]()}</h1>
-  <p>{m["policy.intro"]()}</p>
+<SiteLayout lang={lang} title={`${t.policyTitle()} · ${t.home()}`} canonicalPath={`/${lang}/source-policy/`}>
+  <h1 class="text-2xl">{t.policyTitle()}</h1>
+  <p>{t.policyIntro()}</p>
   <ul class="list-disc pl-6">
-    <li>{m["policy.noCopy"]()}</li>
-    <li>{m["policy.automated"]()}</li>
+    <li>{t.policyNoCopy()}</li>
+    <li>{t.policyAutomated()}</li>
   </ul>
-  <h2 class="text-xl">{m["policy.currentSources"]()}</h2>
+  <h2 class="text-xl">{t.policyCurrentSources()}</h2>
   <ul class="list-disc pl-6">
     {sources.map((s) => (
       <li>

@@ -2,7 +2,28 @@
 
 Task #6 (momoko 2026-08-09). Rebuilt from current GitHub main
 `2ee05244527564e423c0aeb4cb4990ec4c8dbb8e` (after task #9 i18n docs + task #10
-lint/check infra merged).
+lint/check infra merged). Successor after shizuka NO-GO:
+
+## NO-GO fixes (3 blockers)
+
+1. **Paraglide UI per-locale**: all message calls now pin the route locale via
+   `src/lib/messages.ts` `ml(lang)` (passes `{ locale: lang }`), so
+   `dist/en/*` renders English UI, `ja` Japanese, etc. (e2e asserts trilingual
+   chrome).
+2. **Translation eligibility fail-closed**: `isRealTranslation()` requires
+   non-empty body, `review_status=reviewed`, `source_content_hash===canonical
+   hash`, and no active retraction (`content/retractions/**`). Draft/stale/
+   drift/empty-body → fallback. Unit regressions added.
+3. **Fallback SEO alternates**: content-identity hreflang set (source + real
+   translations only; request locale excluded when missing), `x-default` →
+   source-language detail page; fallback pages `noindex,follow`. e2e asserts.
+
+## Scope delivered (from base)
+
+- Tailwind CSS (AA tokens, skip-link, reduced-motion), Astro native i18n
+  (ja/zh/en prefixed), Paraglide UI catalog, trilingual routes + 404,
+  a11y tests, deterministic build/search, secret-free CI.
+
 
 ## Scope delivered
 

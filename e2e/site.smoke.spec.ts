@@ -98,3 +98,50 @@ test("language switcher navigates between locales", async ({ page }) => {
   await expect(page).toHaveURL(/\/ja\//);
   await expect(page.locator("h1")).toContainText("日本語");
 });
+
+test("UI chrome renders in each page locale (Paraglide pinned to route)", async ({ page }) => {
+  await page.goto("/en/about/");
+  await expect(page.locator("h1")).toHaveText("About momoko.pro");
+  await expect(page).toHaveTitle(/About momoko\.pro/);
+  await expect(page.locator("nav[aria-label='主导航']")).toContainText("News");
+  await expect(page.locator("nav[aria-label='主导航']")).toContainText("Source Policy");
+  await expect(page.locator("body")).toContainText("unofficial fan site");
+
+  await page.goto("/zh/about/");
+  await expect(page.locator("h1")).toHaveText("关于 momoko.pro");
+  await expect(page.locator("nav[aria-label='主导航']")).toContainText("新闻");
+
+  await page.goto("/ja/about/");
+  await expect(page.locator("h1")).toHaveText("momoko.pro について");
+  await expect(page.locator("nav[aria-label='主导航']")).toContainText("ニュース");
+});
+
+test("fallback page emits content-identity alternates only (source excluded from request-locale)", async ({ page }) => {
+  await page.goto("/zh/news/2026/S1-synth-2026-08-08-002/");
+  // source (ja) only in alternates; zh must NOT appear; x-default → source detail
+  await expect(page.locator('link[rel="alternate"][hreflang="zh"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="alternate"][hreflang="ja"]')).toHaveAttribute(
+    "href",
+    "https://momoko.pro/ja/news/2026/S1-synth-2026-08-08-002/",
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
+    "href",
+    "https://momoko.pro/ja/news/2026/S1-synth-2026-08-08-002/",
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
+});
+
+test("real translation page emits full content-identity hreflang set", async ({ page }) => {
+  await page.goto("/zh/news/2026/S1-synth-2026-08-08-001/");
+  for (const lang of ["ja", "zh", "en"]) {
+    await expect(page.locator(`link[rel="alternate"][hreflang="${lang}"]`)).toHaveAttribute(
+      "href",
+      `https://momoko.pro/${lang}/news/2026/S1-synth-2026-08-08-001/`,
+    );
+  }
+  await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
+    "href",
+    "https://momoko.pro/ja/news/2026/S1-synth-2026-08-08-001/",
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+});

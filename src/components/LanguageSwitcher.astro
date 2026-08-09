@@ -1,16 +1,17 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
-import * as m from "../paraglide/messages.js";
+import { ml, type Locale } from "../lib/messages.ts";
 
 interface Props {
-  current: "ja" | "zh" | "en";
+  current: Locale;
 }
 
 const { current } = Astro.props;
+const t = ml(current);
 const langs = [
-  { code: "zh", label: m["lang.zh"]() },
-  { code: "ja", label: m["lang.ja"]() },
-  { code: "en", label: m["lang.en"]() },
+  { code: "zh", label: t.langZh() },
+  { code: "ja", label: t.langJa() },
+  { code: "en", label: t.langEn() },
 ];
 ---
 
@@ -29,7 +30,7 @@ const langs = [
             {l.label}
           </span>
         ) : (
-          <a href={getRelativeLocaleUrl(l.code as "ja" | "zh" | "en", "/")} hreflang={l.code} lang={l.code} class="text-link">
+          <a href={getRelativeLocaleUrl(l.code as Locale, "/")} hreflang={l.code} lang={l.code} class="text-link">
             {l.label}
           </a>
         )}

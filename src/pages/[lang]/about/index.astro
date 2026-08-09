@@ -1,6 +1,6 @@
 ---
 import SiteLayout from "../../../components/SiteLayout.astro";
-import * as m from "../../../paraglide/messages.js";
+import { ml, type Locale } from "../../../lib/messages.ts";
 
 export function getStaticPaths() {
   return [
@@ -10,10 +10,11 @@ export function getStaticPaths() {
   ];
 }
 
-const { lang } = Astro.params as { lang: "ja" | "zh" | "en" };
+const { lang } = Astro.params as { lang: Locale };
+const t = ml(lang);
 ---
 
-<SiteLayout lang={lang} title={`${m["about.title"]()} · ${m.home()}`} canonicalPath={`/${lang}/about/`}>
-  <h1 class="text-2xl">{m["about.title"]()}</h1>
-  <p lang={lang}>{m["about.body"]()}</p>
+<SiteLayout lang={lang} title={`${t.aboutTitle()} · ${t.home()}`} canonicalPath={`/${lang}/about/`}>
+  <h1 class="text-2xl">{t.aboutTitle()}</h1>
+  <p lang={lang}>{t.aboutBody()}</p>
 </SiteLayout>

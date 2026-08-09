@@ -2,24 +2,25 @@
 import SiteLayout from "../components/SiteLayout.astro";
 import { loadNews } from "../lib/content.ts";
 import { buildSearchIndex } from "../lib/search.ts";
-import * as m from "../paraglide/messages.js";
+import { ml } from "../lib/messages.ts";
 
 // 确定性本地 JSON 索引（ADR-05 fallback）：构建期生成，客户端过滤，无外部服务。
 const index = buildSearchIndex(loadNews());
 const indexJson = JSON.stringify(index);
+const t = ml("ja");
 ---
 
 <SiteLayout
   lang="ja"
-  title={`${m["search.heading"]()} · ${m.home()}`}
+  title={`${t.searchHeading()} · ${t.home()}`}
   canonicalPath="/search"
   noindex
   bodyData={{ "data-search-index": indexJson }}
 >
-  <h1 class="text-2xl">{m["search.heading"]()}</h1>
+  <h1 class="text-2xl">{t.searchHeading()}</h1>
   <form role="search" onsubmit="return false;">
     <label>
-      {m["search.query"]()}
+      {t.searchQuery()}
       <input id="q" type="search" name="q" autocomplete="off" />
     </label>
   </form>

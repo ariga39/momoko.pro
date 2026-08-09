@@ -11,16 +11,18 @@ describe("版权/素材越界扫描", () => {
   });
 
   it("flags a synthetic file that embeds an official image or lyrics", () => {
-    const dir = path.join(REPO_ROOT, "content", "news", "2026", "S1-synth-scan-probe");
+    // Place probe OUTSIDE content/news/ so it never races with loadNews()
+    // scans in parallel test files. scanOutOfBoundsMaterial walks all of content/.
+    const dir = path.join(REPO_ROOT, "content", "_probe");
     fs.mkdirSync(dir, { recursive: true });
-    const file = path.join(dir, "index.md");
+    const file = path.join(dir, "probe.md");
     fs.writeFileSync(
       file,
       "---\nschema_version: '1'\nkind: news\n---\n\n![official](https://x.example/a.png)\n",
     );
     try {
       const violations = scanOutOfBoundsMaterial();
-      expect(violations.some((v) => v.endsWith("S1-synth-scan-probe/index.md"))).toBe(true);
+      expect(violations.some((v) => v.endsWith("_probe/probe.md"))).toBe(true);
     } finally {
       fs.rmSync(path.dirname(file), { recursive: true, force: true });
     }
