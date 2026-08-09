@@ -10,11 +10,11 @@ interface Props {
   description?: string;
   canonicalPath?: string;
   noindex?: boolean;
-  /** e.g. "noindex,follow" for fallback pages（design §1.2） */
+  /** e.g. "noindex,follow" for fallback pages. */
   robots?: string;
   bodyData?: Record<string, string>;
   alternates?: Array<{ hreflang: string; href: string }>;
-  /** x-default target；缺省为站点根。详情页按内容身份指向源语言页。 */
+  /** x-default target; detail pages point to the source-language page. */
   xDefaultHref?: string;
 }
 
@@ -23,12 +23,16 @@ const { lang, title, description, canonicalPath, noindex, robots, bodyData, alte
 const t = ml(lang);
 const robotsContent = robots ?? (noindex ? "noindex" : undefined);
 const nav = [
-  { href: getRelativeLocaleUrl(lang, "/"), label: t.navNews() },
+  { href: getRelativeLocaleUrl(lang, "/news/"), label: t.navNews() },
+  { href: getRelativeLocaleUrl(lang, "/encyclopedia/"), label: t.navEncyclopedia() },
+  { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongsLive() },
+  { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navAnniversary() },
   { href: getRelativeLocaleUrl(lang, "/about/"), label: t.navAbout() },
   { href: getRelativeLocaleUrl(lang, "/source-policy/"), label: t.navSourcePolicy() },
   { href: "/search", label: t.navSearch() },
 ];
 const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
+const homeUrl = getRelativeLocaleUrl(lang, "/");
 ---
 
 <!doctype html>
@@ -49,35 +53,93 @@ const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
     <link rel="canonical" href={`https://momoko.pro${canonical}`} />
     <title>{title}</title>
   </head>
-  <body {...(bodyData ?? {})}>
+  <body class="min-h-screen bg-bg text-text" {...(bodyData ?? {})}>
     <a class="skip-link" href="#main">{t.skipToContent()}</a>
-    <header class="border-b border-border bg-surface">
-      <div class="mx-auto flex max-w-content flex-wrap items-center justify-between gap-4 p-4">
-        <a href="/" aria-label={t.home()} class="text-text no-underline hover:text-accent">
-          <strong>{t.home()}</strong>
+    <header class="site-header border-b border-border bg-paper/95">
+      <div class="mx-auto flex max-w-content items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <a href={homeUrl} aria-label={t.home()} class="masthead-mark text-text no-underline hover:text-accent">
+          <span class="masthead-kicker">momoko.pro</span>
+          <strong class="masthead-title">{t.home()}</strong>
         </a>
-        <nav aria-label={t.navMain()}>
-          <ul class="flex flex-wrap gap-4">
+
+        <nav class="hidden lg:block" aria-label={t.navMain()}>
+          <ul class="flex items-center gap-6">
             {nav.map((item) => (
               <li>
-                <a href={item.href} lang={lang} class="text-text no-underline hover:text-accent">
+                <a href={item.href} lang={lang} class="nav-link text-text no-underline hover:text-accent">
                   {item.label}
                 </a>
               </li>
             ))}
           </ul>
         </nav>
-        <LanguageSwitcher current={lang} />
+
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:block">
+            <LanguageSwitcher current={lang} />
+          </div>
+          <details class="mobile-menu lg:hidden" data-mobile-menu>
+            <summary
+              class="mobile-menu-summary"
+              data-menu-summary
+              aria-label={t.navMain()}
+            >
+              <span class="mobile-menu-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+              <span class="sr-only">{t.navMain()}</span>
+            </summary>
+            <div class="mobile-menu-panel" data-menu-panel>
+              <nav aria-label={`${t.navMain()} mobile`}>
+                <ul class="grid gap-2">
+                  {nav.map((item) => (
+                    <li>
+                      <a href={item.href} lang={lang} class="mobile-menu-link">{item.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <div class="border-t border-border pt-3 sm:hidden">
+                <LanguageSwitcher current={lang} ariaLabel={`${t.navLanguage()} mobile`} />
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
+      <div class="masthead-rule" aria-hidden="true"></div>
     </header>
-    <main id="main" class="mx-auto max-w-content p-4 py-6">
+    <main id="main" class="mx-auto min-w-0 max-w-content px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <slot />
     </main>
-    <footer class="mt-8 border-t border-border bg-surface">
-      <div class="mx-auto max-w-content p-4 py-6 text-sm text-text-secondary">
-        <p>{t.footerNotice()}</p>
-        <p lang={lang}>{t.footerDocs()}</p>
+    <footer class="site-footer mt-12 border-t border-border bg-paper">
+      <div class="mx-auto grid max-w-content gap-5 px-4 py-8 sm:grid-cols-[1fr_auto] sm:px-6 lg:px-8">
+        <div>
+          <p class="footer-label">momoko.pro / editorial desk</p>
+          <p class="mt-2 max-w-prose text-sm text-text-secondary">{t.footerNotice()}</p>
+        </div>
+        <p class="text-sm text-text-secondary sm:text-right" lang={lang}>{t.footerDocs()}</p>
       </div>
     </footer>
+    <script is:inline>
+      const mobileMenus = document.querySelectorAll("[data-mobile-menu]");
+      mobileMenus.forEach((details) => {
+        const summary = details.querySelector("[data-menu-summary]");
+        const panel = details.querySelector("[data-menu-panel]");
+        if (!summary || !panel) return;
+        const firstFocusable = () =>
+          panel.querySelector("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])");
+        const closeMenu = () => {
+          details.removeAttribute("open");
+          summary.focus();
+        };
+        details.addEventListener("toggle", () => {
+          if (details.open) firstFocusable()?.focus();
+        });
+        details.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && details.open) {
+            event.preventDefault();
+            closeMenu();
+          }
+        });
+      });
+    </script>
   </body>
 </html>

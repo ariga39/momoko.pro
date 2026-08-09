@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/visual-catalog.schema.json",
+  "title": "Schema-validated visual test/dev catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "notice", "encyclopedia", "songs_live", "anniversaries"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "status": { "const": "demo" },
+    "notice": { "$ref": "#/$defs/localeText" },
+    "encyclopedia": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/encyclopedia" }
+    },
+    "songs_live": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/songLive" }
+    },
+    "anniversaries": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/anniversary" }
+    }
+  },
+  "$defs": {
+    "localeText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "ja", "zh"],
+      "properties": {
+        "en": { "type": "string", "minLength": 1 },
+        "ja": { "type": "string", "minLength": 1 },
+        "zh": { "type": "string", "minLength": 1 }
+      }
+    },
+    "stringList": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "encyclopedia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "role", "note", "tags"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name": { "$ref": "#/$defs/localeText" },
+        "role": { "$ref": "#/$defs/localeText" },
+        "note": { "$ref": "#/$defs/localeText" },
+        "tags": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "songLive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "year", "kind", "date", "title", "venue", "note"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "year": { "type": "integer", "minimum": 2000, "maximum": 2100 },
+        "kind": { "enum": ["song", "live"] },
+        "date": { "type": "string", "format": "date" },
+        "title": { "$ref": "#/$defs/localeText" },
+        "venue": { "$ref": "#/$defs/localeText" },
+        "note": { "$ref": "#/$defs/localeText" }
+      }
+    },
+    "anniversary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "year", "label", "note"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "year": { "type": "integer", "minimum": 2000, "maximum": 2100 },
+        "label": { "$ref": "#/$defs/localeText" },
+        "note": { "$ref": "#/$defs/localeText" }
+      }
+    }
+  }
+}

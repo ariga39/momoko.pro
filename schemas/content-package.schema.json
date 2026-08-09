@@ -8,6 +8,19 @@
   "properties": {
     "package_version": { "const": "1" },
     "content_schema_version": { "const": "1" },
-    "status": { "enum": ["empty", "ready"] }
-  }
+    "status": { "enum": ["empty", "ready"] },
+    "visual_catalog": {
+      "const": "visual-catalog.json",
+      "description": "Optional schema-validated test/dev visual catalog; never part of the public empty package."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "empty" } },
+        "required": ["status"]
+      },
+      "then": { "not": { "required": ["visual_catalog"] } }
+    }
+  ]
 }

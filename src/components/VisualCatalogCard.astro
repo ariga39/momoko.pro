@@ -1,0 +1,23 @@
+---
+import type { Locale } from "../lib/messages.ts";
+import type { EncyclopediaEntry } from "../lib/visual-demo.ts";
+
+interface Props {
+  item: EncyclopediaEntry;
+  lang: Locale;
+}
+
+const { item, lang } = Astro.props;
+---
+
+<article class="dossier-card">
+  <div class="dossier-index" aria-hidden="true">{item.id.slice(0, 2).toUpperCase()}</div>
+  <div>
+    <p class="card-eyebrow">{item.role[lang]}</p>
+    <h2 class="card-title">{item.name[lang]}</h2>
+    <p class="card-body">{item.note[lang]}</p>
+    <ul class="tag-list" aria-label="Tags">
+      {item.tags.map((tag) => <li>{tag}</li>)}
+    </ul>
+  </div>
+</article>
