@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/retraction.schema.json",
+  "title": "下架记录",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "content_path", "status", "reason", "requested_at", "requested_by"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "id": { "type": "string", "minLength": 1 },
+    "content_path": { "type": "string", "pattern": "^content/.*/index\\.md$" },
+    "status": { "enum": ["requested", "active", "resolved"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "requested_at": { "type": "string", "format": "date-time" },
+    "requested_by": { "type": "string", "minLength": 1 },
+    "resolved_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}
