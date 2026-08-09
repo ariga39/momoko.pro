@@ -1,6 +1,6 @@
 # Phase 4A visual experience handoff
 
-Status: implementation restarted after task #18 post-merge CI. Design is GO from @momoko. The implementation baseline is the exact current main `f3e1d057434e9de46aabba4a65c114009be2c09f`, in branch `phase4a/visual-mirai-f3e1`. The previous `phase4a/visual-mirai` worktree/history is not reused.
+Status: final visual candidate frozen after task #18 post-merge CI. Design is GO from @momoko. Base/current-main is `f3e1d057434e9de46aabba4a65c114009be2c09f`; candidate head is `a2969074e5cb12eb75ffd3dd6bfd22ada21a87f5` on branch `phase4a/visual-mirai-f3e1`. The worktree is clean. The previous `phase4a/visual-mirai` worktree/history is not reused.
 
 ## Direction and measurable tokens
 
@@ -92,4 +92,4 @@ The final closure candidate adds `e2e/phase4a.visual.spec.ts`. Its isolated brow
 
 Every baseline uses a maximum `0.002` pixel-difference ratio, `animations: disabled`, reduced motion, CSS scale, hidden caret, and fonts-ready synchronization. The artifact audit now builds default/public-empty, synthetic, and explicit visual-demo outputs separately; it asserts the public manifest has zero entries and no S99/DEMO fixture markers while the visual artifact has the one S99 entry and visible DEMO markers. This is an artifact-set check, not a claim that demo content is production truth.
 
-Final machine gates to record against the frozen successor: full `pnpm test`, `pnpm check`, default/public and explicit-demo builds plus public audit, `pnpm build:verify`, `pnpm test:e2e`, `git diff --check`, and a changed-tree secret/PII scan. The exact candidate SHA, base, clean status, and these counts must be updated here before the independent visual/a11y peer is assigned.
+Final machine gates on this candidate: full `pnpm test` **145 passed** (13 files); `pnpm check` **0 errors / 0 warnings / 0 hints**; default build **24 pages**; public build **24 pages**, postbuild **28 files**, public audit **OK**; explicit visual-demo build **27 pages** with one manifest entry; `pnpm build:verify` **28 files byte-identical**; `pnpm test:e2e` **20 passed** (the six new visual closure tests plus the existing 14); `git diff --check` clean; and changed-tree scan **41 text files / 0 credential-pattern hits**. No external request, deployment, production write, or real source fetch was made. Candidate base/head and clean status are recorded above; this is the exact object for the independent visual/a11y peer.
