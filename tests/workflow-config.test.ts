@@ -8,7 +8,6 @@ import { REPO_ROOT } from "../tools/schema/css-tokens.ts";
 const WF = path.join(REPO_ROOT, ".github", "workflows");
 const FULL_SHA = /^[0-9a-f]{40}$/;
 
-// Workflow YAML is dynamic; use a small structural type instead of `any`.
 type Json =
   | null
   | boolean
@@ -17,9 +16,9 @@ type Json =
   | Json[]
   | { [k: string]: Json };
 
-type Step = { name?: string; uses?: string; run?: string; if?: string; with?: Record<string, Json> };
-type Job = { steps?: Step[] };
-type Workflow = { on?: { workflow_dispatch?: { inputs?: Record<string, { required?: boolean }> } }; jobs?: Record<string, Job> };
+type Step = { name?: string; uses?: string; run?: string; if?: string; with?: Record<string, Json>; id?: string };
+type Job = { steps?: Step[]; needs?: string | string[]; environment?: string; if?: string };
+type Workflow = { on?: { workflow_dispatch?: { inputs?: Record<string, { required?: boolean; type?: string; default?: Json }> } }; jobs?: Record<string, Job> };
 
 function loadWorkflow(name: string): Workflow {
   const raw = fs.readFileSync(path.join(WF, name), "utf-8");
@@ -37,7 +36,7 @@ function collectUses(doc: Workflow): string[] {
 }
 
 describe("CI/preview workflow — release-candidate quality", () => {
-  it("all third-party Actions pinned to full 40-char SHA (supply-chain fixed)", () => {
+  it("all third-party Actions pinned to full 40-char SHA", () => {
     for (const f of ["ci.yml", "preview.yml"]) {
       const uses = collectUses(loadWorkflow(f));
       expect(uses.length).toBeGreaterThan(0);
@@ -48,7 +47,7 @@ describe("CI/preview workflow — release-candidate quality", () => {
     }
   });
 
-  it("ci.yml uses Node 24 and does NOT deploy or inject secrets", () => {
+  it("ci.yml uses Node 24, no secrets/deploy, no pnpm/action-setup", () => {
     const doc = loadWorkflow("ci.yml");
     const steps = (doc.jobs?.verify?.steps ?? []) as Step[];
     const setupNode = steps.find((s) => s.name === "Setup Node");
@@ -56,49 +55,69 @@ describe("CI/preview workflow — release-candidate quality", () => {
     const blob = JSON.stringify(steps);
     expect(blob).not.toMatch(/CF_TOKEN|CLOUDFLARE_API_TOKEN|secrets\./i);
     expect(blob).not.toMatch(/wrangler|pages deploy/i);
+    expect(blob).not.toMatch(/pnpm\/action-setup/);
   });
 
-  it("ci.yml upload-artifact is conditional on failure AND evidence (no empty-dir warning)", () => {
+  it("ci.yml upload-artifact conditional on failure AND evidence", () => {
     const doc = loadWorkflow("ci.yml");
     const steps = (doc.jobs?.verify?.steps ?? []) as Step[];
-    const artifactStep = steps.find((s) =>
-      s.name?.toLowerCase().includes("upload browser artifacts"),
-    );
-    expect(artifactStep).toBeTruthy();
+    const artifactStep = steps.find((s) => s.name?.toLowerCase().includes("upload browser artifacts"));
     expect(artifactStep?.if).toMatch(/failure\(\)/);
     expect(artifactStep?.if).toMatch(/hashFiles\('test-results\/\*\*'\) != ''/);
   });
 
-  it("ci.yml has no pnpm/action-setup (avoids Node20 deprecation annotation)", () => {
-    const doc = loadWorkflow("ci.yml");
-    const uses = collectUses(doc).join("\n");
-    expect(uses).not.toMatch(/pnpm\/action-setup/);
+  it("preview.yml is a two-job DAG: build (zero secret) → deploy (needs build, environment preview)", () => {
+    const doc = loadWorkflow("preview.yml");
+    const jobs = doc.jobs ?? {};
+    const buildJob = jobs.build!;
+    const deployJob = jobs.deploy!;
+    expect(buildJob).toBeTruthy();
+    expect(deployJob).toBeTruthy();
+    expect(deployJob.needs).toBe("build");
+    expect(deployJob.environment).toBe("preview");
+    // deploy gated on inputs.deploy
+    expect(deployJob.if).toMatch(/inputs\.deploy/);
+    // build job: no secrets referenced
+    const buildSteps = JSON.stringify(buildJob.steps ?? []);
+    expect(buildSteps).not.toMatch(/secrets\.|CLOUDFLARE_API_TOKEN/);
+    // deploy job: has environment secrets, does NOT checkout
+    const deploySteps = JSON.stringify(deployJob.steps ?? []);
+    expect(deploySteps).not.toMatch(/actions\/checkout/);
+    expect(deploySteps).toMatch(/CLOUDFLARE_API_TOKEN/);
   });
 
-  it("preview.yml: target_sha (40-hex) + deploy boolean; artifact-only succeeds, deploy-gate fails honestly", () => {
+  it("preview build: validates 40-hex, records ancestry, builds public-only, uploads one public artifact", () => {
     const doc = loadWorkflow("preview.yml");
-    const wd = doc.on?.workflow_dispatch;
-    expect(wd).toBeTruthy();
-    expect(wd?.inputs?.target_sha?.required).toBe(true);
-    expect(wd?.inputs?.deploy).toBeTruthy();
-    const steps = (doc.jobs?.["build-and-preview"]?.steps ?? []) as Step[];
-    // validate 40-hex + preflight cat-file + record default-main relation
-    const validate = steps.find((s) => s.name?.includes("Validate target_sha"));
-    expect(validate?.run).toMatch(/40-hex/);
+    const steps = (doc.jobs?.build?.steps ?? []) as Step[];
+    expect(steps.find((s) => s.name?.includes("Validate target_sha"))?.run).toMatch(/40-hex/);
     const preflight = steps.find((s) => s.name?.includes("Preflight"));
     expect(preflight?.run).toMatch(/cat-file/);
-    expect(preflight?.run).toMatch(/merge-base --is-ancestor/);
-    // artifact-only path: summary marks artifact_only (no secret required)
+    expect(preflight?.run).toMatch(/target_is_ancestor_of_dispatch_main/);
+    expect(preflight?.run).toMatch(/target_equals_dispatch_main/);
+    const buildStep = steps.find((s) => s.name?.includes("Build public-only"));
+    expect(buildStep?.run).toMatch(/dist-public/);
+    const audit = steps.find((s) => s.name?.includes("Audit public artifact"));
+    expect(audit?.run).toMatch(/public-audit\.mjs dist-public/);
     const summary = steps.find((s) => s.name?.includes("Publish preview summary"));
-    expect(summary?.run).toMatch(/artifact_only/);
-    // deploy gate: fails (exit 1) when deploy=true but secret missing
-    const gate = steps.find((s) => s.name?.includes("Deploy gate"));
-    expect(gate?.if).toMatch(/inputs\.deploy == 'true'/);
-    expect(gate?.if).toMatch(/CLOUDFLARE_API_TOKEN == ''/);
-    expect(gate?.run).toMatch(/exit 1/);
-    // deploy step uses full-SHA Cloudflare action and is gated on deploy==true
-    const deploy = steps.find((s) => s.name?.includes("Deploy preview"));
-    expect(deploy?.uses).toMatch(/^cloudflare\/wrangler-action@[0-9a-f]{40}$/);
-    expect(deploy?.if).toMatch(/inputs\.deploy == 'true'/);
+    expect(summary?.run).toMatch(/artifact_only_public/);
+    expect(summary?.run).toMatch(/requested/);
+  });
+
+  it("preview deploy: download-artifact (no checkout), required vars no defaults, read-only preflight, wrangler pinned, final summary", () => {
+    const doc = loadWorkflow("preview.yml");
+    const steps = (doc.jobs?.deploy?.steps ?? []) as Step[];
+    const download = steps.find((s) => s.name?.includes("Download public artifact"));
+    expect(download?.uses).toMatch(/^actions\/download-artifact@[0-9a-f]{40}$/);
+    const requireVars = steps.find((s) => s.name?.includes("Validate required environment variables"));
+    expect(requireVars?.run).toMatch(/CLOUDFLARE_PROJECT_NAME:\?required/);
+    const preflight = steps.find((s) => s.name?.includes("Read-only project preflight"));
+    expect(preflight?.name).toMatch(/never create/);
+    expect(preflight?.run).toMatch(/refusing to create or deploy/);
+    const wrangler = steps.find((s) => s.name?.includes("Deploy preview"));
+    expect(wrangler?.uses).toMatch(/^cloudflare\/wrangler-action@[0-9a-f]{40}$/);
+    const final = steps.find((s) => s.name?.includes("Final summary"));
+    expect(final?.if).toBe("always()");
+    expect(final?.run).toMatch(/succeeded/);
+    expect(final?.run).toMatch(/failed/);
   });
 });

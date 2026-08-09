@@ -1,79 +1,49 @@
 # Phase 3A release-candidate / QA / deploy seam — handoff
 
-Task #13 (momoko 2026-08-09). Successor after momoko NO-GO (msg 33a7eef1)
-addressing all 5 deviations.
+Task #13 (momoko 2026-08-09). Final candidate after two NO-GO rounds; contract
+confirmed by momoko (msg f9fd5c02). Baseline: current GitHub main
+`481bfc6308a819eec3e8584d982db9ebff83697b`.
 
 ## Deliverables
 
-- **ci.yml**: Actions upgraded to Node-24-compatible v5 full-SHA (checkout,
-  setup-node, upload-artifact); `pnpm/action-setup` removed → `corepack enable`
-  + `corepack prepare` (eliminates the Node20 deprecation annotation). Node 24.
-  `upload-artifact` gated by `failure() && hashFiles('test-results/**') != ''`;
-  Playwright `outputDir` + `trace: retain-on-failure` guarantee evidence files
-  on failure.
-- **preview.yml** (2-state, honest): `workflow_dispatch` inputs
-  `target_sha` (required 40-hex) + `deploy` boolean (default false).
-  Preflight validates 40-hex + `git cat-file` object exists + records
-  default-main descendant relation. Artifact-only path (deploy=false) builds +
-  uploads `dist/`, computes content hash, writes summary
-  (`deploy_status=artifact_only`) and succeeds WITHOUT reading secrets.
-  `deploy=true` → deploy gate fails (exit 1, `deploy_failed_no_secret`) when
-  CF token/account missing, else full-SHA-pinned `cloudflare/wrangler-action`
-  runs with `environment: preview`-style approval posture. No production
-  deploy / CF project-domain writes / payment / new terms.
-- **public/_headers**: minimal static security headers (CSP, nosniff,
-  X-Frame-Options DENY, Referrer-Policy, Permissions-Policy) for the future
-  Cloudflare Pages deploy surface (no deploy performed now).
-- **tests/workflow-config.test.ts**: asserts full-SHA pinning, Node24 + no
-  secrets/deploy in ci, no pnpm/action-setup, conditional evidence upload, and
-  preview's 2-state honesty (target_sha 40-hex, deploy boolean, artifact-only
-  summary, deploy-gate fail, full-SHA wrangler).
-- **tests/artifact-audit.test.ts**: manifest/search contain only
-  reviewed/current; no draft/retracted in build; security headers file;
-  published hashes are sha256-shaped.
-- **e2e**: added "archive lists only reviewed/current content".
+- **ci.yml**: Node 24; checkout/setup-node/upload-artifact pinned v5 full-SHA;
+  `pnpm/action-setup` removed → corepack (no Node20 annotation).
+  `upload-artifact` gated `if: failure() && hashFiles('test-results/**') != ''`;
+  Playwright `outputDir` + `trace: retain-on-failure`.
+- **preview.yml** (two-job DAG, secret-gated, public-only artifact):
+  - `build` (zero secret): validate `target_sha` 40-hex; checkout fixed ref;
+    record `dispatch_main_sha` + `target_equals_dispatch_main` +
+    `target_is_ancestor_of_dispatch_main`; `pnpm build:public` into clean
+    `dist-public` (reviewed/current only); run `public-audit.mjs`; upload one
+    public artifact; compute content hash; summary writes
+    `deploy_status=artifact_only_public` (deploy=false) or `requested`
+    (deploy=true).
+  - `deploy` (`needs: build`, `environment: preview`, `if: inputs.deploy`):
+    download public artifact (no checkout / no target-code run); require
+    CLOUDFLARE_API_TOKEN/ACCOUNT_ID/PROJECT_NAME (no defaults); read-only
+    project preflight (refuses to create); full-SHA
+    `cloudflare/wrangler-action@9acf94a...`; final `if: always()` summary writes
+    requested→succeeded/failed + preview URL.
+- **public build mode** (`PUBLIC_BUILD=1` → `pnpm build:public`): `loadNews()`
+  filters to reviewed/current; draft/stale/retracted detail routes and bodies
+  are NOT produced (not replaced by noindex). Default local build keeps the
+  approved draft/stale noindex preview behavior.
+- **public/_headers**: CSP + security headers (present in the public artifact
+  for the future Cloudflare deploy surface; no deploy performed now).
+- **tests/workflow-config.test.ts**: full-SHA pinning, Node24/no-secret/no-
+  pnpm-action in ci, conditional evidence upload, two-job DAG (build zero-secret
+  → deploy needs+environment+if), deploy gated/read-only/required-vars/
+  wrangler-pinned/final summary.
+- **tests/artifact-audit.test.ts**: runs `build:public`, asserts public
+  manifest/search/HTML exclude draft/stale/retracted + raw/secret-shaped
+  values (via `tools/schema/public-audit.mjs`), security headers present, and
+  default build keeps draft preview while public build drops it.
 
 ## Verification (cold, dedicated worktree)
 
-`pnpm check` 0/0/0; `pnpm test` 101 passed; `pnpm build:verify` 22 files
-byte-identical; `pnpm test:e2e` 14/14. Action SHAs verified to resolve to real
-commits (checkout v5, setup-node v5, upload-artifact v5,
-cloudflare/wrangler-action v3).
-
-
-## Scope delivered
-
-- **ci.yml** (owned by E): upgraded `actions/checkout`, `actions/setup-node`,
-  `actions/upload-artifact` v4→v5 with full-SHA pinning (supply-chain fixed;
-  pnpm/action-setup v4 already latest). Node `24` (Node-20 deprecation
-  resolved). `upload-artifact` now conditional `if: failure()` so empty
-  `test-results/` no longer warns on success, while real failures still retain
-  evidence. Still PR/main-only verify, no secrets, no deploy.
-- **preview.yml** (new, E): manual `workflow_dispatch` on a required fixed
-  `ref` input; default-branch workflow (never runs PR code with secrets);
-  builds + uploads a `dist/` artifact; a deployment gate explicitly exits 1
-  with `skipped=true` when the Cloudflare secret is absent — never fakes a
-  successful deploy. No production deploy / Cloudflare project/domain writes /
-  payment / new terms.
-- **tests/workflow-config.test.ts**: asserts (1) all Actions pinned to full
-  40-char SHA, (2) ci.yml uses Node 24 + no secrets/deploy, (3) upload-artifact
-  is `failure()`-conditional, (4) preview is manual-on-fixed-ref and its gate
-  marks skipped (never fake success).
-
-## Ownership
-
-Only `.github/workflows/**` + `tests/workflow-config.test.ts` touched. No
-changes to `src/**`, `tools/ingest/**`, `tools/editorial/**`, or deploy targets.
-
-## Verification (cold, dedicated worktree)
-
-- `pnpm check` 0 errors/0 warnings/0 hints; `pnpm test` 95 passed (incl. 4 new
-  workflow tests); `pnpm build:verify` 21 files byte-identical;
-  `pnpm test:e2e` 13/13.
-- Action SHAs verified to resolve to real commits in their repos (checkout v5,
-  setup-node v5, upload-artifact v5, pnpm/action-setup v4).
-
-## Notes for reviewers
-
-- No production deployment workflow is created (deferred per contract).
-- `preview.yml` requires a manual dispatch on a fixed SHA; it never auto-runs.
+`pnpm check` 0/0/0; `pnpm test` 102 passed; `pnpm build:verify` 22 files
+byte-identical; public build deterministic (double build diff empty);
+`pnpm test:e2e` 14/14. Action SHAs verified to resolve to real commits
+(checkout v5, setup-node v5, upload-artifact v5, download-artifact v5,
+cloudflare/wrangler-action v3). No production deploy; no workflow actually
+dispatched.

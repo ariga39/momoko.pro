@@ -15,7 +15,7 @@ import {
 import { buildSearchIndex } from "../../src/lib/search.ts";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const DIST = path.join(REPO_ROOT, "dist");
+const DIST = path.join(REPO_ROOT, process.env.PUBLIC_BUILD === "1" ? "dist-public" : "dist");
 
 const LOCALES = ["ja", "zh", "en"] as const;
 type Lang = (typeof LOCALES)[number];

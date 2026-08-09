@@ -172,6 +172,11 @@ export function loadNews(): NewsItem[] {
     }
   };
   walk(newsRoot);
+  // PUBLIC_BUILD=1（preview 部署 / 公开发布构建）：只产 reviewed/current 内容，
+  // draft/stale/retracted 的 detail 路由与正文都不进产物（不是用 noindex 代替）。
+  if (process.env.PUBLIC_BUILD === "1") {
+    return out.filter(isCurrentReviewed);
+  }
   return out;
 }
 
