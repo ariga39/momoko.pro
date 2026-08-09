@@ -32,13 +32,14 @@
 - [ ] stale-check：源 hash 变化 → 三语 reviewed 译文原子置 stale
 - [ ] retraction：合并后同一 build 原子过滤
 - [ ] schema_version 迁移：空库/旧库可迁移；迁移脚本可重入；`tools/schema/migrations/*` 单次执行
-- [ ] **schema 正/反实例全量校验**：每 canonical 类型（content/locale/discovery/anniversary/retraction/manifest/source）至少各 1 正例+1 反例，含 published 拒绝、reviewed 无 reviewer/time 拒绝、uri/date-time format 拒绝（严格 RFC3339：date-only/无时区/非法日拒绝，hostname 拒绝 `-x`/`..`）、automated_fetch=true 需非 manual 频率（false 需 manual）；`tools/schema/validate_schemas.py` 用真实 FormatChecker 通过
-- [ ] **cron seam**：cron 只运行 `automated_fetch=true` 且 robots/terms 已验证的来源 adapter；false 来源只走 manual-import；无允许来源/无变化静默；当前 S1–S5 全 false 时 cron 无输出
+- [ ] **schema 正/反实例全量校验**：每 canonical 类型（content/locale/discovery/anniversary/retraction/manifest/source）至少各 1 正例+1 反例，含 published 拒绝、reviewed 无 reviewer/time 拒绝、uri/date-time format 拒绝（严格 RFC3339：date-only/无时区/非法日拒绝，hostname 拒绝 `-x`/`..`）、`robots_result`/`robots_path_decision` 结果枚举与 path-bound evidence、automated_fetch=true 需非 manual 频率（false 需 manual）；`tools/schema/validate_schemas.py` 用真实 FormatChecker 通过
+- [ ] **access-mode seam**：`human_directed_single_page` 不因 `automated_fetch=false` 或 robots 缺失阻断，但拒绝访问控制/显式条款；`scheduled_or_recursive_crawler` 要求 `automated_fetch=true` + 请求路径的 robots decision；`reuse_or_republication` 要求独立许可与引用边界
+- [ ] **cron seam**：cron 只运行 `automated_fetch=true` 且请求路径通过 pure robots decision 的来源 adapter；false 来源只走 manual-import；无允许来源/无变化静默；当前 S1–S5 全 false 时 cron 无输出
 
 ## 版权/来源边界
 - [ ] 无 X embed/iframe、无 X API、无 X 抓取（X 仅人工 permalink 卡片；**不复制 post 文本/图片**，只存 account/date/permalink/人工说明）
 - [ ] 无官方素材托管/声线克隆；**无完整台词/台词库/随机台词渲染**
-- [ ] 来源只来自 `config/sources.json` allowlist；robots/terms 证据与 config 一致；`automated_fetch` 值与证据一致（当前全 false）
+- [ ] 来源只来自 `config/sources.json` allowlist；`robots_result` 协议结果与 path-bound `checked_path/retrieved_at/evidence` 与 config 一致；旧 `robots_approved` 只兼容读取并不参与新决策；`automated_fetch` 值与证据一致（当前全 false）
 - [ ] 无硬编码 reviewer 身份/自动晋级（momoko 自动化上限）；内容判断由人工/授权 agent 在 GitHub review 完成
 - [ ] 机器配置（config/sources.json）与人类证据（docs/sources.md）一致
 

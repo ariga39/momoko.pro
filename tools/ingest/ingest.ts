@@ -7,8 +7,8 @@
  * human fact-notes / approved excerpts — never auto-summarized body text.
  *
  * Contract (design §5.2/§5.3, momoko automation ceiling):
- * - cron only runs adapters for sources with `automated_fetch=true` AND
- *   explicit robots/terms approval evidence; S1–S5 all false => silent no-op.
+ * - cron only runs adapters for sources with `automated_fetch=true` and an
+ *   explicit, path-bound robots decision; S1–S5 all false => silent no-op.
  * - manual-import validates a discovery record against
  *   `schemas/discovery-record.schema.json`; identity = (source_id,
  *   source_item_id, lang); content_hash is a VERSION, so a changed draft
@@ -104,8 +104,15 @@ export interface SourceConfig {
   automated_fetch: boolean;
   fetch_frequency: string;
   robots_http?: string | number | null;
+  robots_result?: RobotsResult;
+  robots_path_decision?: RobotsPathDecision;
+  checked_path?: string | null;
+  retrieved_at?: string | null;
+  evidence?: string | null;
   robots_note?: string;
   terms_note?: string;
+  access_control?: AccessControl;
+  terms_status?: TermsStatus;
   robots_approved?: { allowed: boolean; evidence: string };
   terms_approved?: { allowed: boolean; evidence: string };
   canonical_url?: string;
@@ -118,19 +125,124 @@ export function loadSources(sourcesPath?: string): SourceConfig[] {
   return cfg.sources as SourceConfig[];
 }
 
+export type RobotsResult = "rules_available" | "unavailable" | "unreachable" | "not_applicable";
+export type RobotsPathDecision = "allow" | "disallow" | "no_match" | "not_evaluated";
+export type SourceAccessMode =
+  | "human_directed_single_page"
+  | "scheduled_or_recursive_crawler"
+  | "reuse_or_republication";
+export type AccessControl = "public" | "login_required" | "paywall" | "captcha" | "explicitly_blocked";
+export type TermsStatus = "not_evaluated" | "permitted" | "prohibited";
+
+export interface SourceAccessRequest {
+  access_mode: SourceAccessMode;
+  automated_fetch: boolean;
+  robots_result?: RobotsResult;
+  robots_path_decision?: RobotsPathDecision;
+  checked_path?: string | null;
+  requested_path?: string | null;
+  retrieved_at?: string | null;
+  evidence?: string | null;
+  access_control?: AccessControl;
+  terms_status?: TermsStatus;
+  reuse_permitted?: boolean;
+  citation_boundary?: boolean;
+}
+
+export interface SourceAccessDecision {
+  allowed: boolean;
+  reason: string;
+}
+
+function denied(reason: string): SourceAccessDecision {
+  return { allowed: false, reason };
+}
+
+function commonAccessDecision(request: SourceAccessRequest): SourceAccessDecision | null {
+  if (request.access_control !== "public") return denied("access_control_blocked");
+  if (request.terms_status === "prohibited") return denied("explicit_terms_prohibited");
+  return null;
+}
+
+function hasPathBoundEvidence(request: SourceAccessRequest): boolean {
+  return Boolean(
+    request.requested_path &&
+      request.checked_path &&
+      request.checked_path === request.requested_path &&
+      request.retrieved_at &&
+      request.evidence,
+  );
+}
+
 /**
- * A source is only "allowed to fetch" when BOTH robots and terms were
- * explicitly approved (allowed=true) with recorded evidence. automated_fetch
- * alone or a 2xx robots_http is NOT approval; missing/negative evidence is
- * never treated as allowance.
+ * Pure access decision for the three deliberately separate access modes.
+ * robots_result is a file/result class; robots_path_decision is only for the
+ * bound checked_path. Legacy robots_approved is intentionally not accepted.
  */
-export function sourceAllowedToFetch(source: SourceConfig): boolean {
-  if (source.automated_fetch !== true) return false;
-  const robots = source.robots_approved;
-  const terms = source.terms_approved;
-  if (!robots || robots.allowed !== true || !robots.evidence) return false;
-  if (!terms || terms.allowed !== true || !terms.evidence) return false;
-  return true;
+export function decideSourceAccess(request: SourceAccessRequest): SourceAccessDecision {
+  if (!(["human_directed_single_page", "scheduled_or_recursive_crawler", "reuse_or_republication"] as string[]).includes(request.access_mode)) {
+    return denied("access_mode_invalid");
+  }
+  if (request.terms_status !== undefined && !(["not_evaluated", "permitted", "prohibited"] as string[]).includes(request.terms_status)) {
+    return denied("terms_status_invalid");
+  }
+  const common = commonAccessDecision(request);
+  if (common) return common;
+
+  if (request.access_mode === "human_directed_single_page") {
+    return { allowed: true, reason: "human_directed_single_page_allowed" };
+  }
+
+  if (request.access_mode === "reuse_or_republication") {
+    if (request.reuse_permitted !== true || request.citation_boundary !== true) {
+      return denied("reuse_permission_or_citation_boundary_missing");
+    }
+    return { allowed: true, reason: "reuse_permission_and_citation_boundary_present" };
+  }
+
+  if (request.automated_fetch !== true) return denied("automated_fetch_disabled");
+  if (!request.robots_result || !request.robots_path_decision) {
+    return denied("robots_decision_missing");
+  }
+  if (!(["rules_available", "unavailable", "unreachable", "not_applicable"] as string[]).includes(request.robots_result)) {
+    return denied("robots_result_invalid");
+  }
+  if (!(["allow", "disallow", "no_match", "not_evaluated"] as string[]).includes(request.robots_path_decision)) {
+    return denied("robots_path_decision_invalid");
+  }
+  if (request.robots_result === "unreachable") return denied("robots_unreachable_disallow");
+  if (request.robots_result === "not_applicable") {
+    return request.robots_path_decision === "not_evaluated"
+      ? { allowed: true, reason: "robots_not_applicable" }
+      : denied("robots_not_applicable_path_mismatch");
+  }
+  if (!hasPathBoundEvidence(request)) return denied("robots_path_evidence_missing_or_mismatched");
+  if (request.robots_path_decision === "disallow") return denied("robots_path_disallow");
+  if (request.robots_path_decision === "not_evaluated") return denied("robots_path_not_evaluated");
+  if (request.robots_result === "unavailable" && request.robots_path_decision !== "allow") {
+    return denied("robots_unavailable_requires_allow");
+  }
+  return { allowed: true, reason: "crawler_path_allowed" };
+}
+
+/**
+ * Compatibility wrapper for the cron seam. The old robots_approved field is
+ * loaded when present for old configs, but it is not read here. Missing new
+ * result/path evidence fails closed for crawler access.
+ */
+export function sourceAllowedToFetch(source: SourceConfig, requestedPath = "/"): boolean {
+  return decideSourceAccess({
+    access_mode: "scheduled_or_recursive_crawler",
+    automated_fetch: source.automated_fetch,
+    requested_path: requestedPath,
+    access_control: source.access_control ?? "public",
+    terms_status: source.terms_status ?? "not_evaluated",
+    ...(source.robots_result !== undefined ? { robots_result: source.robots_result } : {}),
+    ...(source.robots_path_decision !== undefined ? { robots_path_decision: source.robots_path_decision } : {}),
+    ...(source.checked_path !== undefined ? { checked_path: source.checked_path } : {}),
+    ...(source.retrieved_at !== undefined ? { retrieved_at: source.retrieved_at } : {}),
+    ...(source.evidence !== undefined ? { evidence: source.evidence } : {}),
+  }).allowed;
 }
 
 /** Recompute the canonical note hash from note bytes; caller-provided
@@ -394,8 +506,8 @@ export function normalizeTitle(title: string): string {
 
 /**
  * Run cron for all configured sources: only allowed (automated_fetch=true +
- * verified robots/terms) sources are fetched. With no allowed sources or no
- * change this is a silent no-op returning an empty summary.
+ * path-bound robots decision) sources are fetched. With no allowed sources or
+ * no change this is a silent no-op returning an empty summary.
  */
 /** Check the discovery URL stays within the source's canonical HTTPS origin
  * AND the canonical path prefix with segment-boundary semantics
@@ -568,7 +680,7 @@ export async function runCron(sourcesPath?: string): Promise<{
   errors: Record<string, string>;
 }> {
   const sources = loadSources(sourcesPath);
-  const allowed = sources.filter(sourceAllowedToFetch);
+  const allowed = sources.filter((source) => sourceAllowedToFetch(source));
   const fetched: string[] = [];
   let produced = 0;
   let duplicates = 0;

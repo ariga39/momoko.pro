@@ -14,7 +14,7 @@
 ## 0. 设计原则
 
 - **零成本优先**：只使用官方免费额度 + 已拥有的 `momoko.pro`。**"零成本"不得用跳过备份、安全或可撤回性来换取**。任何付费服务引入前必须人工批准。
-- **来源可信**：只允许官方/本人/经纪事务所/主办方来源；**X 用人工维护的普通官方 permalink 卡片**（只存 account/date/permalink/人工原创说明，**不复制 post 文本/图片**，不 embed/API/抓取，见 sources.md §2）；内容源在存在公开 robots/terms 证据前不自动抓取，仅人工发现/录入；不托管官方图像/Logo/完整台词/歌词/音频；不做声线克隆。
+- **来源可信**：只允许官方/本人/经纪事务所/主办方来源；**X 用人工维护的普通官方 permalink 卡片**（只存 account/date/permalink/人工原创说明，**不复制 post 文本/图片**，不 embed/API/抓取，见 sources.md §2）；网站不自行搜索或抓取互联网，更新 agent 另行调用显式 access-mode seam；不托管官方图像/Logo/完整台词/歌词/音频；不做声线克隆。
 - **来源验证**：MVP 无加密签名；"来源签名"仅指 **allowlisted HTTPS hostname + source_id** 校验。
 - **可追溯**：每篇内容保留 source URL、发布时间、内容哈希、模型/提示版本、审核人、变更历史。
 - **外部输入一律不可信**：所有外部 URL/文本（含人工粘贴的正文）按 prompt-injection 处理（隔离渲染 + 不把外部文本拼进系统提示）。
@@ -133,7 +133,7 @@ i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 U
 
 - 只官方/本人/经纪事务所/主办方来源；**X 用人工维护的普通官方 permalink 卡片**（只存 account/date/permalink/人工原创说明，不复制 post 文本/图片）。
 - 不托管官方图像/Logo/完整台词/歌词/音频；不做声线克隆。
-- 来源机器配置：`config/sources.json`（当前 S1–S5 全部 `automated_fetch=false`；**cron seam 允许**：任何来源取得公开 robots/terms 许可证据并经批准后可置 `true`，由 cron agent 抓取——见 §5.3）。
+- 来源机器配置：`config/sources.json`（`robots_result` 记录 RFC 9309 的结果类别，`robots_path_decision` 绑定 `checked_path`；旧 `robots_approved` 只为兼容读取并标记弃用，不参与新决策；当前 S1–S5 全部 `automated_fetch=false`；**cron seam 允许**：项目显式启用且每个请求路径有 robots 证据后才可抓取——见 §5.3）。
 - Prompt-injection：外部正文隔离渲染 + 不进系统提示（覆盖人工粘贴与 agent 抓取）。
 
 ### 4.1 X 产品决策（事实摘录，不做法律裁定）
@@ -141,6 +141,13 @@ i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 U
 - 事实：官方 Display Requirements "strongly encourage" 使用 embedded posts/timelines；X Developer Agreement §III.K 同时含对在 iframe 等嵌入机制中展示 X Content 的绝对禁止表述。**本设计不自行裁定其法律冲突，也不声称"embed 依赖 iframe 因此绝对禁止"。**
 - 官方页（检索日期 2026-08-08）：https://docs.x.com/developer-terms/display-requirements 、https://docs.x.com/developer-terms/agreement 、https://docs.x.com/x-for-websites/embedded-posts/overview.md 。
 - **产品决策（MVP）**：为避免许可解释、第三方内容与运行依赖，采用**普通官方 permalink 卡片**（纯链接，不 embed/API/抓取，不复制内容）。**未来启用 embed/API 必须先重新法律/条款评审并经人工批准**。
+
+### 4.2 Robots 与 agent 访问模式
+
+- `robots_result` 只有 `rules_available`、`unavailable`、`unreachable`、`not_applicable` 四类；HTTP 400–499（包括 404）是 `unavailable`，500–599/网络失败是 `unreachable`，见 [RFC 9309 §2.3.1.3](https://www.rfc-editor.org/rfc/rfc9309.html#section-2.3.1.3) 与 [§2.3.1.4](https://www.rfc-editor.org/rfc/rfc9309.html#section-2.3.1.4)。
+- `robots_path_decision` 只有 `allow`、`disallow`、`no_match`、`not_evaluated`，并且必须绑定 `checked_path`、`retrieved_at`、`evidence`。根路径 allow 不是全站 allow；`robots_http` 只作兼容观测，不作新决策输入。
+- pure access seam 必须显式接收 `access_mode`：`human_directed_single_page`、`scheduled_or_recursive_crawler`、`reuse_or_republication`。单页人工读取不因 `automated_fetch=false` 或 robots 缺失而阻断，但不能绕过登录/paywall/CAPTCHA/显式条款；crawler 必须 `automated_fetch=true` 且请求路径有允许的 robots decision；reuse 必须有独立 reuse permission 与 citation boundary。
+- 旧 `robots_approved` 仅读取以兼容旧配置并给 deprecation 提示，不参与任何新 access decision；项目自动化授权的唯一项目门是 `automated_fetch`。AI crawler 的语义尚未统一，参见 [RFC 9969](https://www.rfc-editor.org/rfc/rfc9969.html)。
 
 ---
 
@@ -154,9 +161,9 @@ i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 U
   → 具 merge 权限的 human/agent 执行 merge → 构建派生 published
 ```
 
-- **cron seam（agent cron，momoko 2026-08-09 确认）**：cron 只运行 `automated_fetch=true` 且 robots/terms 已验证允许的来源 adapter；`false` 的来源只走 manual-import。**无允许来源或无变化时静默**。当前 S1–S5 全部 `false`，直到证据允许再逐项置 `true`。
+- **cron seam（agent cron，momoko 2026-08-09 确认）**：cron 只运行 `automated_fetch=true` 且请求路径 `robots_result`/`robots_path_decision` 通过 pure access decision 的来源 adapter；旧 `robots_approved` 不再是额外门。`false` 的来源只走 manual-import。**无允许来源或无变化时静默**。当前 S1–S5 全部 `false`。
 - **discovery record**：人工提交 `{source_id, source_item_id, source_url, published_at, title, lang, note_hash, note}`（schema: `schemas/discovery-record.schema.json`，含唯一键必需字段）。note 为**人工撰写的事实笔记/明确批准的短摘录**；工具只校验/去重/规范化后生成 PR。
-- **AI 输入边界（关键）**：MVP 不存页面正文，ai-draft **不能凭空摘要**。锁定输入=只消费**人工撰写的事实笔记或明确批准的短摘录**；**外部正文不进 repo、prompt log 或 artifact**；记录 source URL、note hash、模型/提示版本；输出恒 T1 draft。**工具不得自行打开 URL（除非经批准且该来源 `automated_fetch=true` 的 adapter 明示抓取）**。
+- **AI 输入边界（关键）**：MVP 不存页面正文，ai-draft **不能凭空摘要**。锁定输入=只消费**人工撰写的事实笔记或明确批准的短摘录**；**外部正文不进 repo、prompt log 或 artifact**；记录 source URL、note hash、模型/提示版本；输出恒 T1 draft。批量工具不得自行打开 URL；future access must call the pure seam with an explicit access mode, and single-page reads still obey access control, Terms, rate limits, and retention boundaries.
 - **T 分级**：T0（人工事实/卡片，无 AI 改写）→ 可自动生成文件+PR（仍人工 merge）；T1（AI 摘要/翻译）→ 默认 draft；T2 → 永久人工。
 - **幂等/去重**：`(source_id, source_item_id, lang, content_hash)` 唯一键；去重后无变化则 PR 无 diff（静默）。
 - **content_hash**：sha256 规范化字节序列（定义见 §6.4）；校验器比较。
@@ -175,8 +182,8 @@ i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 U
 
 ### 5.3 cron 抓取 seam（agent cron；gated by `automated_fetch=true`）
 
-- cron 只运行 `automated_fetch=true` 且 robots/terms 已验证允许的来源 adapter；`false` 来源只走 manual-import；**无允许来源或无变化时静默**。
-- 当前 S1–S5 全部 `false`，直到某来源取得公开 robots/terms 许可证据并经人工批准后逐项置 `true`。
+- cron 只运行 `automated_fetch=true` 且请求路径通过 pure access decision 的来源 adapter：`robots_result=rules_available` 时使用该路径的 `allow/no_match`，4xx 使用显式 `unavailable + allow`，`unreachable`/`disallow`/缺失绑定证据均 fail closed；`false` 来源只走 manual-import；**无允许来源或无变化时静默**。
+- 当前 S1–S5 全部 `false`。旧 `robots_approved`/`robots_http` 不会被当作新的路径许可或项目授权。
 - 届时才引入重试/退避/死信/raw store 契约；抓取 adapter 仍遵守 allowlist + prompt-injection 隔离 + 无变化静默。
 
 ---
@@ -262,6 +269,11 @@ erDiagram
     string canonical_url
     string robots_txt_url
     string robots_http
+    string robots_result
+    string robots_path_decision
+    string checked_path
+    string retrieved_at
+    string evidence
     boolean automated_fetch
   }
   CONTENT {
@@ -475,7 +487,7 @@ sequenceDiagram
 | T0 发布 | 只自动生成文件/PR，仍独立 reviewer（T2 必须 human）+ 具 merge 权限合并；auto-merge 未来 ADR | 否（已定） |
 | 部署面 | GitHub Actions Direct Upload（唯一） | 否（已定） |
 | X 展示 | 人工 permalink 卡片；embed/API 未来需法律评审 | 否（已定） |
-| 自动抓取 | future 条件分支，需 robots/terms 证据+批准 | 否（future） |
+| 自动抓取 | future 条件分支，需项目 `automated_fetch=true` + 请求路径 robots result/decision 证据 | 否（future） |
 | D1/Queues/Vectorize | future，不进入 MVP | 否（future） |
 | 受保护管理 API | future | 否（future） |
 

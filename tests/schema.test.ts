@@ -16,6 +16,11 @@ const fakeSource = (over: Record<string, unknown> = {}) => ({
   canonical_url: "https://example.com/",
   robots_txt_url: "https://example.com/robots.txt",
   robots_http: "200",
+  robots_result: "rules_available",
+  robots_path_decision: "allow",
+  checked_path: "/",
+  retrieved_at: "2026-08-08",
+  evidence: "Allow: / (synthetic evidence)",
   robots_note: "Allow: /",
   terms_url: "https://example.com/terms",
   terms_note: "公开条款允许抓取",
@@ -35,10 +40,14 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
     const r = validateFile("source.schema.json", wrap(fakeSource({
       automated_fetch: true,
       fetch_frequency: "daily",
-      robots_approved: { allowed: true, evidence: "robots Allow: /（2026-08-09 核验）" },
-      terms_approved: { allowed: true, evidence: "条款明确允许抓取（2026-08-09 核验）" },
     })));
     expect(r.valid).toBe(true);
+  });
+
+  it("does not require deprecated robots_approved for a new config", () => {
+    const source: Record<string, unknown> = fakeSource({ automated_fetch: true, fetch_frequency: "daily" });
+    delete source.robots_approved;
+    expect(validateFile("source.schema.json", wrap(source)).valid).toBe(true);
   });
 
   it("automated_fetch=true cannot be manual frequency", () => {
@@ -56,6 +65,20 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
     expect(r.valid).toBe(false);
   });
 
+  it("robots result and path decision use explicit RFC 9309 vocabularies", () => {
+    const unavailable = validateFile("source.schema.json", wrap(fakeSource({ robots_http: "404", robots_result: "unavailable", robots_path_decision: "allow" })));
+    const unknownResult = validateFile("source.schema.json", wrap(fakeSource({ robots_result: "unknown" })));
+    const unknownPath = validateFile("source.schema.json", wrap(fakeSource({ robots_path_decision: "unknown" })));
+    const missingSource: Record<string, unknown> = fakeSource();
+    delete missingSource.robots_result;
+    delete missingSource.robots_path_decision;
+    const missing = validateFile("source.schema.json", wrap(missingSource));
+    expect(unavailable.valid).toBe(true);
+    expect(unknownResult.valid).toBe(false);
+    expect(unknownPath.valid).toBe(false);
+    expect(missing.valid).toBe(true); // v1 config shape remains readable; crawler gate fails closed.
+  });
+
   it("config/sources.json validates and all S1-S5 are manual (current evidence)", () => {
     const r = validateSources();
     expect(r.valid).toBe(true);
@@ -64,6 +87,22 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
       expect(s.automated_fetch).toBe(false);
       expect(s.fetch_frequency).toBe("manual");
     }
+    expect(cfg.sources.find((s: { source_id: string }) => s.source_id === "S1")).toMatchObject({
+      robots_http: "404",
+      robots_result: "unavailable",
+      robots_path_decision: "allow",
+      checked_path: "/",
+    });
+    expect(cfg.sources.find((s: { source_id: string }) => s.source_id === "S4")).toMatchObject({
+      robots_http: "404",
+      robots_result: "unavailable",
+      robots_path_decision: "allow",
+    });
+    expect(cfg.sources.find((s: { source_id: string }) => s.source_id === "S5")).toMatchObject({
+      robots_http: "200",
+      robots_result: "rules_available",
+      robots_path_decision: "allow",
+    });
   });
 });
 

@@ -28,7 +28,7 @@
         "evidence": {
           "type": "string",
           "minLength": 1,
-          "description": "人工核验证据（如 robots 文本段落 / 条款链接与摘录 + 核验时间），缺失不得视为允许"
+          "description": "项目/owner 的明确核验证据（如 robots 文本段落 / 条款链接与摘录 + 核验时间）；协议状态本身不是授权，缺失不得视为允许"
         }
       }
     },
@@ -41,11 +41,44 @@
         "name_zh": { "type": "string" },
         "canonical_url": { "type": "string", "format": "uri" },
         "robots_txt_url": { "type": ["string", "null"], "format": "uri" },
-        "robots_http": { "type": ["string", "null"], "pattern": "^[0-9]{3}$" },
+        "robots_http": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{3}$",
+          "description": "Legacy observation only; runtime decisions use the explicit robots_result and robots_path_decision fields"
+        },
+        "robots_result": {
+          "type": "string",
+          "enum": ["rules_available", "unavailable", "unreachable", "not_applicable"],
+          "description": "RFC 9309 result class, independent of any one target path"
+        },
+        "robots_path_decision": {
+          "type": "string",
+          "enum": ["allow", "disallow", "no_match", "not_evaluated"],
+          "description": "Decision for checked_path only; never a whole-site permission"
+        },
+        "checked_path": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "The URL path to which robots_path_decision applies; null only when not_applicable"
+        },
+        "retrieved_at": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Evidence date or timestamp for the robots result; null only when not_applicable"
+        },
+        "evidence": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Human-readable evidence bound to the result and checked path"
+        },
         "robots_note": { "type": "string" },
         "terms_url": { "type": ["string", "null"], "format": "uri" },
         "terms_note": { "type": "string" },
-        "robots_approved": { "$ref": "#/$defs/approval" },
+        "robots_approved": {
+          "$ref": "#/$defs/approval",
+          "deprecated": true,
+          "description": "Deprecated compatibility field; retained for old configs and ignored by new access decisions"
+        },
         "terms_approved": { "$ref": "#/$defs/approval" },
         "automated_fetch": { "type": "boolean" },
         "fetch_frequency": { "enum": ["manual", "daily", "weekly"] },
@@ -57,11 +90,8 @@
           "if": { "properties": { "automated_fetch": { "const": true } } },
           "then": {
             "properties": {
-              "fetch_frequency": { "not": { "const": "manual" } },
-              "robots_approved": { "$ref": "#/$defs/approval" },
-              "terms_approved": { "$ref": "#/$defs/approval" }
-            },
-            "required": ["robots_approved", "terms_approved"]
+              "fetch_frequency": { "not": { "const": "manual" } }
+            }
           }
         },
         {

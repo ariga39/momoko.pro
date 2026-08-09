@@ -129,6 +129,11 @@ def _source(**over) -> dict:
         "canonical_url": "https://example.com/",
         "robots_txt_url": "https://example.com/robots.txt",
         "robots_http": "200",
+        "robots_result": "rules_available",
+        "robots_path_decision": "allow",
+        "checked_path": "/",
+        "retrieved_at": "2026-08-08",
+        "evidence": "Allow: / (synthetic evidence)",
         "robots_note": "Allow: /",
         "terms_url": "https://example.com/terms",
         "terms_note": "公开条款允许抓取",
@@ -174,12 +179,11 @@ CASES: list[tuple[str, dict, bool]] = [
         {"package_version": "1", "content_schema_version": "1", "status": "ready", "fallback": True},
         False,
     ),
-    # source: positive — approved automated_fetch=true with non-manual frequency
+    # source: positive — automated_fetch=true with a path-bound robots result;
+    # deprecated robots_approved is intentionally not required
     (
         "source.schema.json",
-        {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily",
-            robots_approved={"allowed": True, "evidence": "robots Allow: /（2026-08-09 核验）"},
-            terms_approved={"allowed": True, "evidence": "条款明确允许抓取（2026-08-09 核验）"})]},
+        {"schema_version": "1", "sources": [_source(automated_fetch=True, fetch_frequency="daily")]},
         True,
     ),
     # source: negative — automated_fetch=true cannot be manual frequency

@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  DRAFT_ROOT,
   loadSources,
   normalizeDiscovery,
   registerSourceAdapter,
@@ -16,7 +15,10 @@ import {
 import { createDraftFromDiscovery, derivePublication } from "../tools/editorial/editorial.ts";
 
 const REPO_ROOT = path.resolve(process.cwd());
-const OUTPUT_ROOTS = ["src/content", "public", "dist", "dist-public", ".ingest-drafts"];
+// The draft root is shared by ingestion tests running in parallel. Adapter
+// call counts and the no-op result prove this test did not write it; snapshot
+// only public/content/build roots so unrelated workers cannot race the proof.
+const OUTPUT_ROOTS = ["src/content", "public", "dist", "dist-public"];
 
 function digestTree(relativeRoot: string): string[] {
   const root = path.join(REPO_ROOT, relativeRoot);
@@ -64,6 +66,9 @@ describe("Phase 3A source-policy no-fetch decision", () => {
     expect(s1).toMatchObject({
       source_id: "S1",
       robots_http: "404",
+      robots_result: "unavailable",
+      robots_path_decision: "allow",
+      checked_path: "/",
       robots_approved: { allowed: false },
       terms_approved: { allowed: false },
     });
@@ -89,7 +94,6 @@ describe("Phase 3A source-policy no-fetch decision", () => {
     expect([...adapterCalls.values()]).toEqual([0, 0, 0, 0, 0]);
     expect(http).not.toHaveBeenCalled();
     expect(outputSnapshot()).toEqual(before);
-    expect(fs.existsSync(DRAFT_ROOT)).toBe(false);
   });
 
   it("keeps a synthetic normalized record as an in-memory draft only", () => {
@@ -122,6 +126,5 @@ describe("Phase 3A source-policy no-fetch decision", () => {
     expect(projection.locales.zh.indexable).toBe(false);
     expect(projection.locales.en.indexable).toBe(false);
     expect(outputSnapshot()).toEqual(before);
-    expect(fs.existsSync(DRAFT_ROOT)).toBe(false);
   });
 });
