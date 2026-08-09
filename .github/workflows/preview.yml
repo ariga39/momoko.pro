@@ -1,17 +1,23 @@
 name: preview
 
 # 远程 preview（可选，§8.3）：仅由 maintainer 对固定 SHA 手动触发；
-# 使用 default-branch workflow，不执行未审脚本，不向 PR 代码暴露 secret。
+# default-branch workflow，不执行未审脚本，不向 PR 代码暴露 secret。
+# 两态：deploy=false → artifact-only（读不到 secret 也成功）；deploy=true →
+# 进入 environment:preview 审批 + full-SHA Cloudflare 部署；缺凭据即 fail。
 # 不 production deploy、不写 Cloudflare 项目/域名、不付费/不接受新条款。
-# 缺部署 secret 时显式标记 skipped，绝不伪装成功部署。
 
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: "Build & preview this fixed SHA (e.g. 481bfc6308...) "
+      target_sha:
+        description: "Fixed 40-hex commit SHA to build & preview"
         required: true
         type: string
+      deploy:
+        description: "Deploy preview to Cloudflare (requires approval + secret)"
+        required: true
+        default: "false"
+        type: boolean
 
 permissions:
   contents: read
@@ -19,31 +25,45 @@ permissions:
 jobs:
   build-and-preview:
     runs-on: ubuntu-latest
-    # 无部署 secret 时本 job 不会真正部署；缺 secret 即跳过并报告 skipped。
     env:
       CI: "true"
-      HAS_DEPLOY_SECRET: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
     steps:
+      - name: Validate target_sha (40-hex)
+        run: |
+          if ! [[ "${{ inputs.target_sha }}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::target_sha must be a full 40-hex commit SHA"
+            exit 1
+          fi
+
       - name: Checkout fixed ref
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.target_sha }}
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        with:
-          version: 9.15.9
-          run_install: false
+      - name: Preflight — verify object exists and record default-main relation
+        run: |
+          set -euo pipefail
+          git cat-file -t "${{ inputs.target_sha }}"
+          git cat-file -t "$GITHUB_SHA" >/dev/null 2>&1 || echo "no-default-sha"
+          is_ancestor=no
+          if git merge-base --is-ancestor "${{ inputs.target_sha }}" origin/main 2>/dev/null; then
+            is_ancestor=yes
+          fi
+          echo "preview_sha=${{ inputs.target_sha }}" >> "$GITHUB_ENV"
+          echo "preview_sha_is_main_descendant=$is_ancestor" >> "$GITHUB_ENV"
 
-      - name: Setup Node
+      - name: Setup Node 24 (reproducible, no pnpm action Node20 annotation)
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
           cache: pnpm
 
-      - name: Install (frozen lockfile)
-        run: pnpm install --frozen-lockfile
+      - name: Enable corepack + install (frozen lockfile)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
 
       - name: Build static site
         run: |
@@ -53,13 +73,41 @@ jobs:
       - name: Upload preview artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: momoko-preview-${{ inputs.ref }}
+          name: momoko-preview-${{ inputs.target_sha }}
           path: dist/
           retention-days: 7
 
-      - name: Deployment gate (no fake success)
-        if: env.HAS_DEPLOY_SECRET == 'false'
+      - name: Compute artifact content hash
         run: |
-          echo "::error::Preview requires a deployment secret; no Cloudflare deploy performed."
-          echo "skipped=true" >> "$GITHUB_ENV"
+          set -euo pipefail
+          find dist -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/dist.sha256sums
+          sha256sum /tmp/dist.sha256sums | awk '{print $1}' | tee /tmp/dist-hash
+          echo "preview_artifact_hash=$(cat /tmp/dist-hash)" >> "$GITHUB_ENV"
+
+      - name: Publish preview summary
+        run: |
+          cat > "$GITHUB_STEP_SUMMARY" <<EOF
+          ## momoko.pro preview
+          - target_sha: \`${{ inputs.target_sha }}\`
+          - default-main descendant: \`${{ env.preview_sha_is_main_descendant }}\`
+          - artifact hash: \`${{ env.preview_artifact_hash }}\`
+          - deploy_status: artifact_only (no deploy requested)
+          EOF
+          echo "deploy_status=artifact_only" >> "$GITHUB_ENV"
+
+      - name: Deploy gate — fail if deploy requested but secret/account/project missing
+        if: inputs.deploy == 'true' && (secrets.CLOUDFLARE_API_TOKEN == '' || secrets.CLOUDFLARE_ACCOUNT_ID == '')
+        run: |
+          echo "::error::deploy=true but Cloudflare credentials are missing; deploy NOT performed."
+          echo "deploy_status=deploy_failed_no_secret" >> "$GITHUB_ENV"
           exit 1
+
+      - name: Deploy preview (approval + full-SHA Cloudflare action)
+        if: inputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'momoko-pro-preview' }}

@@ -1,7 +1,45 @@
 # Phase 3A release-candidate / QA / deploy seam — handoff
 
-Task #13 (momoko 2026-08-09, thread #momoko-site:7767d6dd). Baseline: current
-GitHub main `481bfc6308a819eec3e8584d982db9ebff83697b` (Phase 2C merged).
+Task #13 (momoko 2026-08-09). Successor after momoko NO-GO (msg 33a7eef1)
+addressing all 5 deviations.
+
+## Deliverables
+
+- **ci.yml**: Actions upgraded to Node-24-compatible v5 full-SHA (checkout,
+  setup-node, upload-artifact); `pnpm/action-setup` removed → `corepack enable`
+  + `corepack prepare` (eliminates the Node20 deprecation annotation). Node 24.
+  `upload-artifact` gated by `failure() && hashFiles('test-results/**') != ''`;
+  Playwright `outputDir` + `trace: retain-on-failure` guarantee evidence files
+  on failure.
+- **preview.yml** (2-state, honest): `workflow_dispatch` inputs
+  `target_sha` (required 40-hex) + `deploy` boolean (default false).
+  Preflight validates 40-hex + `git cat-file` object exists + records
+  default-main descendant relation. Artifact-only path (deploy=false) builds +
+  uploads `dist/`, computes content hash, writes summary
+  (`deploy_status=artifact_only`) and succeeds WITHOUT reading secrets.
+  `deploy=true` → deploy gate fails (exit 1, `deploy_failed_no_secret`) when
+  CF token/account missing, else full-SHA-pinned `cloudflare/wrangler-action`
+  runs with `environment: preview`-style approval posture. No production
+  deploy / CF project-domain writes / payment / new terms.
+- **public/_headers**: minimal static security headers (CSP, nosniff,
+  X-Frame-Options DENY, Referrer-Policy, Permissions-Policy) for the future
+  Cloudflare Pages deploy surface (no deploy performed now).
+- **tests/workflow-config.test.ts**: asserts full-SHA pinning, Node24 + no
+  secrets/deploy in ci, no pnpm/action-setup, conditional evidence upload, and
+  preview's 2-state honesty (target_sha 40-hex, deploy boolean, artifact-only
+  summary, deploy-gate fail, full-SHA wrangler).
+- **tests/artifact-audit.test.ts**: manifest/search contain only
+  reviewed/current; no draft/retracted in build; security headers file;
+  published hashes are sha256-shaped.
+- **e2e**: added "archive lists only reviewed/current content".
+
+## Verification (cold, dedicated worktree)
+
+`pnpm check` 0/0/0; `pnpm test` 101 passed; `pnpm build:verify` 22 files
+byte-identical; `pnpm test:e2e` 14/14. Action SHAs verified to resolve to real
+commits (checkout v5, setup-node v5, upload-artifact v5,
+cloudflare/wrangler-action v3).
+
 
 ## Scope delivered
 

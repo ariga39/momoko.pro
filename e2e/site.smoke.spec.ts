@@ -189,3 +189,11 @@ test("source-language detail page is self-canonical and NOT a fallback (no noind
   );
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
 });
+
+test("archive lists only reviewed/current content (no draft/retracted)", async ({ page }) => {
+  await page.goto("/zh/");
+  const body = await page.locator("body").innerText();
+  expect(body).toContain("夏フェス開催"); // reviewed 001
+  expect(body).not.toContain("新曲発売決定"); // draft 002
+  expect(body).not.toContain("撤回测试项"); // retracted 003
+});

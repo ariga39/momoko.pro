@@ -20,20 +20,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        with:
-          version: 9.15.9
-          run_install: false
-
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
           cache: pnpm
 
-      - name: Install (frozen lockfile)
-        run: pnpm install --frozen-lockfile
+      - name: Enable corepack + install (frozen lockfile)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
 
       - name: Lint and typecheck
         run: pnpm check
@@ -51,10 +48,11 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           pnpm test:e2e
+        continue-on-error: false
 
-      # 仅当存在真实失败证据（test-results/）才上传；无失败时静默，避免空目录 warning。
-      - name: Upload browser artifacts (no secrets, conditional)
-        if: failure()
+      # 仅当真实失败且确实产生 test-results/ 证据时才上传；无证据则静默。
+      - name: Upload browser artifacts (no secrets, conditional on evidence)
+        if: failure() && hashFiles('test-results/**') != ''
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: playwright-results
