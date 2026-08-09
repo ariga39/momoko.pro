@@ -2,45 +2,250 @@
 @tailwind components;
 @tailwind utilities;
 
-/* momoko.pro base layer（Tailwind + 少量 a11y 原子规则）。
-   color/typography token 定义在 tailwind.config.mjs。 */
+/* Core visual tokens are defined in tailwind.config.mjs. */
 
 @layer base {
   html {
     font-size: 100%;
+    background: theme("colors.paper");
+    scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-bg text-text font-body leading-relaxed;
+    @apply min-w-0 bg-bg text-text font-body leading-relaxed;
+    overflow-x: clip;
+  }
+
+  ::selection {
+    color: theme("colors.accent-contrast");
+    background: theme("colors.accent");
   }
 
   a {
-    @apply text-link;
-  }
-  a:hover {
-    @apply underline;
+    @apply text-link underline decoration-link/30 underline-offset-4;
   }
 
-  /* visible keyboard focus */
+  a:hover {
+    @apply decoration-link;
+  }
+
   :focus-visible {
     outline: 3px solid theme("colors.link");
-    outline-offset: 2px;
+    outline-offset: 3px;
   }
 
-  /* skip link: visible only on focus */
+  :target {
+    scroll-margin-top: 6rem;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  summary {
+    cursor: pointer;
+  }
+}
+
+@layer components {
   .skip-link {
     position: absolute;
     left: theme("spacing.4");
     top: theme("spacing.4");
     transform: translateY(-300%);
-    @apply bg-accent text-accent-contrast rounded p-2 z-50;
+    @apply z-50 rounded bg-accent px-3 py-2 text-sm font-semibold text-accent-contrast no-underline;
   }
+
   .skip-link:focus {
     transform: translateY(0);
   }
+
+  .site-header {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .site-header::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: radial-gradient(circle at 10% 20%, rgba(143, 41, 75, 0.08) 0 1px, transparent 1px);
+    background-size: 8px 8px;
+    content: "";
+    opacity: 0.3;
+  }
+
+  .masthead-mark {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 9rem;
+  }
+
+  .masthead-kicker,
+  .footer-label {
+    color: theme("colors.brass");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .masthead-title {
+    font-family: theme("fontFamily.display");
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .masthead-rule {
+    height: 0.25rem;
+    margin-inline: auto;
+    max-width: 72rem;
+    background: linear-gradient(90deg, theme("colors.momoko-pink"), theme("colors.brass"), transparent);
+  }
+
+  .nav-link {
+    position: relative;
+    font-size: 0.88rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+  }
+
+  .nav-link::after {
+    position: absolute;
+    right: 0;
+    bottom: -0.45rem;
+    left: 0;
+    height: 2px;
+    background: theme("colors.accent");
+    content: "";
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 180ms ease;
+  }
+
+  .nav-link:hover::after,
+  .nav-link:focus-visible::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .mobile-menu {
+    position: relative;
+  }
+
+  .mobile-menu-summary {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border: 1px solid theme("colors.line");
+    border-radius: 999px;
+    list-style: none;
+    background: theme("colors.paper");
+  }
+
+  .mobile-menu-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-menu-icon {
+    display: grid;
+    gap: 0.22rem;
+  }
+
+  .mobile-menu-icon span {
+    display: block;
+    width: 1.1rem;
+    height: 2px;
+    background: theme("colors.ink");
+    transition: transform 180ms ease;
+  }
+
+  .mobile-menu[open] .mobile-menu-icon span:nth-child(1) {
+    transform: translateY(0.36rem) rotate(45deg);
+  }
+
+  .mobile-menu[open] .mobile-menu-icon span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .mobile-menu[open] .mobile-menu-icon span:nth-child(3) {
+    transform: translateY(-0.36rem) rotate(-45deg);
+  }
+
+  .mobile-menu-panel {
+    position: absolute;
+    right: 0;
+    z-index: 20;
+    width: min(18rem, calc(100vw - 2rem));
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border: 1px solid theme("colors.line");
+    border-radius: 0.75rem;
+    background: theme("colors.paper");
+    box-shadow: theme("boxShadow.paper");
+  }
+
+  .mobile-menu-link {
+    display: block;
+    padding: 0.7rem 0.75rem;
+    border-radius: 0.5rem;
+    color: theme("colors.ink");
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .mobile-menu-link:hover {
+    background: theme("colors.paper-deep");
+    color: theme("colors.momoko-pink-dark");
+  }
+
+  .site-footer {
+    background-image: linear-gradient(135deg, rgba(241, 229, 213, 0.84), rgba(255, 250, 244, 0.9));
+  }
 }
 
-/* reduced-motion：关闭所有过渡/动画 */
+@media (forced-colors: active) {
+  *,
+  *::before,
+  *::after {
+    forced-color-adjust: auto;
+  }
+
+  :focus-visible {
+    outline: 3px solid Highlight;
+  }
+
+  .mobile-menu-summary {
+    border: 2px solid ButtonText;
+  }
+
+  .masthead-rule {
+    background: Highlight;
+  }
+}
+
+@media print {
+  .site-header,
+  .site-footer,
+  .skip-link,
+  .mobile-menu {
+    display: none !important;
+  }
+
+  body {
+    background: Canvas;
+    color: CanvasText;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

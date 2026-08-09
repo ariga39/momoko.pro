@@ -29,6 +29,7 @@ export interface ContentPackageManifest {
   package_version: "1";
   content_schema_version: "1";
   status: "empty" | "ready";
+  visual_catalog?: "visual-catalog.json";
 }
 
 function isInside(child: string, parent: string): boolean {
@@ -125,8 +126,9 @@ function readPackageManifest(root: string): ContentPackageManifest {
   return manifest as ContentPackageManifest;
 }
 
-function assertKnownPackageEntries(root: string): void {
+function assertKnownPackageEntries(root: string, manifest: ContentPackageManifest): void {
   const allowed = new Set(["package.json", "news", "retractions"]);
+  if (manifest.visual_catalog) allowed.add(manifest.visual_catalog);
   for (const entry of fs.readdirSync(root)) {
     if (!allowed.has(entry)) {
       throw new ContentPackageError("content_package_entry_unsupported", `unsupported content package entry: ${entry}`);
@@ -135,8 +137,14 @@ function assertKnownPackageEntries(root: string): void {
 }
 
 function packageManifest(root = getContentRoot()): ContentPackageManifest {
-  assertKnownPackageEntries(root);
-  return readPackageManifest(root);
+  const manifest = readPackageManifest(root);
+  assertKnownPackageEntries(root, manifest);
+  return manifest;
+}
+
+/** Read and validate a package manifest after enforcing its top-level boundary. */
+export function readContentPackageManifest(root = getContentRoot()): ContentPackageManifest {
+  return packageManifest(root);
 }
 
 /** content paths with an active retraction record（status=requested|active）。 */
