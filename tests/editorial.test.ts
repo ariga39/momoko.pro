@@ -21,7 +21,7 @@ import {
   type ReviewRequest,
 } from "../tools/editorial/editorial.ts";
 import { validateFile } from "../tools/schema/validate.ts";
-import { loadPublishedNews } from "../src/lib/content.ts";
+import { loadNews, loadPublishedNews } from "../src/lib/content.ts";
 import { buildManifest } from "../tools/schema/postbuild.ts";
 
 const roots: string[] = [];
@@ -317,14 +317,19 @@ describe("Phase 2C editorial lifecycle", () => {
     expect(draft.value.history.events).toHaveLength(3);
   });
 
-  it("public archive/build projection excludes the committed synthetic draft", () => {
+  it("public archive/build projection excludes draft and retracted synthetic records", () => {
     const current = loadPublishedNews();
     expect(current.some((item) => item.slug.includes("001"))).toBe(true);
     expect(current.some((item) => item.slug.includes("002"))).toBe(false);
-    const manifest = buildManifest([...current, ...[]]);
+    expect(current.some((item) => item.slug.includes("003"))).toBe(false);
+    // The public helper remains fail-closed even if a caller accidentally
+    // hands it the full loader result instead of the published projection.
+    const manifest = buildManifest(loadNews());
     const published = manifest.entries.find((entry) => entry.source_item_id.includes("001"));
     expect(published?.review_status).toBe("published");
     expect(published?.locales.zh.status).toBe("published");
     expect(published?.locales.en.status).toBe("published");
+    expect(manifest.entries.some((entry) => entry.source_item_id.includes("002"))).toBe(false);
+    expect(manifest.entries.some((entry) => entry.source_item_id.includes("003"))).toBe(false);
   });
 });

@@ -9,8 +9,9 @@ Base: GitHub main `48a1a3aee437db16659fb7807e89fcd332243da6`
 ## Scope and ownership
 
 This candidate owns the editorial seam in `tools/editorial/editorial.ts`, the
-synthetic lifecycle fixture under
-`content/news/2026/S1-synth-2026-08-08-002/`, editorial unit/public-seam
+synthetic lifecycle fixtures under
+`content/news/2026/S1-synth-2026-08-08-002/` and the retraction regression
+`...-003/`, editorial unit/public-seam
 regressions, and the small read-only frontend/build integration that prevents
 draft/stale/retracted records entering archive/search indexes. It does not
 modify `tools/ingest/**`, source adapters, workflows, deployment, authentication,
@@ -59,9 +60,11 @@ retraction keeps canonical/locale tombstones and writes the existing
   before writes.
 
 The frontend keeps detail routes available for explicit draft/stale fallback
-pages (with noindex/canonical semantics), while `loadPublishedNews()` is the
-only source for archive, source-policy listing, search, and post-build search
-index. Retracted content is excluded from all public index surfaces.
+pages (with noindex/canonical semantics). Retracted records do not receive a
+static detail path, so their body cannot be rendered; `loadPublishedNews()` is
+the only source for archive, source-policy listing, search, and the public
+post-build manifest/search indexes. Retracted content is excluded from every
+public surface while its tombstone/history remains on disk.
 
 ## Synthetic verification
 
@@ -69,8 +72,10 @@ index. Retracted content is excluded from all public index surfaces.
 blocking, human token binding, translation draft/review, source drift and
 stale fallback, history retention across persisted revisions, retraction
 tombstones, idempotent replay/no-change, identity collision, and public
-reviewed/current projection. Existing schema/translation tests and Playwright
-smoke tests also assert draft exclusion and fallback behavior.
+reviewed/current projection. Synthetic fixture 003 is an active retraction
+regression. Existing schema/translation tests and Playwright smoke tests assert
+draft/stale fallback, reviewed/current presence, and retracted exclusion from
+detail, archive, search, and public manifest.
 
 All content in this candidate is synthetic test material. No external fetch,
 AI service, GitHub write, deployment, login, or private material is used.

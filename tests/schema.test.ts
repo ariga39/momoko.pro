@@ -124,7 +124,7 @@ describe("schemas/content.schema.json — reviewed 条件约束", () => {
 describe("content loader — 三语与缺译回退", () => {
   it("loads all news items and resolves locale with ja fallback", () => {
     const items = loadNews();
-    expect(items.length).toBe(2);
+    expect(items.length).toBe(3);
     const item1 = items.find((i) => i.slug.includes("001"));
     expect(item1?.locales.ja).toBeUndefined(); // index.md is canonical, not a locale file
     expect(item1?.locales.zh).toBeTruthy();

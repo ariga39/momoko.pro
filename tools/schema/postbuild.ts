@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   isRealTranslation,
   isRetracted,
-  loadNews,
+  isCurrentReviewed,
   loadPublishedNews,
   type NewsItem,
 } from "../../src/lib/content.ts";
@@ -22,6 +22,7 @@ type Lang = (typeof LOCALES)[number];
 
 export function buildManifest(items: NewsItem[]) {
   const entries = items
+    .filter(isCurrentReviewed)
     .map((item) => {
       const c = item.canonical;
       const published = c.reviewStatus === "reviewed" && !isRetracted(item);
@@ -59,7 +60,7 @@ export function buildManifest(items: NewsItem[]) {
 }
 
 async function main() {
-  const items = loadNews();
+  const items = loadPublishedNews();
   const published = items.map((it) => it.canonical.publishedAt).filter(Boolean).sort();
   const generatedAt = published.length
     ? published[published.length - 1]
