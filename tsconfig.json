@@ -1,11 +1,21 @@
 {
-  "extends": "astro/tsconfigs/strict",
+  "extends": "astro/tsconfigs/strictest",
   "compilerOptions": {
+    "strict": true,
     "types": ["node"],
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*.ts", "src/**/*.astro", "tests/**/*.ts", "*.config.mts"],
-  "exclude": ["tools/**/*.mjs"]
+  "include": [
+    ".astro/types.d.ts",
+    "src/**/*.ts",
+    "src/**/*.astro",
+    "tools/**/*.ts",
+    "tests/**/*.ts",
+    "e2e/**/*.ts",
+    "*.config.mts",
+    "*.config.ts"
+  ],
+  "exclude": ["dist", "node_modules", "tools/**/*.mjs"]
 }

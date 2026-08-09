@@ -63,7 +63,7 @@ function parseCanonical(filePath: string): { meta: ContentMeta; body: string } {
 
 /** Map frontmatter snake_case keys to the camelCase ContentMeta shape. */
 function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
-  return {
+  const meta: ContentMeta = {
     schemaVersion: String(d.schema_version ?? ""),
     kind: String(d.kind ?? ""),
     sourceId: String(d.source_id ?? ""),
@@ -71,7 +71,6 @@ function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
     publishedAt: String(d.published_at ?? ""),
     contentHash: String(d.content_hash ?? ""),
     riskTier: String(d.risk_tier ?? ""),
-    aiGenerated: d.ai_generated as boolean | undefined,
     modelVersion: (d.model_version as string | null | undefined) ?? null,
     lang: (d.lang as ContentMeta["lang"]) ?? "ja",
     title: String(d.title ?? ""),
@@ -81,6 +80,8 @@ function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
     reviewedBy: (d.reviewed_by as string | null | undefined) ?? null,
     reviewedAt: (d.reviewed_at as string | null | undefined) ?? null,
   };
+  if (typeof d.ai_generated === "boolean") meta.aiGenerated = d.ai_generated;
+  return meta;
 }
 
 function parseLocale(filePath: string): LocaleFile {
