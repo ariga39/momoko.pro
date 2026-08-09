@@ -9,9 +9,11 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: "pnpm exec astro preview --port 4321",
+    // 自包含门：从空 dist 完成静态 build + postbuild 再 preview，绝不依赖工作区残留 dist。
+    command:
+      "rm -rf dist .astro && pnpm build && pnpm build:post && pnpm exec astro preview --port 4321",
     port: 4321,
-    reuseExistingServer: true,
-    timeout: 60_000,
+    reuseExistingServer: false,
+    timeout: 120_000,
   },
 });
