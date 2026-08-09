@@ -1,0 +1,40 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { ml, type Locale } from "../lib/messages.ts";
+
+interface Props {
+  current: Locale;
+}
+
+const { current } = Astro.props;
+const t = ml(current);
+const langs = [
+  { code: "zh", label: t.langZh() },
+  { code: "ja", label: t.langJa() },
+  { code: "en", label: t.langEn() },
+];
+---
+
+<nav aria-label={t.navLanguage()}>
+  <ul class="flex gap-2 text-sm">
+    {langs.map((l) => (
+      <li
+        class={
+          l.code !== "zh"
+            ? "before:content-['·'] before:mr-2 before:text-text-secondary"
+            : ""
+        }
+      >
+        {l.code === current ? (
+          <span aria-current="true" lang={l.code}>
+            {l.label}
+          </span>
+        ) : (
+          <a href={getRelativeLocaleUrl(l.code as Locale, "/")} hreflang={l.code} lang={l.code} class="text-link">
+            {l.label}
+          </a>
+        )}
+      </li>
+    ))}
+  </ul>
+</nav>

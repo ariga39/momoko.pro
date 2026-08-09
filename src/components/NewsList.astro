@@ -1,0 +1,25 @@
+---
+import { loadNews, hasTranslation } from "../lib/content.ts";
+import { ml, type Locale } from "../lib/messages.ts";
+import NewsCard from "./NewsCard.astro";
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = ml(lang);
+const items = loadNews().sort((a, b) =>
+  b.canonical.publishedAt.localeCompare(a.canonical.publishedAt),
+);
+---
+
+{items.length === 0 ? (
+  <p>{t.newsEmpty()}</p>
+) : (
+  <ul class="grid gap-6">
+    {items.map((item) => (
+      <NewsCard item={item} lang={lang} translated={hasTranslation(item, lang)} />
+    ))}
+  </ul>
+)}
