@@ -1,0 +1,28 @@
+{
+  "schema_version": "1",
+  "source_id": "S9",
+  "page_url": "https://synthetic.example.com/news/announce-2026",
+  "source_lang": "en",
+  "extracted": {
+    "id": "announce-2026",
+    "canonical": "https://synthetic.example.com/news/announce-2026",
+    "heading": "Synthetic Second Item — No New Code",
+    "posted": "2026/06/01 09:30",
+    "language": "en",
+    "status": "publish"
+  },
+  "fact_note": "Synthetic second item proves the same generic materializer handles different URL/title/date/language without any code change.",
+  "locale_drafts": [
+    { "lang": "zh", "body": "合成第二项：同一通用入口处理不同 URL/标题/日期/语言，无需改动代码。", "reason": "synthetic zh draft" },
+    { "lang": "ja", "body": "合成2番目の項目：同じ汎用エントリが別のURL・タイトル・日付・言語を扱え、コード変更不要。", "reason": "synthetic ja draft" }
+  ],
+  "provenance": {
+    "fetched_at": "2026-08-11T00:00:00Z",
+    "http_status": 200,
+    "bytes": 1024,
+    "content_type": "text/html"
+  },
+  "model": {
+    "model_version": "synthetic-model@1"
+  }
+}

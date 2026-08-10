@@ -12,6 +12,8 @@ import discoveryRecordSchema from "../../schemas/discovery-record.schema.json" w
 import localeSchema from "../../schemas/locale.schema.json" with { type: "json" };
 import manifestSchema from "../../schemas/manifest.schema.json" with { type: "json" };
 import retractionSchema from "../../schemas/retraction.schema.json" with { type: "json" };
+import singlePageItemSchema from "../../schemas/single-page-item.schema.json" with { type: "json" };
+import singlePageProfileSchema from "../../schemas/single-page-profile.schema.json" with { type: "json" };
 import sourceSchema from "../../schemas/source.schema.json" with { type: "json" };
 import visualCatalogSchema from "../../schemas/visual-catalog.schema.json" with { type: "json" };
 
@@ -36,6 +38,8 @@ const schemaDocs = new Map<string, Record<string, unknown>>([
   ["locale.schema.json", localeSchema as Record<string, unknown>],
   ["manifest.schema.json", manifestSchema as Record<string, unknown>],
   ["retraction.schema.json", retractionSchema as Record<string, unknown>],
+  ["single-page-item.schema.json", singlePageItemSchema as Record<string, unknown>],
+  ["single-page-profile.schema.json", singlePageProfileSchema as Record<string, unknown>],
   ["source.schema.json", sourceSchema as Record<string, unknown>],
   ["visual-catalog.schema.json", visualCatalogSchema as Record<string, unknown>],
 ]);
@@ -212,10 +216,12 @@ export function collectContentFiles(contentRoot = path.join(REPO_ROOT, "content"
   return out;
 }
 
-/** index.md → content.schema.json; content.<lang>.md → locale.schema.json. */
+/** is_canonical=true → content.schema.json; is_canonical=false → locale.schema.json. */
 export function schemaForContentFile(file: FrontmatterDoc): string {
-  const base = path.basename(file.path);
-  return /^content\.(ja|zh|en)\.md$/.test(base) ? "locale.schema.json" : "content.schema.json";
+  const data = file.data as Record<string, unknown>;
+  if (data.is_canonical === true) return "content.schema.json";
+  if (data.is_canonical === false) return "locale.schema.json";
+  throw new Error(`content file must declare is_canonical (true|false): ${file.path}`);
 }
 
 export function validateContentFile(file: FrontmatterDoc): { valid: boolean; errors?: string } {

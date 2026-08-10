@@ -40,10 +40,14 @@ describe("versioned content package boundary", () => {
     expect(loadPublishedNews()).toHaveLength(1);
   });
 
-  it("validates the checked-in production package as an empty versioned package", () => {
+  it("production package stays public-safe: draft S6 content is filtered from published output", () => {
     delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
     delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
+    // The checked-in production package now carries the first real content item
+    // (S6, draft). It must not leak into public loaders: loadNews filters
+    // current-reviewed only for production, so the draft is excluded.
     expect(loadNews()).toEqual([]);
+    expect(loadPublishedNews()).toEqual([]);
   });
 
   it("rejects an override without explicit mode", () => {

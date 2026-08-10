@@ -150,7 +150,7 @@ export function visualCatalogChars(locale: string): Set<string> {
   return chars;
 }
 
-/** Locate every content package news index.md under the test fixture root. */
+/** Locate every canonical content.<lang>.md (is_canonical=true) under the test fixture root. */
 function walkContentItems(): string[] {
   const base = path.resolve(__dirname, "../../tests/fixtures/content-package");
   const out: string[] = [];
@@ -158,8 +158,17 @@ function walkContentItems(): string[] {
   const visit = (p: string): void => {
     for (const entry of fs.readdirSync(p, { withFileTypes: true })) {
       const full = path.join(p, entry.name);
-      if (entry.isDirectory()) visit(full);
-      else if (entry.name === "index.md") out.push(full);
+      if (entry.isDirectory()) {
+        visit(full);
+        continue;
+      }
+      if (!/^content\.(ja|zh|en)\.md$/.test(entry.name)) continue;
+      try {
+        const parsed = matter(fs.readFileSync(full, "utf8"));
+        if ((parsed.data as Record<string, unknown>).is_canonical === true) out.push(full);
+      } catch {
+        /* best effort */
+      }
     }
   };
   visit(base);

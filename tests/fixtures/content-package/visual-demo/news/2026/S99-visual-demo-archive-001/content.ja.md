@@ -1,7 +1,8 @@
 ---
 schema_version: "1"
-content_path: "content/news/2026/S99-visual-demo-archive-001/index.md"
+content_path: "content/news/2026/S99-visual-demo-archive-001/content.en.md"
 lang: ja
+is_canonical: false
 source_content_hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 content_hash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 review_status: reviewed

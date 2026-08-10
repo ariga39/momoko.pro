@@ -85,7 +85,7 @@ describe("Phase 4A visual package boundary", () => {
     fs.writeFileSync(path.join(callerRoot, "visual-catalog.json"), "{}");
     try {
       const readWithExtraArgument = readContentPackageManifest as unknown as (root: string) => unknown;
-      expect(readWithExtraArgument(callerRoot)).toMatchObject({ status: "empty" });
+      expect(readWithExtraArgument(callerRoot)).toMatchObject({ status: "ready" });
     } finally {
       fs.rmSync(callerRoot, { recursive: true, force: true });
     }

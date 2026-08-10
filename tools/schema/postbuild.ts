@@ -48,7 +48,7 @@ export function buildManifest(items: NewsItem[]) {
         };
       }
       return {
-        path: `content/news/${item.slug}/index.md`,
+        path: `content/news/${item.slug}/content.${c.lang}.md`,
         kind: c.kind,
         source_id: c.sourceId,
         source_item_id: c.sourceItemId,

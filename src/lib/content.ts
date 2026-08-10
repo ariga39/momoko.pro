@@ -56,10 +56,6 @@ export function readEmbeddedPackageFile(relativePath: string): string {
   return embeddedFile(relativePath);
 }
 
-function embeddedHasFile(relativePath: string): boolean {
-  return Object.prototype.hasOwnProperty.call(embeddedPackage.files, relativePath);
-}
-
 function assertEmbeddedBinding(): void {
   const raw = runtimeEnv(PACKAGE_ROOT_ENV);
   const mode = runtimeEnv(PACKAGE_MODE_ENV);
@@ -327,7 +323,7 @@ function loadEmbeddedRetractions(): Set<string> {
   return out;
 }
 
-/** Canonical index.md (content.schema.json): the source-language facts. */
+/** content.<lang>.md (content.schema.json): the source-language canonical facts. */
 export interface ContentMeta {
   schemaVersion: string;
   kind: string;
@@ -339,6 +335,7 @@ export interface ContentMeta {
   aiGenerated?: boolean;
   modelVersion?: string | null;
   lang: "ja" | "zh" | "en";
+  isCanonical: true;
   title: string;
   sourceUrl: string;
   originalTitle?: string | null;
@@ -352,6 +349,7 @@ export interface LocaleMeta {
   schemaVersion: string;
   contentPath: string;
   lang: "ja" | "zh" | "en";
+  isCanonical: false;
   sourceContentHash: string;
   contentHash: string;
   reviewStatus: "draft" | "reviewed" | "stale" | "retracted";
@@ -374,25 +372,9 @@ export interface NewsItem {
   locales: Partial<Record<"ja" | "zh" | "en", LocaleFile>>;
 }
 
-const LOCALE_LANGS = ["ja", "zh", "en"] as const;
-type LocaleLang = (typeof LOCALE_LANGS)[number];
+type LocaleLang = "ja" | "zh" | "en";
 
-function parseCanonicalText(filePath: string, text: string): { meta: ContentMeta; body: string } {
-  const { data, content } = matter(text);
-  const record = { ...(data as Record<string, unknown>), body: content.trim() };
-  const checked = validateFile("content.schema.json", record);
-  if (!checked.valid) {
-    throw new ContentPackageError(
-      "content_package_content_invalid",
-      `${path.basename(filePath)} failed content schema validation: ${checked.errors ?? "invalid"}`,
-    );
-  }
-  return { meta: normalizeContentMeta(record), body: content.trim() };
-}
-
-function parseCanonical(filePath: string): { meta: ContentMeta; body: string } {
-  return parseCanonicalText(filePath, fs.readFileSync(filePath, "utf-8"));
-}
+const CONTENT_FILE_RE = /^content\.(ja|zh|en)\.md$/;
 
 /** Map frontmatter snake_case keys to the camelCase ContentMeta shape. */
 function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
@@ -406,6 +388,7 @@ function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
     riskTier: String(d.risk_tier ?? ""),
     modelVersion: (d.model_version as string | null | undefined) ?? null,
     lang: (d.lang as ContentMeta["lang"]) ?? "ja",
+    isCanonical: true,
     title: String(d.title ?? ""),
     sourceUrl: String(d.source_url ?? ""),
     originalTitle: (d.original_title as string | null | undefined) ?? null,
@@ -417,69 +400,148 @@ function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
   return meta;
 }
 
-function parseLocaleText(filePath: string, text: string): LocaleFile {
-  const { data, content } = matter(text);
-  const lang = path.basename(filePath).match(/^content\.(ja|zh|en)\.md$/)?.[1];
-  if (!lang) throw new Error(`cannot infer lang from ${filePath}`);
-  const d = data as Record<string, unknown>;
-  const record = { ...d, body: content.trim() };
-  const checked = validateFile("locale.schema.json", record);
-  if (!checked.valid) {
+/**
+ * Bundle-level canonical discovery. Given the directory of one news bundle,
+ * enumerate every content.<lang>.md file, verify filename lang === frontmatter
+ * lang, require exactly one is_canonical=true (the canonical) and the rest
+ * false, and bind every locale's content_path to that exact canonical file.
+ * Any legacy index.md, unknown content.xx.md, 0/2 canonical, cross-bundle
+ * reference, or path escape fails closed.
+ */
+function loadBundleItem(contentRoot: string, dir: string, readFile: (rel: string) => string): NewsItem {
+  const names = listBundleFileNames(dir);
+  const legacy = names.find((n) => n === "index.md");
+  if (legacy) {
     throw new ContentPackageError(
-      "content_package_locale_invalid",
-      `${path.basename(filePath)} failed locale schema validation: ${checked.errors ?? "invalid"}`,
+      "content_package_legacy_index",
+      `legacy index.md is not allowed (use content.<lang>.md): ${path.relative(contentRoot, path.join(dir, legacy))}`,
     );
   }
-  return {
-    lang: lang as LocaleLang,
-    meta: {
-      schemaVersion: String(d.schema_version ?? ""),
-      contentPath: String(d.content_path ?? ""),
-      lang: lang as LocaleLang,
-      sourceContentHash: String(d.source_content_hash ?? ""),
-      contentHash: String(d.content_hash ?? ""),
-      reviewStatus: d.review_status as LocaleMeta["reviewStatus"],
-      reviewedBy: (d.reviewed_by as string | null | undefined) ?? null,
-      reviewedAt: (d.reviewed_at as string | null | undefined) ?? null,
-    },
-    body: content.trim(),
-  };
-}
+  const contentFiles = names.filter((n) => CONTENT_FILE_RE.test(n));
+  const unknown = names.filter(
+    (n) => n !== "editorial-history.json" && !CONTENT_FILE_RE.test(n) && n !== "index.md",
+  );
+  if (unknown.length > 0) {
+    throw new ContentPackageError(
+      "content_package_entry_unsupported",
+      `unsupported news entry: ${path.relative(contentRoot, path.join(dir, unknown[0]!))}`,
+    );
+  }
+  if (contentFiles.length === 0) {
+    throw new ContentPackageError(
+      "content_package_bundle_no_content",
+      `news bundle has no content.<lang>.md file: ${path.relative(contentRoot, dir)}`,
+    );
+  }
 
-function parseLocale(filePath: string): LocaleFile {
-  return parseLocaleText(filePath, fs.readFileSync(filePath, "utf-8"));
-}
+  const bundleRel = path.relative(contentRoot, dir).split(path.sep).join("/");
+  // content_path in frontmatter is repo-canonical: content/<bundleRel>/content.<lang>.md
+  const canonicalRepoPrefix = `content/${bundleRel}`;
+  let canonical: { meta: ContentMeta; body: string } | null = null;
+  const locales: Partial<Record<LocaleLang, LocaleFile>> = {};
 
-function loadNewsItem(contentRoot: string, dir: string): NewsItem {
-  const { meta, body } = parseCanonical(path.join(dir, "index.md"));
-  const locales: NewsItem["locales"] = {};
-  for (const lang of LOCALE_LANGS) {
-    const file = path.join(dir, `content.${lang}.md`);
-    if (fs.existsSync(file)) {
-      if (fs.lstatSync(file).isSymbolicLink()) {
-        throw new ContentPackageError("content_package_symlink", `symlinked locale file: ${path.basename(file)}`);
+  for (const name of contentFiles) {
+    const lang = name.match(/^content\.(ja|zh|en)\.md$/)![1] as LocaleLang;
+    const rel = path.posix.join(bundleRel, name);
+    const { data, content } = matter(readFile(rel));
+    const d = data as Record<string, unknown>;
+    if (d.lang !== lang) {
+      throw new ContentPackageError(
+        "content_package_lang_mismatch",
+        `filename ${name} lang does not match frontmatter lang: ${rel}`,
+      );
+    }
+    const record = { ...d, body: content.trim() };
+    if (d.is_canonical === true) {
+      if (canonical) {
+        throw new ContentPackageError(
+          "content_package_multi_canonical",
+          `multiple canonical files in bundle: ${path.relative(contentRoot, dir)}`,
+        );
       }
-      locales[lang] = parseLocale(file);
+      const checked = validateFile("content.schema.json", record);
+      if (!checked.valid) {
+        throw new ContentPackageError(
+          "content_package_content_invalid",
+          `${rel} failed content schema validation: ${checked.errors ?? "invalid"}`,
+        );
+      }
+      canonical = { meta: normalizeContentMeta(record), body: content.trim() };
+    } else {
+      if (d.is_canonical !== false) {
+        throw new ContentPackageError(
+          "content_package_canonical_invalid",
+          `${rel} is_canonical must be true or false`,
+        );
+      }
+      const checked = validateFile("locale.schema.json", record);
+      if (!checked.valid) {
+        throw new ContentPackageError(
+          "content_package_locale_invalid",
+          `${rel} failed locale schema validation: ${checked.errors ?? "invalid"}`,
+        );
+      }
+      const meta: LocaleMeta = {
+        schemaVersion: String(d.schema_version ?? ""),
+        contentPath: String(d.content_path ?? ""),
+        lang,
+        isCanonical: false,
+        sourceContentHash: String(d.source_content_hash ?? ""),
+        contentHash: String(d.content_hash ?? ""),
+        reviewStatus: d.review_status as LocaleMeta["reviewStatus"],
+        reviewedBy: (d.reviewed_by as string | null | undefined) ?? null,
+        reviewedAt: (d.reviewed_at as string | null | undefined) ?? null,
+      };
+      locales[lang] = { lang, meta, body: content.trim() };
     }
   }
+
+  if (!canonical) {
+    throw new ContentPackageError(
+      "content_package_no_canonical",
+      `news bundle has no canonical content.<lang>.md (is_canonical=true): ${path.relative(contentRoot, dir)}`,
+    );
+  }
+  const canonicalRel = path.posix.join(canonicalRepoPrefix, `content.${canonical.meta.lang}.md`);
+  for (const lang of Object.keys(locales) as LocaleLang[]) {
+    const loc = locales[lang]!;
+    if (loc.meta.contentPath !== canonicalRel) {
+      throw new ContentPackageError(
+        "content_package_locale_path_mismatch",
+        `${lang} content_path must exactly point to the bundle canonical file (${canonicalRel}), got ${loc.meta.contentPath}`,
+      );
+    }
+  }
+
   const rel = path.relative(path.join(contentRoot, "news"), dir);
   return {
     slug: rel,
-    canonical: meta,
-    canonicalBody: body,
+    canonical: canonical.meta,
+    canonicalBody: canonical.body,
     locales,
   };
 }
 
-function loadEmbeddedNewsItem(dir: string): NewsItem {
-  const canonicalPath = `${dir}/index.md`;
-  const { meta, body } = parseCanonicalText(canonicalPath, embeddedFile(canonicalPath));
-  const locales: NewsItem["locales"] = {};
-  for (const lang of LOCALE_LANGS) {
-    const file = `${dir}/content.${lang}.md`;
-    if (embeddedHasFile(file)) locales[lang] = parseLocaleText(file, embeddedFile(file));
+/** List the entry names (regular files/dirs) in one bundle directory. */
+function listBundleFileNames(dir: string): string[] {
+  const files = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of files) {
+    if (entry.isSymbolicLink()) {
+      throw new ContentPackageError("content_package_symlink", `symlink in content package: ${entry.name}`);
+    }
   }
-  return { slug: dir.slice("news/".length), canonical: meta, canonicalBody: body, locales };
+  return files.map((entry) => entry.name);
+}
+
+function loadNewsItem(contentRoot: string, dir: string): NewsItem {
+  const readFile = (rel: string) => fs.readFileSync(path.join(contentRoot, rel), "utf8");
+  return loadBundleItem(contentRoot, dir, readFile);
+}
+
+function loadEmbeddedNewsItem(dir: string): NewsItem {
+  const contentRoot = "content";
+  const readFile = (rel: string) => embeddedFile(rel.replaceAll("\\", "/"));
+  return loadBundleItem(contentRoot, dir, readFile);
 }
 
 /** Scan content/news/** and load every canonical item. */
@@ -492,6 +554,7 @@ export function loadNews(): NewsItem[] {
   loadRetractions(contentRoot);
   const newsRoot = path.join(contentRoot, "news");
   const out: NewsItem[] = [];
+  const bundleDirs = new Set<string>();
   if (!fs.existsSync(newsRoot)) {
     if (manifest.status === "ready") {
       throw new ContentPackageError("content_package_ready_without_news", "ready content package has no news directory");
@@ -511,14 +574,26 @@ export function loadNews(): NewsItem[] {
         walk(full);
       } else if (entry.isFile()) {
         if (entry.name === "index.md") {
-          out.push(loadNewsItem(contentRoot, dir));
-        } else if (!/^content\.(ja|zh|en)\.md$/.test(entry.name) && entry.name !== "editorial-history.json") {
-          throw new ContentPackageError("content_package_entry_unsupported", `unsupported news entry: ${entry.name}`);
+          throw new ContentPackageError(
+            "content_package_legacy_index",
+            `legacy index.md is not allowed (use content.<lang>.md): ${path.relative(contentRoot, full)}`,
+          );
+        }
+        if (CONTENT_FILE_RE.test(entry.name)) {
+          bundleDirs.add(dir);
+        } else if (entry.name !== "editorial-history.json") {
+          throw new ContentPackageError("content_package_entry_unsupported", `unsupported news entry: ${path.relative(contentRoot, full)}`);
         }
       }
     }
   };
   walk(newsRoot);
+  const seen = new Set<string>();
+  for (const dir of bundleDirs) {
+    if (seen.has(dir)) continue;
+    seen.add(dir);
+    out.push(loadNewsItem(contentRoot, dir));
+  }
   if (manifest.status === "empty" && out.length > 0) {
     throw new ContentPackageError("content_package_empty_with_content", "empty content package contains canonical content");
   }
@@ -539,8 +614,15 @@ function loadEmbeddedNews(): NewsItem[] {
   loadEmbeddedRetractions();
   const dirs = new Set<string>();
   for (const file of Object.keys(embeddedPackage.files)) {
-    if (file.startsWith("news/") && file.endsWith("/index.md")) {
-      dirs.add(file.slice(0, -"/index.md".length));
+    if (!file.startsWith("news/")) continue;
+    if (file.endsWith("/index.md")) {
+      throw new ContentPackageError(
+        "content_package_legacy_index",
+        `legacy index.md is not allowed (use content.<lang>.md): ${file}`,
+      );
+    }
+    if (CONTENT_FILE_RE.test(file.slice(file.lastIndexOf("/") + 1))) {
+      dirs.add(file.slice(0, file.lastIndexOf("/")));
     }
   }
   const out = [...dirs].sort().map((dir) => loadEmbeddedNewsItem(dir));
@@ -592,12 +674,12 @@ export function isRealTranslation(item: NewsItem, lang: LocaleLang): boolean {
 
 /** True when this item has an active retraction record. */
 export function isRetracted(item: NewsItem): boolean {
-  return item.canonical.reviewStatus === "retracted" || retractedPaths().has(`content/news/${item.slug}/index.md`);
+  return item.canonical.reviewStatus === "retracted" || retractedPaths().has(`content/news/${item.slug}/content.${item.canonical.lang}.md`);
 }
 
 /**
  * Resolve a display locale: strict real translation, else fall back to the
- * source language (index.md). `translated` distinguishes fallback rendering.
+ * source language (content.<lang>.md). `translated` distinguishes fallback rendering.
  */
 export function resolveLocale(
   item: NewsItem,

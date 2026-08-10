@@ -181,6 +181,7 @@ describe("schemas/content.schema.json — reviewed 条件约束", () => {
       content_hash: "sha256:" + "a".repeat(64),
       risk_tier: "T1",
       lang: "ja",
+      is_canonical: true,
       title: "t",
       source_url: "https://example.com/1",
       body: "b",
@@ -206,6 +207,7 @@ describe("schemas/content.schema.json — reviewed 条件约束", () => {
       content_hash: "sha256:" + "a".repeat(64),
       risk_tier: "T1",
       lang: "ja",
+      is_canonical: true,
       title: "t",
       source_url: "https://example.com/1",
       body: "b",
@@ -220,7 +222,7 @@ describe("content loader — 三语与缺译回退", () => {
     const items = loadNews();
     expect(items.length).toBe(3);
     const item1 = items.find((i) => i.slug.includes("001"));
-    expect(item1?.locales.ja).toBeUndefined(); // index.md is canonical, not a locale file
+    expect(item1?.locales.ja).toBeUndefined(); // content.ja.md is canonical, not a locale file
     expect(item1?.locales.zh).toBeTruthy();
     expect(item1?.locales.en).toBeTruthy();
     expect(item1?.canonical.title).toBeTruthy();

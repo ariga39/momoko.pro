@@ -427,7 +427,7 @@ export function atomicWriteStaged(relPath: string, content: string): string {
   return out;
 }
 
-/** Frontmatter for a PR-ready draft content file (canonical index.md). */
+/** Frontmatter for a PR-ready draft content file (canonical content.<lang>.md). */
 export function draftFrontmatter(
   item: DiscoveryItem,
   extra: Record<string, unknown> = {},

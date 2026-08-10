@@ -123,8 +123,8 @@ describe("Phase 3A source-policy no-fetch decision", () => {
     expect(projection.status).toBe("draft");
     expect(projection.indexable).toBe(false);
     expect(projection.canonical.indexable).toBe(false);
-    expect(projection.locales.zh.indexable).toBe(false);
-    expect(projection.locales.en.indexable).toBe(false);
+    expect(projection.locales.zh!.indexable).toBe(false);
+    expect(projection.locales.en!.indexable).toBe(false);
     expect(outputSnapshot()).toEqual(before);
   });
 });

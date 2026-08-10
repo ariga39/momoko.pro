@@ -1,7 +1,7 @@
 {
   "schema_version": "1",
   "id": "synthetic-003-retraction",
-  "content_path": "content/news/2026/S1-synth-2026-08-08-003/index.md",
+  "content_path": "content/news/2026/S1-synth-2026-08-08-003/content.ja.md",
   "status": "active",
   "reason": "synthetic retraction route regression",
   "requested_at": "2026-08-09T10:33:00Z",

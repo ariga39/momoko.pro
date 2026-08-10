@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/single-page-item.schema.json",
+  "title": "official-single-page item input（可审计结构化数据；LLM/agent 在外部生成，repo 只验证/规范化/去重/写 draft）",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_id", "page_url", "source_lang", "extracted", "fact_note", "locale_drafts", "provenance", "model"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "source_id": { "$ref": "source.schema.json#/$defs/source_id" },
+    "page_url": { "type": "string", "format": "uri" },
+    "source_lang": { "enum": ["ja", "zh", "en"] },
+    "extracted": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-zA-Z0-9_.-]+$" }
+    },
+    "fact_note": { "type": "string", "minLength": 1 },
+    "locale_drafts": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lang", "body"],
+        "properties": {
+          "lang": { "enum": ["ja", "zh", "en"] },
+          "body": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fetched_at", "http_status", "bytes", "content_type"],
+      "properties": {
+        "fetched_at": { "type": "string", "format": "date-time" },
+        "http_status": { "const": 200 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "content_type": { "type": "string" }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_version"],
+      "properties": {
+        "model_version": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

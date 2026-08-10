@@ -1,0 +1,28 @@
+{
+  "profiles": [
+    {
+      "schema_version": "1",
+      "source_id": "S9",
+      "canonical_url": "https://synthetic.example.com/news/announce-2026",
+      "origin": "https://synthetic.example.com",
+      "automated_fetch": false,
+      "limits": {
+        "max_bytes": 2048,
+        "deadline_ms": 15000,
+        "max_redirects": 2,
+        "allowed_content_types": ["text/html"]
+      },
+      "selector": {
+        "root_path": ["page", "data"],
+        "fields": {
+          "id": { "type": "string", "map_to": "source_item_id", "const": "announce-2026" },
+          "canonical": { "type": "string", "map_to": "source_url", "const": "https://synthetic.example.com/news/announce-2026" },
+          "heading": { "type": "string", "map_to": "title", "min_length": 1 },
+          "posted": { "type": "string", "map_to": "published_at", "value_format": "dspdate_iso_jst" },
+          "language": { "type": "string", "map_to": "lang", "const": "en" },
+          "status": { "type": "string", "const": "publish" }
+        }
+      }
+    }
+  ]
+}
