@@ -9,6 +9,9 @@ export type Locale = (typeof LOCALES)[number];
 
 export interface AlternateEntry {
   hreflang: string;
+  /** full absolute href (resolved against the page URL); NEVER flattened before origin checks */
+  url: string;
+  /** pathname of url — only safe to use after the caller validated url's origin */
   path: string;
 }
 
@@ -31,14 +34,15 @@ export function newsIdentitySuffix(pathname: string): string {
   return match?.[1] ?? "";
 }
 
-/** parse alternate <link> entries from html: [{hreflang, path}] (x-default excluded) */
+/** parse alternate <link> entries from html: [{hreflang, url, path}] (x-default excluded) */
 export function parseAlternates(html: string, baseUrl: URL): AlternateEntry[] {
   const out: AlternateEntry[] = [];
   for (const match of html.matchAll(/<link[^>]+rel="alternate"[^>]+hreflang="([^"]+)"[^>]*href="([^"]+)"[^>]*>/gu)) {
     const hreflang = match[1] ?? "";
     const rawHref = match[2] ?? "";
     if (hreflang === "x-default") continue;
-    out.push({ hreflang, path: new URL(decodeEntities(rawHref), baseUrl).pathname });
+    const url = new URL(decodeEntities(rawHref), baseUrl).href;
+    out.push({ hreflang, url, path: new URL(url).pathname });
   }
   return out;
 }
@@ -46,14 +50,25 @@ export function parseAlternates(html: string, baseUrl: URL): AlternateEntry[] {
 /**
  * Per-page alternate contract:
  *   - at least one alternate
+ *   - every alternate href stays on an allowed origin (checked on the FULL
+ *     URL before any path use — off-domain links must fail closed, never be
+ *     flattened into a same-site-looking path)
  *   - every hreflang in {zh,ja,en}
  *   - hreflang labels unique
  *   - hreflang label matches the URL's locale prefix (mislabeled => throw)
  */
-export function validateAlternates(ownerPath: string, alternates: AlternateEntry[]): void {
+export function validateAlternates(
+  ownerPath: string,
+  alternates: AlternateEntry[],
+  allowedOrigins: ReadonlySet<string>,
+): void {
   if (alternates.length === 0) throw new Error(`${ownerPath}: no hreflang alternates`);
   const seen = new Set<string>();
   for (const alt of alternates) {
+    const altOrigin = new URL(alt.url).origin;
+    if (!allowedOrigins.has(altOrigin)) {
+      throw new Error(`${ownerPath}: alternate hreflang ${alt.hreflang} leaves allowed origins -> ${altOrigin}`);
+    }
     if (!(LOCALES as readonly string[]).includes(alt.hreflang)) {
       throw new Error(`${ownerPath}: hreflang ${alt.hreflang} not in zh/ja/en`);
     }
@@ -67,19 +82,32 @@ export function validateAlternates(ownerPath: string, alternates: AlternateEntry
 
 /**
  * Detail content-identity closure:
- *   - canonical and every alternate keep the same year/slug identity suffix
+ *   - canonical (FULL URL) must stay on an allowed origin and keep the same
+ *     year/slug identity suffix as the owner page
+ *   - every alternate keeps the same identity suffix and stays on an allowed
+ *     origin
  *   - returns the member path set (canonical + alternates) for reciprocal checks
  */
 export function assertIdentityClosure(
   ownerPath: string,
-  canonicalPath: string,
+  canonicalUrl: string,
   alternates: AlternateEntry[],
+  allowedOrigins: ReadonlySet<string>,
 ): Set<string> {
-  const identity = newsIdentitySuffix(ownerPath);
-  if (newsIdentitySuffix(canonicalPath) !== identity) {
-    throw new Error(`${ownerPath}: canonical identity mismatch ${canonicalPath}`);
+  const canonical = new URL(canonicalUrl);
+  if (!allowedOrigins.has(canonical.origin)) {
+    throw new Error(`${ownerPath}: canonical leaves allowed origins -> ${canonical.origin}`);
   }
-  const memberPaths = new Set([canonicalPath, ...alternates.map((alt) => alt.path)]);
+  const identity = newsIdentitySuffix(ownerPath);
+  if (newsIdentitySuffix(canonical.pathname) !== identity) {
+    throw new Error(`${ownerPath}: canonical identity mismatch ${canonicalUrl}`);
+  }
+  const memberPaths = new Set([canonical.pathname, ...alternates.map((alt) => alt.path)]);
+  for (const alt of alternates) {
+    if (!allowedOrigins.has(new URL(alt.url).origin)) {
+      throw new Error(`${ownerPath}: identity alternate leaves allowed origins -> ${new URL(alt.url).origin}`);
+    }
+  }
   for (const member of memberPaths) {
     if (newsIdentitySuffix(member) !== identity) {
       throw new Error(`${ownerPath}: identity member mismatch ${member}`);

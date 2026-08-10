@@ -142,7 +142,7 @@ async function crawlSite(request: APIRequestContext, failOnBadLink: boolean): Pr
     result.canonicalChecks += 1;
 
     const alternates = parseAlternates(html, finalUrl);
-    validateAlternates(finalPath, alternates);
+    validateAlternates(finalPath, alternates, SITE_ORIGINS);
     const seenHreflangs = new Set(alternates.map((alt) => alt.hreflang));
     for (const alt of alternates) {
       const altRes = await request.get(alt.path, { maxRedirects: 3 });
@@ -152,20 +152,21 @@ async function crawlSite(request: APIRequestContext, failOnBadLink: boolean): Pr
 
     if (isNewsDetailPath(finalPath)) {
       // Content identity closure: canonical + alternates keep the same
-      // year/slug suffix; every member runs the SAME label/locale/identity
-      // validation as the first page, and reciprocally emits the same set.
-      const memberPaths = assertIdentityClosure(finalPath, canonicalUrl.pathname, alternates);
+      // year/slug suffix and stay on allowed origins; every member runs the
+      // SAME label/locale/identity validation as the first page, and
+      // reciprocally emits the same set.
+      const memberPaths = assertIdentityClosure(finalPath, canonicalUrl.href, alternates, SITE_ORIGINS);
       for (const member of memberPaths) {
         const memberRes = await request.get(member, { maxRedirects: 3 });
         if (!memberRes.ok()) throw new Error(`crawl: identity member ${member} -> ${memberRes.status()}`);
         const memberHtml = await memberRes.text();
         const memberAlternates = parseAlternates(memberHtml, finalUrl);
-        validateAlternates(member, memberAlternates);
+        validateAlternates(member, memberAlternates, SITE_ORIGINS);
         const memberCanonical = memberHtml.match(/<link[^>]+rel="canonical"[^>]*>/u)?.[0];
         const memberCanonicalHref = memberCanonical?.match(/href="([^"]+)"/u)?.[1];
         if (!memberCanonicalHref) throw new Error(`crawl: ${member} has no canonical`);
-        const memberCanonicalPath = new URL(decodeEntities(memberCanonicalHref), finalUrl).pathname;
-        assertIdentityClosure(member, memberCanonicalPath, memberAlternates);
+        const memberCanonicalUrl = new URL(decodeEntities(memberCanonicalHref), finalUrl);
+        assertIdentityClosure(member, memberCanonicalUrl.href, memberAlternates, SITE_ORIGINS);
         const memberSet = new Set(memberAlternates.map((alt) => alt.path));
         assertReciprocal(finalPath, memberPaths, memberSet);
       }
