@@ -203,14 +203,56 @@ export function newsChars(locale: string): Set<string> {
 }
 
 /**
+ * Characters rendered by the site's static templates (Astro components and
+ * pages) on every locale: suit symbols, arrows, middots, and any literal
+ * non-ASCII text in markup. Scanning the raw source is deterministic and
+ * conservative (may over-include code strings, which is safe for coverage).
+ */
+export function templateChars(): Set<string> {
+  const chars = new Set<string>();
+  const roots = [
+    path.resolve(__dirname, "../../src/components"),
+    path.resolve(__dirname, "../../src/pages"),
+  ];
+  const seen = new Set<string>();
+  const visit = (p: string): void => {
+    let stat;
+    try {
+      stat = fs.statSync(p);
+    } catch {
+      return;
+    }
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(p)) visit(path.join(p, entry));
+      return;
+    }
+    if (!/\.astro$/.test(p)) return;
+    const key = path.resolve(p);
+    if (seen.has(key)) return;
+    seen.add(key);
+    const raw = fs.readFileSync(p, "utf8");
+    for (const ch of raw) {
+      const cp = ch.codePointAt(0)!;
+      // Keep every printable codepoint (incl. symbols/kana/arrows); control
+      // chars and private-use code paths are excluded.
+      if (cp >= 0x20 && cp !== 0x7f) chars.add(ch);
+    }
+  };
+  for (const root of roots) visit(root);
+  return chars;
+}
+
+/**
  * Required characters for a locale: everything its pages render in that
- * locale's own language (UI + visual catalog + reviewed news content).
+ * locale's own language (UI + visual catalog + reviewed news content) plus the
+ * static template glyphs that render on every locale (suits, arrows, middots).
  */
 export function requiredChars(locale = "zh"): Set<string> {
   const chars = new Set<string>();
   for (const ch of messageChars(locale)) chars.add(ch);
   for (const ch of visualCatalogChars(locale)) chars.add(ch);
   for (const ch of newsChars(locale)) chars.add(ch);
+  for (const ch of templateChars()) chars.add(ch);
   return chars;
 }
 
