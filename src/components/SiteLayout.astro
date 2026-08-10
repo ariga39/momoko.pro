@@ -21,15 +21,13 @@ interface Props {
 const { lang, title, description, canonicalPath, noindex, robots, bodyData, alternates, xDefaultHref } =
   Astro.props;
 const t = ml(lang);
+const isHome = bodyData?.["data-page"] === "home";
 const robotsContent = robots ?? (noindex ? "noindex" : undefined);
 const nav = [
-  { href: getRelativeLocaleUrl(lang, "/news/"), label: t.navNews() },
-  { href: getRelativeLocaleUrl(lang, "/encyclopedia/"), label: t.navEncyclopedia() },
-  { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongsLive() },
-  { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navAnniversary() },
+  { href: getRelativeLocaleUrl(lang, "/news/"), label: t.navStories() },
+  { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongs() },
+  { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navPerformances() },
   { href: getRelativeLocaleUrl(lang, "/about/"), label: t.navAbout() },
-  { href: getRelativeLocaleUrl(lang, "/source-policy/"), label: t.navSourcePolicy() },
-  { href: "/search", label: t.navSearch() },
 ];
 const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
 const homeUrl = getRelativeLocaleUrl(lang, "/");
@@ -53,13 +51,22 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
     <link rel="canonical" href={`https://momoko.pro${canonical}`} />
     <title>{title}</title>
   </head>
-  <body class="min-h-screen bg-bg text-text" {...(bodyData ?? {})}>
+  <body class:list={["min-h-screen bg-bg text-text", isHome && "home-body"]} {...(bodyData ?? {})}>
     <a class="skip-link" href="#main">{t.skipToContent()}</a>
-    <header class="site-header border-b border-border bg-paper/95">
-      <div class="mx-auto flex max-w-content items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <a href={homeUrl} aria-label={t.home()} class="masthead-mark text-text no-underline hover:text-accent">
+    <header class:list={["site-header border-b border-border bg-paper/95", isHome && "home-site-header"]} data-site-header>
+      {isHome && (
+        <div class="folio-spectrum home-header-spectrum" aria-hidden="true">
+          <span class="folio-spectrum-pink"></span>
+          <span class="folio-spectrum-pale"></span>
+          <span class="folio-spectrum-brass"></span>
+          <span class="folio-spectrum-pale"></span>
+          <span class="folio-spectrum-navy"></span>
+        </div>
+      )}
+      <div class:list={["mx-auto flex max-w-content items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8", isHome && "home-site-header-inner"]}>
+        <a href={homeUrl} aria-label={t.home()} class="masthead-mark text-text no-underline hover:text-accent" data-site-mark>
           <span class="masthead-kicker">momoko.pro</span>
-          <strong class="masthead-title">{t.home()}</strong>
+          <strong class="masthead-subtitle">{t.homeSubtitle()}</strong>
         </a>
 
         <nav class="hidden lg:block" aria-label={t.navMain()}>
@@ -106,16 +113,18 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
       </div>
       <div class="masthead-rule" aria-hidden="true"></div>
     </header>
-    <main id="main" class="mx-auto min-w-0 max-w-content px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <main id="main" class:list={["site-main mx-auto min-w-0 max-w-content px-4 py-8 sm:px-6 sm:py-10 lg:px-8", isHome && "home-site-main"]}>
       <slot />
     </main>
-    <footer class="site-footer mt-12 border-t border-border bg-paper">
-      <div class="mx-auto grid max-w-content gap-5 px-4 py-8 sm:grid-cols-[1fr_auto] sm:px-6 lg:px-8">
+    <footer class:list={["site-footer folio-footer mt-12 border-t border-border", isHome && "home-site-footer"]}>
+      <div class:list={["mx-auto grid max-w-content gap-5 px-4 py-8 sm:grid-cols-[1fr_auto] sm:px-6 lg:px-8", isHome && "home-site-footer-inner"]}>
         <div>
           <p class="footer-label">momoko.pro / editorial desk</p>
-          <p class="mt-2 max-w-prose text-sm text-text-secondary">{t.footerNotice()}</p>
+          <p class="folio-footer-notice mt-2 max-w-prose text-sm">{t.footerNotice()}</p>
         </div>
-        <p class="text-sm text-text-secondary sm:text-right" lang={lang}>{t.footerDocs()}</p>
+        <p class="text-sm sm:text-right" lang={lang}>
+          <a href={getRelativeLocaleUrl(lang, "/source-policy/")}>{t.footerDocs()}</a>
+        </p>
       </div>
     </footer>
     <script is:inline>

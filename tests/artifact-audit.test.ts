@@ -140,7 +140,19 @@ describe("production artifact boundary", () => {
     expect(asRecord(asArray(visualManifest.entries)[0]).source_id).toBe("S99");
 
     const publicText = fs.readFileSync(path.join(PUBLIC, "zh", "index.html"), "utf8");
-    const visualText = fs.readFileSync(path.join(VISUAL_FIXTURE, "zh", "index.html"), "utf8");
+    // The v0.5 homepage is intentionally stable and contains no DEMO stream.
+    // Verify the explicit visual package on its dynamic detail route instead.
+    const visualText = fs.readFileSync(
+      path.join(
+        VISUAL_FIXTURE,
+        "zh",
+        "news",
+        "2026",
+        "S99-visual-demo-archive-001",
+        "index.html",
+      ),
+      "utf8",
+    );
     expect(publicText).not.toMatch(/DEMO|S99-visual-demo-archive-001|visual-fixture-reviewer|example\.invalid/i);
     expect(visualText).toMatch(/DEMO|S99-visual-demo-archive-001|visual-fixture-reviewer|example\.invalid/i);
     expect(fs.existsSync(path.join(PUBLIC, "en", "songs-live", "index.html"))).toBe(true);

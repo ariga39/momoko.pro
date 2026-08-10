@@ -25,6 +25,37 @@ describe("color tokens — WCAG AA contrast", () => {
     expect(meetsAa(colors["accent-contrast"], colors.accent)).toBe(true);
   });
 
+  it("v0.5 folio text classes keep AA against their actual surfaces", () => {
+    const { colors } = parseCssTokens();
+    expect(meetsAa(colors["folio-pink-ink"], colors["folio-paper"])).toBe(true);
+    expect(meetsAa(colors["folio-pink-ink"], colors["folio-blue"])).toBe(true);
+    expect(meetsAa(colors["folio-brass-ink"], colors["folio-pink-soft"])).toBe(true);
+    expect(meetsAa(colors["folio-brass-ink"], colors["folio-paper-deep"])).toBe(true);
+    expect(meetsAa(colors["folio-brass-light"], colors["folio-navy"])).toBe(true);
+
+    expect(globalCss).toMatch(
+      /\.folio-chapter-label\s*\{\s*color:\s*theme\("colors\.folio-pink-ink"\)/,
+    );
+    expect(globalCss).toMatch(
+      /\.folio-song-card-kicker\s*\{[\s\S]*?color:\s*theme\("colors\.folio-pink-ink"\)/,
+    );
+    expect(globalCss).toMatch(
+      /\.folio-issue\s*\{\s*color:\s*theme\("colors\.folio-brass-ink"\)/,
+    );
+    expect(globalCss).toMatch(
+      /\.folio-color-value\s*\{\s*color:\s*theme\("colors\.folio-brass-ink"\)/,
+    );
+    expect(globalCss).toMatch(
+      /\.chapter-index-arrow\s*\{\s*color:\s*theme\("colors\.folio-brass-light"\)/,
+    );
+    expect(globalCss).toMatch(
+      /\[data-site-header\]\s+\.masthead-kicker\s*\{\s*color:\s*theme\("colors\.folio-pink-ink"\)/,
+    );
+    expect(globalCss).toMatch(
+      /\.chapter-index-code\s*\{\s*color:\s*theme\("colors\.folio-brass-light"\)/,
+    );
+  });
+
   it("contrastRatio is symmetric and bounded", () => {
     expect(contrastRatio("#000000", "#ffffff")).toBeGreaterThanOrEqual(21);
     expect(contrastRatio("#ffffff", "#ffffff")).toBeCloseTo(1, 5);
