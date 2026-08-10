@@ -11,15 +11,32 @@ type Locale = (typeof LOCALES)[number];
 const SECTIONS = ["news", "encyclopedia", "songs-live", "anniversary", "about", "search"] as const;
 
 const BASE = "http://localhost:4321";
+const SITE_ORIGINS = new Set([BASE, "https://momoko.pro"]);
 
-/** Known static assets: never page routes. */
-function isStaticAsset(pathname: string): boolean {
-  if (pathname.startsWith("/_astro/") || pathname.startsWith("/assets/")) return true;
-  if (pathname === "/favicon.ico" || pathname === "/momoko-logo.svg" || pathname === "/robots.txt") return true;
-  return /\.(png|jpe?g|webp|gif|svg|avif|ico|woff2?|ttf|css|js|json|txt)$/u.test(pathname);
+function assertSiteOrigin(url: URL, what: string): void {
+  if (!SITE_ORIGINS.has(url.origin)) throw new Error(`crawl: ${what} leaves site origin -> ${url.origin}`);
 }
 
-function isPageLink(href: string): boolean {
+/**
+ * Explicit known asset roots / files. NO suffix-based rules: anything not
+ * listed here is fetched and classified by its same-origin response
+ * content-type, so a page-shaped URL with a dot-extension can never be
+ * silently skipped.
+ */
+const KNOWN_ASSETS = new Set([
+  "/_astro/", // hashed build assets
+  "/assets/", // static asset root
+  "/favicon.ico",
+  "/momoko-logo.svg",
+  "/robots.txt",
+  "/manifest.json", // API-ish JSON endpoint, not a page
+]);
+
+function isKnownAsset(pathname: string): boolean {
+  return [...KNOWN_ASSETS].some((root) => (root.endsWith("/") ? pathname.startsWith(root) : pathname === root));
+}
+
+function isNavigationHref(href: string): boolean {
   if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
     return false;
   }
@@ -31,17 +48,45 @@ function localeOf(pathname: string): Locale | undefined {
   return match?.[1] as Locale | undefined;
 }
 
+function decodeEntities(value: string): string {
+  return value.replaceAll("&#38;", "&").replaceAll("&amp;", "&");
+}
+
+function isNewsDetailPath(pathname: string): boolean {
+  return /^\/[a-z]{2}\/news\/\d{4}\//u.test(pathname);
+}
+
 async function collectLinks(page: Page): Promise<string[]> {
   return page.locator("a[href]").evaluateAll((anchors) =>
     anchors.map((a) => (a as HTMLAnchorElement).getAttribute("href") ?? ""),
   );
 }
 
-/** BFS over rendered internal links, asserting the task #33 contract on every edge. */
-async function crawlSite(request: APIRequestContext, failOnBadLink: boolean): Promise<{ pages: number; links: number }> {
+interface CrawlResult {
+  pages: number;
+  edges: number;
+  forms: number;
+  canonicalChecks: number;
+  hreflangChecks: number;
+}
+
+/**
+ * BFS over rendered internal links. For every visited HTML page:
+ *   - status 200 (or documented same-origin 3xx followed to 200), same-origin
+ *   - page path is locale-prefixed (no unexpected prefix-less pages)
+ *   - canonical: same-origin, locale-prefixed, fetches 200
+ *   - every hreflang alternate: same-origin, locale-prefixed, fetches 200;
+ *     non-content pages additionally require EXACT localized siblings and a
+ *     self-canonical URL
+ *   - every form[action]: same-origin localized path (no navigation to
+ *     unprefixed seams)
+ * Asset links are classified by response content-type (text/html => page),
+ * never by suffix rules.
+ */
+async function crawlSite(request: APIRequestContext, failOnBadLink: boolean): Promise<CrawlResult> {
   const seen = new Set<string>();
   const queue: string[] = [];
-  let linksChecked = 0;
+  const result: CrawlResult = { pages: 0, edges: 0, forms: 0, canonicalChecks: 0, hreflangChecks: 0 };
 
   for (const locale of LOCALES) {
     const start = `/${locale}/`;
@@ -59,21 +104,76 @@ async function crawlSite(request: APIRequestContext, failOnBadLink: boolean): Pr
     const finalUrl = new URL(response.url());
     const finalPath = finalUrl.pathname;
     if (finalUrl.origin !== BASE) throw new Error(`crawl: ${current} left the origin -> ${finalUrl}`);
+    const contentType = response.headers()["content-type"] ?? "";
+    if (!contentType.includes("text/html")) continue; // asset endpoint, not a page
     const pageLocale = localeOf(finalPath);
     if (!pageLocale) throw new Error(`crawl: ${current} resolved to unprefixed page ${finalPath}`);
+    result.pages += 1;
 
     const html = await response.text();
-    const hrefs = [...html.matchAll(/<a[^>]+href="([^"]+)"/gu)].map((m) =>
-      (m[1] ?? "").replaceAll("&#38;", "&").replaceAll("&amp;", "&"),
-    );
-    linksChecked += hrefs.length;
+
+    // --- per-page SEO contract ---
+    const canonical = html.match(/<link[^>]+rel="canonical"[^>]*>/u)?.[0];
+    const canonicalHref = canonical?.match(/href="([^"]+)"/u)?.[1];
+    if (!canonicalHref) throw new Error(`crawl: ${finalPath} has no canonical`);
+    const canonicalUrl = new URL(decodeEntities(canonicalHref), finalUrl);
+    assertSiteOrigin(canonicalUrl, `canonical of ${finalPath}`);
+    if (localeOf(canonicalUrl.pathname) === undefined) throw new Error(`crawl: ${finalPath} canonical is unprefixed`);
+    const canonicalRes = await request.get(canonicalUrl.pathname, { maxRedirects: 3 });
+    if (!canonicalRes.ok()) throw new Error(`crawl: canonical of ${finalPath} -> ${canonicalRes.status()}`);
+    result.canonicalChecks += 1;
+
+    const alternates = [...html.matchAll(/<link[^>]+rel="alternate"[^>]+hreflang="([^"]+)"[^>]*href="([^"]+)"[^>]*>/gu)];
+    if (alternates.length === 0) throw new Error(`crawl: ${finalPath} has no hreflang alternates`);
+    const seenHreflangs = new Set<string>();
+    for (const match of alternates) {
+      const hreflang = match[1] ?? "";
+      const rawHref = match[2] ?? "";
+      if (hreflang === "x-default") continue; // site-root entry, not a locale sibling
+      const altUrl = new URL(decodeEntities(rawHref), finalUrl);
+      assertSiteOrigin(altUrl, `hreflang ${hreflang} of ${finalPath}`);
+      if (localeOf(altUrl.pathname) === undefined) throw new Error(`crawl: ${finalPath} hreflang ${hreflang} unprefixed`);
+      const altRes = await request.get(altUrl.pathname, { maxRedirects: 3 });
+      if (!altRes.ok()) throw new Error(`crawl: hreflang ${hreflang} of ${finalPath} -> ${altRes.status()}`);
+      seenHreflangs.add(hreflang);
+      result.hreflangChecks += 1;
+    }
+    // Non-content pages must mirror the page's own path across all three
+    // locales exactly, and be self-canonical.
+    if (!isNewsDetailPath(finalPath)) {
+      if (canonicalUrl.pathname !== finalPath) throw new Error(`crawl: ${finalPath} not self-canonical`);
+      for (const other of LOCALES) {
+        const sibling = finalPath.replace(`/${pageLocale}`, `/${other}`);
+        if (!seenHreflangs.has(other)) throw new Error(`crawl: ${finalPath} missing hreflang ${other}`);
+        if (![...alternates].some((m) => new URL(decodeEntities(m[2] ?? ""), finalUrl).pathname === sibling)) {
+          throw new Error(`crawl: ${finalPath} hreflang ${other} != exact sibling ${sibling}`);
+        }
+      }
+    }
+
+    // --- form actions that navigate must be localized ---
+    const forms = [...html.matchAll(/<form[^>]*>/gu)].map((m) => m[0]);
+    result.forms += forms.length;
+    for (const form of forms) {
+      const action = form.match(/action="([^"]+)"/u)?.[1];
+      if (action === undefined) continue; // no action = same-URL submission, still local
+      const actionUrl = new URL(decodeEntities(action), finalUrl);
+      if (actionUrl.origin !== BASE) throw new Error(`crawl: ${finalPath} form leaves origin`);
+      if (localeOf(actionUrl.pathname) === undefined) {
+        throw new Error(`crawl: ${finalPath} form action is unprefixed: ${actionUrl.pathname}`);
+      }
+    }
+
+    // --- crawl edges ---
+    const hrefs = [...html.matchAll(/<a[^>]+href="([^"]+)"/gu)].map((m) => decodeEntities(m[1] ?? ""));
+    result.edges += hrefs.length;
 
     for (const rawHref of hrefs) {
-      if (!isPageLink(rawHref)) continue;
+      if (!isNavigationHref(rawHref)) continue;
       const target = new URL(rawHref, finalUrl);
-      if (target.origin !== BASE) continue; // external links (e.g. official source) are out of crawl scope
+      if (target.origin !== BASE) continue; // external links are out of crawl scope
       const pathname = target.pathname;
-      if (isStaticAsset(pathname)) continue;
+      if (isKnownAsset(pathname)) continue;
       const targetLocale = localeOf(pathname);
       if (targetLocale === undefined && pathname !== "/" && pathname !== "/locale-switch") {
         if (failOnBadLink) throw new Error(`crawl: unprefixed page link ${pathname} from ${finalPath}`);
@@ -82,21 +182,24 @@ async function crawlSite(request: APIRequestContext, failOnBadLink: boolean): Pr
       const normalized = `${pathname}${target.search}`;
       if (seen.has(normalized)) continue;
       seen.add(normalized);
-      if (seen.size > 200) throw new Error("crawl: node budget exceeded");
+      if (seen.size > 250) throw new Error("crawl: node budget exceeded");
       queue.push(normalized);
     }
   }
 
-  return { pages: seen.size, links: linksChecked };
+  return result;
 }
 
 test("BFS crawl: all rendered internal links resolve, stay localized, same-origin, no prefix-less pages", async ({ request }) => {
   const result = await crawlSite(request, true);
   // Reach beyond top-level lists into leaf pages (news detail, etc.)
   expect(result.pages).toBeGreaterThan(12);
+  expect(result.edges).toBeGreaterThan(40);
+  expect(result.forms).toBeGreaterThan(0);
+  console.log(`BFS: pages=${result.pages} edges=${result.edges} forms=${result.forms} canonicalChecks=${result.canonicalChecks} hreflangChecks=${result.hreflangChecks}`);
 });
 
-test("root negotiation: cookie > Accept-Language q-values > default ja; 3xx same-origin, no loop", async ({ request }) => {
+test("root negotiation: cookie > Accept-Language q-values > default ja; exact location, one-hop terminal 200", async ({ request }) => {
   const cases: Array<{ headers: Record<string, string>; expected: string }> = [
     { headers: { Cookie: "momoko_locale=zh", "Accept-Language": "ja" }, expected: "/zh/" },
     { headers: { Cookie: "momoko_locale=en", "Accept-Language": "zh-CN,ja;q=0.8" }, expected: "/en/" },
@@ -110,42 +213,45 @@ test("root negotiation: cookie > Accept-Language q-values > default ja; 3xx same
     const response = await request.get("/", { maxRedirects: 0, headers: c.headers });
     expect(response.status(), `status for ${JSON.stringify(c.headers)}`).toBe(302);
     const location = response.headers().location ?? "";
-    expect(location.startsWith(c.expected), `location for ${JSON.stringify(c.headers)}`).toBe(true);
+    expect(location, `location for ${JSON.stringify(c.headers)}`).toBe(c.expected);
     expect(location.startsWith("http")).toBe(false); // same-origin relative location
+    // one hop must land on a terminal 200 with no further 3xx
+    const terminal = await request.get(location, { maxRedirects: 3 });
+    expect(terminal.status(), `terminal for ${JSON.stringify(c.headers)}`).toBe(200);
+    expect(new URL(terminal.url()).pathname).toBe(c.expected);
   }
 });
 
-test("legacy /search negotiates to /{lang}/search/ and never renders a hardcoded page", async ({ request }) => {
-  const zh = await request.get("/search", { maxRedirects: 0, headers: { "Accept-Language": "zh-CN" } });
-  expect(zh.status()).toBe(303);
-  expect(zh.headers().location).toBe("/zh/search/");
-
-  const ja = await request.get("/search", { maxRedirects: 0 });
-  expect(ja.status()).toBe(303);
-  expect(ja.headers().location).toBe("/ja/search/");
+test("legacy /search negotiates with exact location, query preserved, terminal 200", async ({ request }) => {
+  const cases: Array<{ headers: Record<string, string>; path: string; expected: string }> = [
+    { headers: { "Accept-Language": "zh-CN" }, path: "/search", expected: "/zh/search/" },
+    { headers: {}, path: "/search", expected: "/ja/search/" },
+    { headers: { Cookie: "momoko_locale=en" }, path: "/search?q=%E5%90%88%E6%88%90&page=2", expected: "/en/search/?q=%E5%90%88%E6%88%90&page=2" },
+  ];
+  for (const c of cases) {
+    const response = await request.get(c.path, { maxRedirects: 0, headers: c.headers });
+    expect(response.status(), `${c.path}`).toBe(303);
+    expect(response.headers().location, `${c.path}`).toBe(c.expected);
+    const terminal = await request.get(c.expected, { maxRedirects: 3 });
+    expect(terminal.status(), `terminal ${c.path}`).toBe(200);
+  }
 });
 
-test("legacy /search preserves the query string through the negotiated redirect", async ({ request }) => {
-  const withQuery = await request.get("/search?q=%E5%90%88%E6%88%90&page=2", {
-    maxRedirects: 0,
-    headers: { Cookie: "momoko_locale=en" },
-  });
-  expect(withQuery.status()).toBe(303);
-  expect(withQuery.headers().location).toBe("/en/search/?q=%E5%90%88%E6%88%90&page=2");
-});
-
-test("middleware redirects ONLY the exact / and /search paths, nothing else", async ({ request }) => {
+test("middleware redirects ONLY the exact / and /search paths; everything else is non-3xx", async ({ request }) => {
+  // Paths that must NOT be a 3xx negotiation redirect (200/204/404 allowed)
   const mustNotRedirect = ["/news/", "/about/", "/foo", "/search/", "/SEARCH", "/assets/x.png", "/favicon.ico", "/_astro/x.js"];
   for (const path of mustNotRedirect) {
     const response = await request.get(path, { maxRedirects: 0 });
-    if (response.status() >= 300 && response.status() < 400) {
-      const location = response.headers().location ?? "";
-      expect(location.startsWith("/search") || location === "/", `${path} must not redirect to a search/locale seam`).toBe(false);
-    }
+    const status = response.status();
+    expect(status >= 300 && status < 400, `${path} must not be 3xx (got ${status})`).toBe(false);
+    expect([200, 204, 404].includes(status), `${path} unexpected status ${status}`).toBe(true);
   }
-  // the two seams still redirect
-  expect((await request.get("/", { maxRedirects: 0 })).status()).toBe(302);
-  expect((await request.get("/search", { maxRedirects: 0 })).status()).toBe(303);
+  // the two seams still redirect with exact locations
+  const root = await request.get("/", { maxRedirects: 0 });
+  expect(root.status()).toBe(302);
+  const search = await request.get("/search", { maxRedirects: 0 });
+  expect(search.status()).toBe(303);
+  expect(search.headers().location).toBe("/ja/search/");
 });
 
 test("platform security header rules are intact (static asset responses)", async ({ request }) => {
@@ -245,10 +351,10 @@ test("no unexpected prefix-less page links anywhere in rendered pages", async ({
     await page.goto(`/${locale}/`);
     const hrefs = await collectLinks(page);
     for (const href of hrefs) {
-      if (!isPageLink(href)) continue;
+      if (!isNavigationHref(href)) continue;
       const target = new URL(href, BASE);
       if (target.origin !== BASE) continue;
-      if (isStaticAsset(target.pathname)) continue;
+      if (isKnownAsset(target.pathname)) continue;
       // Every page link must be locale-prefixed; "/" and "/locale-switch" are
       // the two documented negotiation seams (root entry + language switch).
       if (

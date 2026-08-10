@@ -127,8 +127,9 @@ export default defineConfig({
     locales: ["ja", "zh", "en"],
     defaultLocale: "ja",
     // Every locale is URL-prefixed (including the default), per Astro official
-    // i18n routing docs; the root "/" keeps custom cookie/Accept-Language
-    // negotiation in src/pages/index.astro (redirectToDefaultLocale disabled).
+    // i18n routing docs; the root "/" and legacy "/search" negotiation live in
+    // src/middleware.ts (context.redirect), since redirectToDefaultLocale is
+    // disabled to keep the custom cookie/Accept-Language negotiation.
     routing: {
       prefixDefaultLocale: true,
       redirectToDefaultLocale: false,

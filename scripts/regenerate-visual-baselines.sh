@@ -2,14 +2,14 @@
 # Regenerate Playwright visual baselines in the canonical runner-matching
 # environment. This is the ONLY supported entry for updating -linux snapshots.
 #
-# Why this container: catthehacker/ubuntu:act-24.04 replicates the GitHub
+# Why this container: the image pinned by DIGEST below replicates the GitHub
 # Actions ubuntu-24.04 runner environment (same base packages and system font
 # set), which is what hosted CI renders with. Snapshots generated here are
 # pixel-identical to CI (verified: 0-pixel diff against a CI failure artifact).
 #
 # The image tag is mutable; the DIGEST below is the auditable pin.
 # Node / pnpm / Playwright / Chromium and font sources:
-#   - image: catthehacker/ubuntu:act-24.04 @ sha256:b839c14c... (below)
+#   - image: the DIGEST below (ubuntu-24.04-compatible runner font set)
 #   - pnpm: 9.15.9 (repo packageManager, via corepack or npm -g fallback)
 #   - playwright: 1.62.1 (lockfile) with chromium via `playwright install
 #     --with-deps chromium` (fonts installed by --with-deps match the runner)
