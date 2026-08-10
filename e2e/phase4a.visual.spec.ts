@@ -263,16 +263,34 @@ test("visual baselines cover the v0.5 home and trilingual long titles", async ({
   for (const item of homeCases) {
     await page.setViewportSize({ width: item.width, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "none" });
-    // CLS gate (task #25): capture layout-shift before webfonts settle so the
-    // locale-only preload proves it does not cause layout jump.
+    // CLS gate (task #25): install the layout-shift observer BEFORE navigation so
+    // it captures the cumulative shift caused by webfont load, excluding shifts
+    // with recent input. The locale-only preload must not cause layout jump.
+    await page.addInitScript(() => {
+      (globalThis as Record<string, unknown>)._momokoCls = 0;
+      try {
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            const clsEntry = entry as PerformanceEntry & { hadRecentInput: boolean; value: number };
+            if (clsEntry.hadRecentInput) continue;
+            (globalThis as Record<string, unknown>)._momokoCls =
+              ((globalThis as Record<string, unknown>)._momokoCls as number) + clsEntry.value;
+          }
+        }).observe({ type: "layout-shift", buffered: true });
+      } catch {
+        // PerformanceObserver/layout-shift unavailable: fail closed in assertion.
+        (globalThis as Record<string, unknown>)._momokoClsUnsupported = true;
+      }
+    });
     await page.goto(demoUrl(`/${item.lang}/`), { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(100);
-    const cls = await page.evaluate(() =>
-      performance
-        .getEntriesByType("layout-shift")
-        .reduce((sum, entry) => sum + ((entry as PerformanceEntry & { hadRecentInput: boolean; value: number }).value ?? 0), 0),
-    );
+    const cls = await page.evaluate(() => {
+      const g = globalThis as Record<string, unknown>;
+      if (g._momokoClsUnsupported) return Number.NaN;
+      return g._momokoCls as number;
+    });
+    expect(Number.isNaN(cls), `${item.width}px layout-shift observer must be supported`).toBe(false);
     expect(cls, `${item.width}px CLS must stay below 0.05 after webfont load`).toBeLessThan(0.05);
     if (item.width <= 375) {
       const colorLineCount = await page.locator(".folio-color-value").evaluate((element) => {
@@ -369,4 +387,44 @@ test("visual baselines cover the v0.5 home and trilingual long titles", async ({
     maxDiffPixelRatio: 0.002,
     scale: "css",
   });
+});
+
+test("CLS gate is sensitive: an induced layout shift is observed and exceeds the budget", async ({ page }) => {
+  // Sensitivity probe: the layout-shift observer (installed before navigation)
+  // must actually record a shift. We deliberately insert a tall block above
+  // the main content, then remove it, producing a layout shift that pushes the
+  // cumulative CLS above the 0.05 gate. If this fails, the gate is a no-op.
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.addInitScript(() => {
+    (globalThis as Record<string, unknown>)._momokoCls = 0;
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          const clsEntry = entry as PerformanceEntry & { hadRecentInput: boolean; value: number };
+          if (clsEntry.hadRecentInput) continue;
+          (globalThis as Record<string, unknown>)._momokoCls =
+            ((globalThis as Record<string, unknown>)._momokoCls as number) + clsEntry.value;
+        }
+      }).observe({ type: "layout-shift", buffered: true });
+    } catch {
+      (globalThis as Record<string, unknown>)._momokoClsUnsupported = true;
+    }
+  });
+  await page.goto(demoUrl("/en/"), { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+  // Force a large layout shift by inserting a full-viewport tall element.
+  const observed = await page.evaluate(async () => {
+    const blocker = document.createElement("div");
+    blocker.id = "cls-sensitive-blocker";
+    blocker.style.height = "1000px";
+    document.body.prepend(blocker);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    blocker.remove();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const g = globalThis as Record<string, unknown>;
+    if (g._momokoClsUnsupported) return Number.NaN;
+    return g._momokoCls as number;
+  });
+  expect(Number.isNaN(observed), "layout-shift observer must be supported").toBe(false);
+  expect(observed, "sensitivity probe must observe a real layout shift").toBeGreaterThan(0.05);
 });

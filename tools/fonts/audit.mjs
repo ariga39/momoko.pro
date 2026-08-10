@@ -79,6 +79,39 @@ function main() {
     if (!onDisk.includes(f)) throw new Error(`manifest file missing on disk: ${f}`);
   }
 
+  // 1b. Verify pinned input shard hashes and license text against the actual
+  //     @fontsource files (a swapped/replaced shard or license must fail).
+  const FONTROOT = path.join(ROOT, "node_modules/@fontsource");
+  for (const locale of Object.keys(manifest.locales)) {
+    const entry = manifest.locales[locale];
+    const pkg = entry.source_package;
+    for (const f of entry.files) {
+      const shardPath = path.join(FONTROOT, pkg, "files", f.source_shard);
+      if (!fs.existsSync(shardPath)) {
+        throw new Error(`locale ${locale}: input shard missing: ${f.source_shard}`);
+      }
+      if (sha256File(shardPath) !== f.source_shard_sha256) {
+        throw new Error(`locale ${locale}: input shard sha256 mismatch: ${f.source_shard}`);
+      }
+    }
+    const licensePath = path.join(FONTROOT, pkg, "LICENSE");
+    if (!fs.existsSync(licensePath)) {
+      throw new Error(`locale ${locale}: license file missing: ${pkg}/LICENSE`);
+    }
+    const actualLicense = fs.readFileSync(licensePath, "utf8").replace(/\s+$/u, "") + "\n";
+    const recordedLicense = String(entry.license_text).replace(/\s+$/u, "") + "\n";
+    if (actualLicense !== recordedLicense) {
+      throw new Error(`locale ${locale}: license text mismatch for ${pkg}`);
+    }
+    // Verify the running tooling versions recorded in the manifest are pinned.
+    const tool = manifest.tool ?? {};
+    for (const [pkgName, expected] of Object.entries(tool.installed ?? {})) {
+      if (expected.startsWith("unresolved")) {
+        throw new Error(`tool ${pkgName} version unresolved during build`);
+      }
+    }
+  }
+
   // 2. Manifest <-> fonts.css bidirectional mapping.
   const cssText = fs.readFileSync(CSS_PATH, "utf8");
   const cssFiles = new Set(

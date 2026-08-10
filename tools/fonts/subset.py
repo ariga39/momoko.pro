@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import os
 import re
@@ -34,6 +35,7 @@ from pathlib import Path
 from fontTools.ttLib import TTFont
 
 BUDGET_BYTES = 1_000_000  # strict <1,000,000 shipped webfont bytes contract
+PINNED_VERSIONS = {"fonttools": "4.63.0", "brotli": "1.2.0", "zopfli": "0.4.3"}
 
 FAMILIES: dict[str, dict[str, object]] = {
     "zh": {
@@ -148,7 +150,12 @@ def find_ofl_text(fontroot: Path, pkg: str) -> str:
 
 def write_fonts_css(out_dir: Path, manifest: dict[str, object], css_target: Path) -> None:
     """Generate src/styles/fonts.css with @font-face rules derived from the
-    emitted fonts' actual cmaps, plus the locale-scoped font stack variables."""
+    emitted fonts' actual cmaps, plus the locale-scoped font stack variables.
+
+    Locale stacks must never fall back to another region's CJK font (SC/JP are
+    not mixed): the zh stack lists only SC + neutral system fonts, the ja stack
+    only JP + neutral system fonts, the en stack only Inter + neutral system
+    fonts."""
     lines = [
         "/* Self-hosted locale font stacks (task #25).",
         "   Generated deterministically by tools/fonts/subset.py from the emitted",
@@ -173,22 +180,38 @@ def write_fonts_css(out_dir: Path, manifest: dict[str, object], css_target: Path
             lines.append("}")
     lines.append("")
     lines.append(":root {")
-    lines.append('  --font-display: "Noto Sans SC", "Iowan Old Style", "Baskerville", serif;')
-    lines.append('  --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans", sans-serif;')
+    lines.append('  --font-display: "Noto Sans SC", serif;')
+    lines.append('  --font-body: "Noto Sans SC", "PingFang SC", sans-serif;')
     lines.append("}")
     lines.append("")
     lines.append('html[lang="ja"] {')
-    lines.append('  --font-display: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;')
+    lines.append('  --font-display: "Noto Sans JP", serif;')
     lines.append('  --font-body: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;')
     lines.append("}")
     lines.append("")
     lines.append('html[lang="en"] {')
-    lines.append('  --font-display: "Inter", "Iowan Old Style", "Baskerville", serif;')
+    lines.append('  --font-display: "Inter", serif;')
     lines.append('  --font-body: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;')
     lines.append("}")
     lines.append("")
     css_target.parent.mkdir(parents=True, exist_ok=True)
     css_target.write_text("\n".join(lines), encoding="utf-8")
+
+
+def installed_versions() -> dict[str, str]:
+    """Return the versions of the Python tooling actually running this build."""
+    out = {}
+    try:
+        import fontTools
+        out["fonttools"] = str(getattr(fontTools, "version", importlib.metadata.version("fonttools")))
+    except Exception as exc:  # pragma: no cover
+        out["fonttools"] = f"unresolved:{exc}"
+    for pkg in ("brotli", "zopfli"):
+        try:
+            out[pkg] = importlib.metadata.version(pkg)
+        except Exception as exc:  # pragma: no cover
+            out[pkg] = f"unresolved:{exc}"
+    return out
 
 
 def main() -> int:
@@ -214,6 +237,13 @@ def main() -> int:
             "flags": SUBSET_FLAGS,
         },
     }
+    # Verify the tooling actually running matches the pinned versions.
+    actual = installed_versions()
+    for pkg, expected in PINNED_VERSIONS.items():
+        if actual.get(pkg) != expected:
+            print(f"[fonts] FAIL: {pkg} version {actual.get(pkg)!r} != pinned {expected!r}")
+            return 1
+    manifest["tool"]["installed"] = actual
     total_bytes = 0
     all_files: list[str] = []
 
