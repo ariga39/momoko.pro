@@ -126,9 +126,14 @@ export default defineConfig({
   i18n: {
     locales: ["ja", "zh", "en"],
     defaultLocale: "ja",
-    // Locale prefixes are explicit and server-controlled; non-localized utility
-    // routes such as search and locale-switch remain available beside them.
-    routing: "manual",
+    // Every locale is URL-prefixed (including the default), per Astro official
+    // i18n routing docs; the root "/" and legacy "/search" negotiation live in
+    // src/middleware.ts (context.redirect), since redirectToDefaultLocale is
+    // disabled to keep the custom cookie/Accept-Language negotiation.
+    routing: {
+      prefixDefaultLocale: true,
+      redirectToDefaultLocale: false,
+    },
   },
   build: {
     // 内容 hash 文件名 → 资产 immutable（§6.3 cache 失效契约）。

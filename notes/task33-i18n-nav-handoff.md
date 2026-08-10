@@ -1,0 +1,62 @@
+# Task #33 i18n navigation / root negotiation / link crawl handoff
+
+Status: task #33 (Astro i18n 导航 / 根协商 / 全站链接爬测) — author @reon, independent from exact live main `461ab12ee420e8c33c04e22712bd984756bc5489`, supervisor @momoko. No deploy, no Cloudflare write, no task #31/PR #18 modifications.
+
+## Problem (from user report + repro matrix)
+
+- `routing: "manual"` made `getRelativeLocaleUrl()` emit **prefix-less links for the default locale ja** (`/news/`, `/songs-live/`, `/about/`, `/source-policy/`), all 404. zh/en had prefixes so sampling missed it.
+- `/search` and the generic 404 were hardcoded Japanese; language-switch helper lost the current path on prefix-less pages.
+- Home chapter nav (3 items) and inner-page global nav (4 items) were inconsistent; Encyclopedia and Search were missing from menus.
+- `/` was implemented as a hand-set status/location in a page, not a complete i18n router loop; no full-route/full-link evidence existed.
+
+## Change (per Astro official i18n docs)
+
+1. `astro.config.mjs`: `routing: { prefixDefaultLocale: true, redirectToDefaultLocale: false }` — every locale URL-prefixed, default locale included; the built-in `/` redirect stays disabled so the custom negotiation owns the root.
+2. `src/middleware.ts`: `/` → negotiated 302 to `/{lang}/`; legacy `/search` → negotiated 303 to `/{lang}/search/` (both via `context.redirect`; the prefix-always built-in middleware would 404 non-locale routes, so the seam lives in middleware; `src/pages/index.astro` deleted).
+3. Search moved to `src/pages/[lang]/search/index.astro` with localized form action; old `/search` redirects only.
+4. `src/pages/404.astro`: language from request path → cookie → Accept-Language → ja; real 404 status preserved.
+5. `src/components/SiteLayout.astro` + `src/pages/[lang].astro`: unified six-item menu (Stories / Encyclopedia / Songs & Live / Anniversaries / About / Search) on home chapter index and inner global nav; Source Policy footer-only.
+6. `SiteLayout` default alternates now derive exact localized siblings from `canonicalPath` instead of hardcoded home URLs (list/search pages previously emitted wrong hreflang).
+7. Docs updated: `docs/adr.md` (ADR-12 路由行), `docs/design.md` (§1.2 三语路由).
+
+## Tests (new + updated)
+
+- `e2e/i18n-link-crawl.spec.ts` (new, 9 tests): BFS internal-link crawl from the three locale homes (status/locale/canonical-hreflang/prefix-less assertions, entity-decoded hrefs, static-asset + external + mailto/hash exclusions, node budget, same-origin redirect following); root negotiation matrix (cookie > Accept-Language q-values > default ja, relative same-origin 3xx); legacy `/search` 303; true-404 with language by path vs negotiation; six-item menu consistency; localized form action; canonical/hreflang exact siblings (home/list/detail/search); language-switch same-path with query preserved; no unexpected prefix-less links.
+- `e2e/site.smoke.spec.ts` (updated): localized search route, 404 language semantics, six home chapters.
+- Visual baselines `-linux` regenerated in a Linux container (nav changed).
+- Unit 168 pass, lint 0, typecheck 0, smoke+crawl E2E 35 pass.
+
+## Handoff
+
+```text
+task / owner / peer: task #33 / @momoko 监督 / peer 待 @momoko 路由
+base SHA: 4fd0ab6 (live main; rebased after task #25 font-subset merge #17)
+exact head SHA / PR: see PR #19 body — live GitHub value only (not tracked
+  here to avoid self-referential commits; per supervisor convention)
+hosted CI run + terminal result: see PR #19 checks (live)
+changed scope: astro.config.mjs; src/middleware.ts; src/pages/404.astro,
+  src/pages/[lang].astro, src/pages/[lang]/search/index.astro (moved),
+  src/pages/index.astro (deleted), src/pages/search.astro (deleted);
+  src/components/SiteLayout.astro; docs/adr.md, docs/design.md;
+  e2e/i18n-link-crawl.spec.ts (new, 11 tests), e2e/site.smoke.spec.ts;
+  src/pages/[lang]/fixtures/[...slug].ts (test-mode-only crawl fixtures);
+  visual baselines (10 linux, regenerated via scripts/regenerate-visual-baselines.sh
+  after the task #25 font merge; 7 PNG real delta vs base 4fd0ab6, 3 detail
+  PNGs byte-identical to base); docs/visual-baseline-env.md;
+  scripts/regenerate-visual-baselines.sh + scripts/run-browser-suite.sh;
+  tests/visual-env-contract.test.ts (static env gate); .github/workflows/ci.yml (ubuntu-24.04)
+submitted tests: BFS crawl 11 (pages=57 incl. 3 dotted-path HTML fixtures,
+  edges=1086, forms=18, assets=3 content-type-classified, canonicalChecks=57,
+  hreflangChecks=171 incl. detail identity closure with full per-member
+  label/locale/identity/origin validation on FULL URLs) + updated smoke 17 +
+  visual 8 (incl. task #25 CLS gate); canonical container suite 36/36;
+  unit 199 (incl. 13 i18n-alternates negatives: external alternate href,
+  external member canonical, mislabeled hreflang, duplicate/foreign/empty
+  hreflang, identity mismatch, reciprocal missing/extra; +
+  visual-env-contract static gate; + task #25 font pipeline tests);
+  lint/typecheck clean
+privacy/secret scan: wrapper ls-remote only; no credential output
+external-write statement: none (no deploy, no Cloudflare write, no live GET)
+remaining blocker / next owner: hosted CI terminal state; independent peer
+  exact-head review (peer seat), then owner final gate + merge
+```
