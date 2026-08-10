@@ -191,7 +191,8 @@ describe("Phase 4A progressive-enhancement contract", () => {
     expect(home).not.toMatch(/<img\b|<svg\b/);
     expect(home.match(/code: "0[1-3]"/g)).toHaveLength(3);
     expect(home).toContain("millionlive-anime.idolmaster-official.jp/character/momoko/");
-    expect(home.indexOf("folio-sheet")).toBeLessThan(home.indexOf("<DemoNotice"));
+    expect(home).not.toContain("DemoNotice");
+    expect(home).not.toContain("loadVisualCatalog");
     expect(about).not.toContain("DemoNotice");
     expect(readme).toContain("Pages use Tailwind CSS utilities first.");
     expect(readme).toContain("tailwind.config.mjs");

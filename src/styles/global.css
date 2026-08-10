@@ -1543,6 +1543,416 @@
       padding-inline: 0.9rem;
     }
   }
+
+  /* The v0.5 home is one paper canvas, not a generic site shell with a folio card. */
+  body.home-body {
+    background: #dcd8cf !important;
+  }
+
+  body.home-body .home-site-header {
+    margin: 1.125rem 1.125rem 0;
+    border: 1px solid theme("colors.folio-line");
+    border-bottom: 0;
+    background: theme("colors.folio-paper");
+  }
+
+  body.home-body .home-site-header::before {
+    opacity: 0.18;
+  }
+
+  body.home-body .home-header-spectrum {
+    width: 100%;
+    height: 0.5rem;
+  }
+
+  body.home-body .home-site-header-inner {
+    width: 100%;
+    max-width: none;
+    height: 4.25rem;
+    padding: 0 4.25rem;
+  }
+
+  body.home-body .home-site-header .masthead-mark {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  body.home-body .home-site-header .masthead-kicker {
+    color: theme("colors.folio-ink");
+    font-family: theme("fontFamily.display");
+    font-size: 1.35rem;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    text-transform: none;
+  }
+
+  body.home-body .home-site-header .masthead-subtitle {
+    padding-left: 0.75rem;
+    border-left: 1px solid theme("colors.folio-line");
+    color: theme("colors.folio-ink");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.55rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  body.home-body .home-site-header .nav-link {
+    color: theme("colors.folio-ink");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.58rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  body.home-body .home-site-header .nav-link:hover {
+    color: theme("colors.folio-pink-ink");
+  }
+
+  body.home-body .home-site-header .masthead-rule {
+    display: none;
+  }
+
+  body.home-body .home-site-main {
+    width: auto;
+    max-width: none;
+    padding: 0 1.125rem;
+  }
+
+  body.home-body .home-v05 {
+    width: 100%;
+    max-width: 1500px;
+    margin-inline: auto;
+  }
+
+  body.home-body .home-v05 .folio-layout {
+    grid-template-columns: 17% 47% 36%;
+    min-height: 43.125rem;
+    border-top: 0;
+  }
+
+  body.home-body .home-v05 .folio-layout > * {
+    min-height: 43.125rem;
+  }
+
+  body.home-body .home-v05 .folio-spine {
+    position: relative;
+    padding: 4.25rem 2.75rem 2.75rem;
+    border-right: 0;
+  }
+
+  body.home-body .home-v05 .folio-spine::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 0.6rem;
+    background: repeating-linear-gradient(
+      to bottom,
+      theme("colors.folio-pink") 0 0.55rem,
+      theme("colors.folio-paper") 0.55rem 0.72rem
+    );
+    content: "";
+  }
+
+  body.home-body .home-v05 .folio-sheet {
+    justify-content: flex-start;
+    padding: 4.25rem clamp(2.25rem, 4.6vw, 4.25rem) 3rem;
+    border-left: 1px solid theme("colors.folio-line");
+  }
+
+  body.home-body .home-v05 .folio-sheet-heading {
+    margin-bottom: 2.5rem;
+  }
+
+  body.home-body .home-v05 .folio-name {
+    font-size: clamp(4.75rem, 8.3vw, 8.2rem);
+  }
+
+  body.home-body .home-v05 .folio-name-latin {
+    margin-top: 1.4rem;
+  }
+
+  body.home-body .home-v05 .folio-intro {
+    margin-top: 2.4rem;
+  }
+
+  body.home-body .home-v05 .folio-chapter {
+    position: relative;
+    min-height: 0;
+    padding: 4.25rem 3rem 3rem;
+    border-left: 0;
+  }
+
+  body.home-body .home-v05 .folio-chapter::before {
+    position: absolute;
+    top: 3.85rem;
+    bottom: 3.75rem;
+    left: 1.5rem;
+    border-left: 1px solid theme("colors.folio-pink-soft");
+    content: "";
+  }
+
+  body.home-body .home-v05 .folio-chapter-label,
+  body.home-body .home-v05 .folio-chapter h2,
+  body.home-body .home-v05 .folio-chapter-lede,
+  body.home-body .home-v05 .folio-source-link,
+  body.home-body .home-v05 .folio-song-card {
+    position: relative;
+    z-index: 1;
+  }
+
+  body.home-body .home-v05 .folio-chapter h2 {
+    font-size: clamp(1.8rem, 2.8vw, 2.8rem);
+  }
+
+  body.home-body .home-v05 .folio-song-card {
+    margin-top: auto;
+  }
+
+  body.home-body .home-v05 .chapter-index {
+    min-height: 9.125rem;
+    border-right: 1px solid theme("colors.folio-navy");
+    border-bottom: 1px solid theme("colors.folio-navy");
+    border-left: 1px solid theme("colors.folio-navy");
+  }
+
+  body.home-body .home-v05 .chapter-index-link {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 1fr;
+    gap: 0.8rem;
+    align-items: center;
+    padding: 2.25rem 2.75rem;
+  }
+
+  body.home-body .home-v05 .chapter-index-copy {
+    align-content: center;
+    gap: 0.55rem;
+  }
+
+  body.home-body .home-v05 .chapter-index-meta {
+    color: theme("colors.folio-paper");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  body.home-body .home-v05 .chapter-index-code,
+  body.home-body .home-v05 .chapter-index-word {
+    display: inline;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    letter-spacing: inherit;
+  }
+
+  body.home-body .home-v05 .chapter-index-code {
+    color: theme("colors.folio-brass-light");
+  }
+
+  body.home-body .home-v05 .chapter-index-copy strong {
+    font-size: clamp(1rem, 1.4vw, 1.35rem);
+  }
+
+  body.home-body .home-v05 .chapter-index-arrow {
+    align-self: center;
+  }
+
+  body.home-body .home-site-footer {
+    margin: 0 1.125rem 1.125rem;
+    border-top: 0;
+    background: theme("colors.folio-paper");
+    color: theme("colors.folio-ink");
+  }
+
+  body.home-body .home-site-footer-inner {
+    width: 100%;
+    max-width: 1500px;
+    min-height: 2.6rem;
+    padding: 0.6rem 2.75rem;
+    border-top: 1px solid theme("colors.folio-line");
+  }
+
+  body.home-body .home-site-footer .footer-label,
+  body.home-body .home-site-footer a,
+  body.home-body .home-site-footer-notice {
+    color: theme("colors.folio-ink");
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+  }
+
+  body.home-body .home-site-footer .folio-footer-notice {
+    margin-top: 0;
+    opacity: 0.72;
+  }
+
+  body.home-body .home-site-footer p {
+    margin: 0;
+  }
+
+  @media (max-width: 56rem) {
+    body.home-body .home-site-header-inner {
+      height: 4rem;
+      padding-inline: 1.25rem;
+    }
+
+    body.home-body .home-site-header .masthead-kicker {
+      font-size: 1.05rem;
+    }
+
+    body.home-body .home-site-header .masthead-subtitle {
+      display: none;
+    }
+
+    body.home-body .home-v05 .folio-layout {
+      grid-template-columns: 1fr;
+      min-height: 0;
+    }
+
+    body.home-body .home-v05 .folio-layout > * {
+      min-height: 0;
+    }
+
+    body.home-body .home-v05 .folio-spine {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto;
+      align-items: center;
+      min-height: 8.5rem;
+      padding: 1.25rem 1.5rem;
+    }
+
+    body.home-body .home-v05 .folio-spine-number {
+      font-size: clamp(4rem, 14vw, 6rem);
+    }
+
+    body.home-body .home-v05 .folio-spine-facts {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-content: center;
+      gap: 0.6rem;
+      padding-inline: 1rem;
+    }
+
+    body.home-body .home-v05 .folio-spine-facts div {
+      padding-top: 0.45rem;
+    }
+
+    body.home-body .home-v05 .folio-suits {
+      align-self: end;
+      width: 3.8rem;
+    }
+
+    body.home-body .home-v05 .folio-sheet {
+      min-height: 33rem;
+      padding: 2.75rem 2rem 3rem;
+      border-top: 1px solid theme("colors.folio-line");
+      border-left: 0;
+    }
+
+    body.home-body .home-v05 .folio-chapter {
+      min-height: 27rem;
+      padding: 2.75rem 2rem 2.25rem;
+      border-top: 1px solid theme("colors.folio-line");
+    }
+
+    body.home-body .home-v05 .folio-chapter::before {
+      top: 2.35rem;
+      bottom: 2.25rem;
+      left: 1rem;
+    }
+
+    body.home-body .home-v05 .chapter-index-link {
+      min-height: 6rem;
+      padding: 1.2rem 1.5rem;
+    }
+
+    body.home-body .home-site-footer-inner {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    body.home-body .home-site-header {
+      margin: 0.75rem 0.75rem 0;
+    }
+
+    body.home-body .home-site-main {
+      padding-inline: 0.75rem;
+    }
+
+    body.home-body .home-site-header-inner {
+      padding-inline: 1rem;
+    }
+
+    body.home-body .home-v05 .folio-spine {
+      min-height: 7.5rem;
+      padding: 1rem;
+    }
+
+    body.home-body .home-v05 .folio-spine-facts {
+      gap: 0.35rem;
+      padding-inline: 0.65rem;
+    }
+
+    body.home-body .home-v05 .folio-spine-facts span {
+      font-size: 0.52rem;
+      letter-spacing: 0.04em;
+    }
+
+    body.home-body .home-v05 .folio-spine-facts strong {
+      font-size: 0.75rem;
+    }
+
+    body.home-body .home-v05 .folio-suits {
+      width: 3.1rem;
+      font-size: 0.75rem;
+    }
+
+    body.home-body .home-v05 .folio-sheet {
+      min-height: 28rem;
+      padding: 2.2rem 1.25rem 2.5rem;
+    }
+
+    body.home-body .home-v05 .folio-sheet-heading {
+      margin-bottom: 2rem;
+    }
+
+    body.home-body .home-v05 .folio-name {
+      font-size: clamp(4.25rem, 22vw, 6.5rem);
+    }
+
+    body.home-body .home-v05 .folio-name span:last-child {
+      padding-left: 0.25em;
+    }
+
+    body.home-body .home-v05 .folio-intro {
+      margin-top: 1.8rem;
+      font-size: 1.2rem;
+    }
+
+    body.home-body .home-v05 .folio-chapter {
+      min-height: 25rem;
+      padding: 2.35rem 1.25rem 2rem;
+    }
+
+    body.home-body .home-v05 .chapter-index-link {
+      min-height: 5.5rem;
+      padding-inline: 1.25rem;
+    }
+
+    body.home-body .home-site-footer {
+      margin-inline: 0.75rem;
+    }
+
+    body.home-body .home-site-footer-inner {
+      grid-template-columns: 1fr auto;
+      padding-inline: 1rem;
+    }
+  }
 }
 
 @media (forced-colors: active) {

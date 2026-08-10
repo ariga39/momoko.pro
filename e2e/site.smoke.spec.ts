@@ -21,11 +21,16 @@ test("home is a static language selector with x-default + all hreflang alternate
   );
 });
 
-test("locale page lists the synthetic news item with hreflang alternates", async ({ page }) => {
+test("locale home keeps stable folio content separate from dynamic news fixtures", async ({ page }) => {
   await page.goto("/zh/");
   await expect(page.locator("h1")).toContainText("周防");
   await expect(page.locator("[data-home-v05] .folio-chapter")).toContainText("桃子是谁？");
-  await expect(page.locator(".card-grid a").first()).toHaveAttribute("lang", "zh");
+  await expect(page.locator("[data-home-v05] .chapter-index")).toContainText("STORIES");
+  await expect(page.locator("[data-home-v05] .home-notes")).toHaveCount(0);
+  await expect(page.locator("[data-home-v05] .folio-song-card")).toBeVisible();
+  await expect(page.locator("main")).not.toContainText("DEMO");
+  await expect(page.locator("main")).not.toContainText("Latest notes");
+  await expect(page.locator("main")).not.toContainText("夏フェス開催");
   await expect(page.locator("main")).not.toContainText("S1-synth-2026-08-08-002");
   await expect(page.locator("main")).not.toContainText("S1-synth-2026-08-08-003");
   await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
@@ -194,7 +199,7 @@ test("source-language detail page is self-canonical and NOT a fallback (no noind
 });
 
 test("archive lists only reviewed/current content (no draft/retracted)", async ({ page }) => {
-  await page.goto("/zh/");
+  await page.goto("/zh/news/");
   const body = await page.locator("body").innerText();
   expect(body).toContain("夏フェス開催"); // reviewed 001
   expect(body).not.toContain("新曲発売決定"); // draft 002

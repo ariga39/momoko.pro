@@ -1,8 +1,8 @@
 # Phase 4A visual experience handoff
 
-Status: task #19 narrow successor after the exact-head visual/UX peer found two WCAG AA and handoff-truthfulness gaps. The successor keeps the accepted v0.5 visual implementation unchanged except for text-contrast tokens/usages, their class-level regression coverage, and this handoff. The reviewed predecessor was `c733be97bf8dc451fb7ebd81c5cd02d436272757`; the successor commit containing this handoff is the current review object, with its full SHA recorded in the task-thread delivery message.
+Status: task #19 final successor after the exact-head visual/UX peer found two WCAG AA and handoff-truthfulness gaps, followed by an approved structure checkpoint. The successor keeps the accepted v0.5 direction and adds only the agreed structure correction (single canvas, exact desktop proportions, no home dynamic stream, responsive order), text-contrast tokens/usages, class-level regression coverage, and this handoff. The reviewed predecessor was `c733be97bf8dc451fb7ebd81c5cd02d436272757`; the successor commit containing this handoff is the current review object, with its full SHA recorded in the task-thread delivery message.
 
-Implementation branch: `feat/task19-v05-mirai`. Implementation parent: `99b70bc6830ed7ed8bff89e41b7c60910f437b50`. The branch is the sole head of Draft PR #14, based on `main` (observed base `406af4c5ce71fbeaf536d5c7f64a96dc4f0b56cc`). No deployment or production write is authorized.
+Implementation branch: `feat/task19-v05-mirai`. Successor parent: `d5dbac56089f0c27314dfc9044b9d02263c8c607`. The branch is the sole head of Draft PR #14, based on `main` (observed base `406af4c5ce71fbeaf536d5c7f64a96dc4f0b56cc`). No deployment or production write is authorized.
 
 ## Direction and measurable tokens
 
@@ -57,7 +57,8 @@ The successor's a11y test checks both the token contrast ratios and the actual s
 - full `pnpm test`: **147 passed** across 13 files;
 - `pnpm check`: **0 errors / 0 warnings / 0 hints**;
 - existing browser visual/a11y suite remains **20 passed**;
-- existing public/default/visual-demo artifact and determinism gates remain required before final acceptance;
-- `git diff --check`, exact-head hosted CI, and the independent visual/UX peer are required on the successor SHA.
+- default build **24 pages**; public build **24 pages / 28 postbuild files**; public audit **OK**;
+- `pnpm build:verify`: **28 files byte-identical**; `git diff --check` clean;
+- the structure checkpoint passed independent visual/UX review; exact-head hosted CI and the successor re-peer remain required before final GO.
 
 The successor's hosted CI and peer must be evaluated only on the new exact head. Evidence from `c733be97...` proves the unchanged v0.5 direction/non-regression gates, but does not prove the successor's two repaired contracts.

@@ -1,11 +1,7 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
-import DemoNotice from "../components/DemoNotice.astro";
-import EditorialCard from "../components/EditorialCard.astro";
 import SiteLayout from "../components/SiteLayout.astro";
-import { loadPublishedNews, resolveLocale } from "../lib/content.ts";
 import { ml, type Locale } from "../lib/messages.ts";
-import { loadVisualCatalog } from "../lib/visual-demo.ts";
 
 export function getStaticPaths() {
   return [
@@ -17,18 +13,6 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = ml(lang);
-const catalog = loadVisualCatalog();
-const news = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
-const featured = news.slice(0, 3);
-const profile = [
-  [t.profileAge(), t.profileAgeValue()],
-  [t.profileBirthday(), t.profileBirthdayValue()],
-  [t.profileBloodType(), t.profileBloodTypeValue()],
-  [t.profileHeight(), t.profileHeightValue()],
-  [t.profileOrigin(), t.profileOriginValue()],
-  [t.profileHobby(), t.profileHobbyValue()],
-  [t.profileVoice(), t.profileVoiceValue()],
-];
 const chapterLinks = [
   {
     code: "01",
@@ -59,14 +43,6 @@ const chapterLinks = [
   bodyData={{ "data-page": "home", "data-visual-contract": "v0.5" }}
 >
   <div class="home-v05" data-home-v05>
-    <div class="folio-spectrum" aria-hidden="true">
-      <span class="folio-spectrum-pink"></span>
-      <span class="folio-spectrum-blue"></span>
-      <span class="folio-spectrum-brass"></span>
-      <span class="folio-spectrum-pale"></span>
-      <span class="folio-spectrum-navy"></span>
-    </div>
-
     <div class="folio-layout" data-folio-layout>
       <aside class="folio-spine" aria-label={t.homeFolioLabel()}>
         <div class="folio-spine-number" aria-hidden="true">049</div>
@@ -101,7 +77,6 @@ const chapterLinks = [
         <p class="folio-name-latin">MOMOKO SUOU</p>
         <div class="folio-rule" aria-hidden="true"><span>♥</span></div>
         <p class="folio-intro">{t.homeIntro()}</p>
-        <p class="folio-tagline">{t.homeTagline()}</p>
       </section>
 
       <aside class="folio-chapter" aria-labelledby="opening-note-title">
@@ -113,15 +88,6 @@ const chapterLinks = [
           href="https://millionlive-anime.idolmaster-official.jp/character/momoko/"
           rel="external noreferrer"
         >{t.profileSource()} <span aria-hidden="true">↗</span></a>
-
-        <dl class="folio-facts">
-          {profile.map(([term, value]) => (
-            <div>
-              <dt>{term}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
 
         <a class="folio-song-card" href={getRelativeLocaleUrl(lang, "/songs-live/")}>
           <span class="folio-song-card-kicker">02 / {t.homeChapterSong()}</span>
@@ -135,48 +101,16 @@ const chapterLinks = [
       <h2 id="chapter-index-title" class="sr-only">{t.homeChapterIndex()}</h2>
       {chapterLinks.map((chapter) => (
         <a class="chapter-index-link" href={chapter.href}>
-          <span class="chapter-index-code">{chapter.code}</span>
           <span class="chapter-index-copy">
-            <span class="chapter-index-word">{chapter.word}</span>
+            <span class="chapter-index-meta">
+              <span class="chapter-index-code">{chapter.code}</span>
+              <span class="chapter-index-word"> / {chapter.word}</span>
+            </span>
             <strong>{chapter.label}</strong>
           </span>
           <span class="chapter-index-arrow" aria-hidden="true">↗</span>
         </a>
       ))}
     </nav>
-
-    <section class="home-notes" aria-labelledby="notes-title">
-      <DemoNotice lang={lang} catalog={catalog} />
-      <div class="home-notes-heading">
-        <div>
-          <p class="folio-eyebrow">{t.visualArchiveEyebrow()}</p>
-          <h2 id="notes-title">{t.visualLatest()}</h2>
-        </div>
-        <a href={getRelativeLocaleUrl(lang, "/news/")}>{t.visualArchive()} <span aria-hidden="true">↗</span></a>
-      </div>
-      {featured.length > 0 ? (
-        <div class="card-grid">
-          {featured.map((item) => {
-            const resolved = resolveLocale(item, lang);
-            return (
-              <EditorialCard
-                href={`/${lang}/news/${item.slug}/`}
-                eyebrow={item.canonical.publishedAt.slice(0, 10)}
-                title={item.canonical.title}
-                body={resolved.body}
-                meta={`${item.canonical.sourceId} · ${resolved.translated ? lang : item.canonical.lang}`}
-                lang={lang}
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <section class="home-empty" aria-labelledby="home-empty-title">
-          <p class="folio-eyebrow">{t.visualArchiveEyebrow()}</p>
-          <h3 id="home-empty-title">{t.visualEmptyTitle()}</h3>
-          <p>{t.visualEmptyBody()}</p>
-        </section>
-      )}
-    </section>
   </div>
 </SiteLayout>
