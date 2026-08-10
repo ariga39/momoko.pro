@@ -43,9 +43,12 @@ function provision() {
     usedUv = true;
   }
   if (usedUv) {
-    execFileSync("uv", ["pip", "install", "--python", PYTHON, "-r", req], { cwd: ROOT, stdio: "inherit" });
+    execFileSync("uv", ["pip", "install", "--require-hashes", "--python", PYTHON, "-r", req], {
+      cwd: ROOT,
+      stdio: "inherit",
+    });
   } else {
-    execFileSync(PYTHON, ["-m", "pip", "install", "--disable-pip-version-check", "-r", req], {
+    execFileSync(PYTHON, ["-m", "pip", "install", "--disable-pip-version-check", "--require-hashes", "-r", req], {
       cwd: ROOT,
       stdio: "inherit",
     });

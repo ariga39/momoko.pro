@@ -120,16 +120,16 @@
 }
 
 :root {
-  --font-display: "Noto Sans SC", "Iowan Old Style", "Baskerville", serif;
-  --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans", sans-serif;
+  --font-display: "Noto Sans SC", serif;
+  --font-body: "Noto Sans SC", "PingFang SC", sans-serif;
 }
 
 html[lang="ja"] {
-  --font-display: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+  --font-display: "Noto Sans JP", serif;
   --font-body: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
 }
 
 html[lang="en"] {
-  --font-display: "Inter", "Iowan Old Style", "Baskerville", serif;
+  --font-display: "Inter", serif;
   --font-body: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
 }
