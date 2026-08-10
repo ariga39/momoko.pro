@@ -1,5 +1,13 @@
 import { expect, test, type Page, type APIRequestContext } from "@playwright/test";
 
+import {
+  assertIdentityClosure,
+  assertReciprocal,
+  isNewsDetailPath,
+  parseAlternates,
+  validateAlternates,
+} from "../tests/helpers/i18n-alternates.ts";
+
 /**
  * Task #33 contract tests: BFS internal-link crawl + i18n route matrix.
  * Run against the built Cloudflare worker via the playwright webServer.
@@ -50,28 +58,6 @@ function localeOf(pathname: string): Locale | undefined {
 
 function decodeEntities(value: string): string {
   return value.replaceAll("&#38;", "&").replaceAll("&amp;", "&");
-}
-
-function isNewsDetailPath(pathname: string): boolean {
-  return /^\/[a-z]{2}\/news\/\d{4}\//u.test(pathname);
-}
-
-/** identity suffix of a news detail path (year + slug), e.g. "2026/S1-...-001/" */
-function newsIdentitySuffix(pathname: string): string {
-  const match = pathname.match(/^\/[a-z]{2}\/news\/(.+)$/u);
-  return match?.[1] ?? "";
-}
-
-/** parse alternate <link> entries from html: [{hreflang, path}] (x-default excluded) */
-function parseAlternates(html: string, baseUrl: URL): Array<{ hreflang: string; path: string }> {
-  const out: Array<{ hreflang: string; path: string }> = [];
-  for (const match of html.matchAll(/<link[^>]+rel="alternate"[^>]+hreflang="([^"]+)"[^>]*href="([^"]+)"[^>]*>/gu)) {
-    const hreflang = match[1] ?? "";
-    const rawHref = match[2] ?? "";
-    if (hreflang === "x-default") continue;
-    out.push({ hreflang, path: new URL(decodeEntities(rawHref), baseUrl).pathname });
-  }
-  return out;
 }
 
 async function collectLinks(page: Page): Promise<string[]> {
@@ -156,40 +142,32 @@ async function crawlSite(request: APIRequestContext, failOnBadLink: boolean): Pr
     result.canonicalChecks += 1;
 
     const alternates = parseAlternates(html, finalUrl);
-    if (alternates.length === 0) throw new Error(`crawl: ${finalPath} has no hreflang alternates`);
-    const seenHreflangs = new Set<string>();
+    validateAlternates(finalPath, alternates);
+    const seenHreflangs = new Set(alternates.map((alt) => alt.hreflang));
     for (const alt of alternates) {
-      if (!(LOCALES as readonly string[]).includes(alt.hreflang)) {
-        throw new Error(`crawl: ${finalPath} hreflang ${alt.hreflang} not in zh/ja/en`);
-      }
-      if (seenHreflangs.has(alt.hreflang)) throw new Error(`crawl: ${finalPath} duplicate hreflang ${alt.hreflang}`);
-      seenHreflangs.add(alt.hreflang);
-      if (localeOf(alt.path) !== alt.hreflang) {
-        throw new Error(`crawl: ${finalPath} hreflang ${alt.hreflang} does not match URL locale ${alt.path}`);
-      }
       const altRes = await request.get(alt.path, { maxRedirects: 3 });
       if (!altRes.ok()) throw new Error(`crawl: hreflang ${alt.hreflang} of ${finalPath} -> ${altRes.status()}`);
       result.hreflangChecks += 1;
     }
 
     if (isNewsDetailPath(finalPath)) {
-      // Content identity closure: canonical + all alternates keep the same
-      // year/slug suffix, and every member reciprocally emits the same set.
-      const identity = newsIdentitySuffix(finalPath);
-      if (newsIdentitySuffix(canonicalUrl.pathname) !== identity) {
-        throw new Error(`crawl: ${finalPath} canonical identity mismatch ${canonicalUrl.pathname}`);
-      }
-      const memberPaths = new Set([canonicalUrl.pathname, ...alternates.map((alt) => alt.path)]);
+      // Content identity closure: canonical + alternates keep the same
+      // year/slug suffix; every member runs the SAME label/locale/identity
+      // validation as the first page, and reciprocally emits the same set.
+      const memberPaths = assertIdentityClosure(finalPath, canonicalUrl.pathname, alternates);
       for (const member of memberPaths) {
-        if (newsIdentitySuffix(member) !== identity) {
-          throw new Error(`crawl: ${finalPath} identity member mismatch ${member}`);
-        }
         const memberRes = await request.get(member, { maxRedirects: 3 });
         if (!memberRes.ok()) throw new Error(`crawl: identity member ${member} -> ${memberRes.status()}`);
-        const memberSet = new Set(parseAlternates(await memberRes.text(), finalUrl).map((alt) => alt.path));
-        if (![...memberSet].every((p) => memberPaths.has(p)) || ![...memberPaths].every((p) => memberSet.has(p))) {
-          throw new Error(`crawl: ${finalPath} non-reciprocal identity set at ${member}`);
-        }
+        const memberHtml = await memberRes.text();
+        const memberAlternates = parseAlternates(memberHtml, finalUrl);
+        validateAlternates(member, memberAlternates);
+        const memberCanonical = memberHtml.match(/<link[^>]+rel="canonical"[^>]*>/u)?.[0];
+        const memberCanonicalHref = memberCanonical?.match(/href="([^"]+)"/u)?.[1];
+        if (!memberCanonicalHref) throw new Error(`crawl: ${member} has no canonical`);
+        const memberCanonicalPath = new URL(decodeEntities(memberCanonicalHref), finalUrl).pathname;
+        assertIdentityClosure(member, memberCanonicalPath, memberAlternates);
+        const memberSet = new Set(memberAlternates.map((alt) => alt.path));
+        assertReciprocal(finalPath, memberPaths, memberSet);
       }
     } else {
       // Non-content pages mirror the page's own path across all three locales.
