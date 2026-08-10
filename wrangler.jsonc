@@ -1,0 +1,39 @@
+{
+  // Cloudflare Worker deployment readiness (task #26).
+  //
+  // Explicit config so the repo never generates deploy configuration at deploy
+  // time. Production deploy is intentionally NOT authorized yet. No account_id,
+  // custom route/domain, real namespace id, or production secret is stored
+  // here, and no unused D1/KV/R2 binding is configured. `observability` stays
+  // off until a designed log/privacy surface exists. The `preview` environment
+  // is exercised only by `wrangler dev` / `wrangler versions upload --dry-run`;
+  // this task never executes an upload or deploy.
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "momoko-pro",
+  "main": "dist/_worker.js/index.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "MOMOKO_ENV": "preview"
+  },
+  "env": {
+    "preview": {
+      "vars": {
+        "MOMOKO_ENV": "preview"
+      },
+      "compatibility_date": "2026-07-01"
+    },
+    "production": {
+      // Non-sensitive skeleton only; no job, route, secret, or binding. A real
+      // production environment waits for explicit human authorization.
+      "vars": {
+        "MOMOKO_ENV": "production"
+      },
+      "compatibility_date": "2026-07-01"
+    }
+  }
+}
