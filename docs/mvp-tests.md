@@ -15,7 +15,7 @@
 - [ ] 原文变 → 译文 stale，不显示为已审核
 - [ ] 状态机：**正/反转移表**校验（draft→reviewed 由独立 reviewer 在 merge 前提交且 reviewer/time 非空；reviewed→published 仅 build 派生；published 不在 canonical enum→draft / reviewed→draft / 跳过 → fail）
 - [ ] **published 不回写 canonical**：重建后 main 上 reviewed 内容再次派生 published，不回退
-- [ ] `/` 为语言选择页或固定静态 302；无服务端 Accept-Language 读取
+- [ ] `/` 服务端按 cookie → `Accept-Language` → `ja` 返回 302；不显示语言选择门页
 
 ## 风险分级 T0/T1/T2
 - [ ] T0 只自动生成文件/PR，**仍需独立 reviewer review（T2 必须 human）+ 具 merge 权限合并；MVP 不自动合并/发布**（无 auto-merge 路径）

@@ -26,7 +26,7 @@ const robotsContent = robots ?? (noindex ? "noindex" : undefined);
 const nav = [
   { href: getRelativeLocaleUrl(lang, "/news/"), label: t.navStories() },
   { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongs() },
-  { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navPerformances() },
+  { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navAnniversary() },
   { href: getRelativeLocaleUrl(lang, "/about/"), label: t.navAbout() },
 ];
 const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
@@ -65,21 +65,29 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
       )}
       <div class:list={["mx-auto flex max-w-content items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8", isHome && "home-site-header-inner"]}>
         <a href={homeUrl} aria-label={t.home()} class="masthead-mark text-text no-underline hover:text-accent" data-site-mark>
-          <span class="masthead-kicker">momoko.pro</span>
-          <strong class="masthead-subtitle">{t.homeSubtitle()}</strong>
+          <img
+            class="masthead-logo"
+            src="/momoko-logo.svg"
+            alt={t.home()}
+            width="1200"
+            height="220"
+            decoding="async"
+          />
         </a>
 
-        <nav class="hidden lg:block" aria-label={t.navMain()}>
-          <ul class="flex items-center gap-6">
-            {nav.map((item) => (
-              <li>
-                <a href={item.href} lang={lang} class="nav-link text-text no-underline hover:text-accent">
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {!isHome && (
+          <nav class="hidden lg:block" aria-label={t.navMain()}>
+            <ul class="flex items-center gap-6">
+              {nav.map((item) => (
+                <li>
+                  <a href={item.href} lang={lang} class="nav-link text-text no-underline hover:text-accent">
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
 
         <div class="flex items-center gap-3">
           <div class="hidden sm:block">
@@ -119,7 +127,7 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
     <footer class:list={["site-footer folio-footer mt-12 border-t border-border", isHome && "home-site-footer"]}>
       <div class:list={["mx-auto grid max-w-content gap-5 px-4 py-8 sm:grid-cols-[1fr_auto] sm:px-6 lg:px-8", isHome && "home-site-footer-inner"]}>
         <div>
-          <p class="footer-label">momoko.pro / editorial desk</p>
+          <p class="footer-label">{t.footerIdentity()}</p>
           <p class="folio-footer-notice mt-2 max-w-prose text-sm">{t.footerNotice()}</p>
         </div>
         <p class="text-sm sm:text-right" lang={lang}>

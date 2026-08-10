@@ -31,7 +31,7 @@ function main() {
   // synthetic/demo material that must stay in explicit test packages).
   const forbiddenPath = /synth-2026-08-08-00(2|3)/;
   const forbiddenDemo = /synthetic|合成夹具|demo news|fake news/i;
-  const forbiddenMediaPath = /\.(?:png|jpe?g|gif|webp|svg|mp3|wav|ogg|m4a|flac|mp4|webm)$/i;
+  const forbiddenMediaPath = /\.(?:png|jpe?g|gif|webp|mp3|wav|ogg|m4a|flac|mp4|webm)$/i;
   const forbiddenRuntimePath = /(?:^|[/._-])(?:crawler|cron|deploy|maintenance|research)(?:[/._-]|$)/i;
   // 2) Controlled raw/secret-shaped markers: we never place real values in the
   //    output, only detect suspicious shapes.
@@ -49,6 +49,18 @@ function main() {
     if (forbiddenMediaPath.test(rel)) {
       problems.push(`copyrighted-media-shaped file in public build: ${rel}`);
     }
+    if (/\.svg$/i.test(rel)) {
+      const artifactRel = path.relative(dist, f);
+      if (artifactRel !== "momoko-logo.svg") problems.push(`unapproved SVG asset in public build: ${rel}`);
+      const svg = fs.readFileSync(f, "utf-8");
+      if (!svg.includes('viewBox="0 0 1200 220"')) problems.push(`logo viewBox mismatch in ${rel}`);
+      if (!svg.includes("LibreBaskerville-OFL.txt") || !svg.includes("Nunito-OFL.txt")) {
+        problems.push(`logo attribution metadata missing in ${rel}`);
+      }
+      if (/<(?:image|audio|video)\b/i.test(svg) || /(?:href|src)=["']https?:/i.test(svg)) {
+        problems.push(`external/media reference in ${rel}`);
+      }
+    }
     if (forbiddenRuntimePath.test(rel)) {
       problems.push(`research/maintenance runtime path in public build: ${rel}`);
     }
@@ -63,8 +75,16 @@ function main() {
     if (/<script[^>]+src=["']https?:\/\//i.test(text)) {
       problems.push(`external script in ${rel}`);
     }
-    if (/<(?:img|audio|video|source)\b/i.test(text)) {
+    if (/fonts\.googleapis|fonts\.gstatic|@font-face|https?:\/\/[^\s"']+\.(?:woff2?|ttf|otf)\b/i.test(text)) {
+      problems.push(`external font reference in ${rel}`);
+    }
+    if (/<(?:audio|video|source)\b/i.test(text)) {
       problems.push(`media markup in ${rel}`);
+    }
+    for (const match of text.matchAll(/<img\b[^>]*>/gi)) {
+      if (!/src=["']\/momoko-logo\.svg["']/i.test(match[0])) {
+        problems.push(`unapproved image markup in ${rel}`);
+      }
     }
     for (const [i, re] of secretShapes.entries()) {
       if (re.test(text)) {

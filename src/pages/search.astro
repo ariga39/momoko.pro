@@ -8,6 +8,8 @@ import { buildSearchIndex } from "../lib/search.ts";
 import { loadVisualCatalog } from "../lib/visual-demo.ts";
 
 const t = ml("ja");
+export const prerender = false;
+Astro.response.status = 200;
 const catalog = loadVisualCatalog();
 const items = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
 const index = buildSearchIndex(items);

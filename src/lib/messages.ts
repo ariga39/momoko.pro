@@ -1,6 +1,7 @@
 import * as m from "../paraglide/messages.js";
+import type { Locale } from "./locale.ts";
 
-export type Locale = "ja" | "zh" | "en";
+export type { Locale } from "./locale.ts";
 
 /**
  * Locale-aware message accessor. Paraglide's default `getLocale()` in SSG
@@ -49,6 +50,7 @@ export function ml(lang: Locale) {
     notFoundBody: () => m["notFoundBody"]({}, options),
     backHome: () => m["backHome"]({}, options),
     skipToContent: () => m["skipToContent"]({}, options),
+    footerIdentity: () => m["footer.identity"]({}, options),
     footerNotice: () => m["footer.notice"]({}, options),
     footerDocs: () => m["footer.docs"]({}, options),
     searchHeading: () => m["search.heading"]({}, options),

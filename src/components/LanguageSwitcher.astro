@@ -1,6 +1,6 @@
 ---
-import { getRelativeLocaleUrl } from "astro:i18n";
 import { ml, type Locale } from "../lib/messages.ts";
+import { localizePath } from "../lib/locale.ts";
 
 interface Props {
   current: Locale;
@@ -9,6 +9,7 @@ interface Props {
 
 const { current, ariaLabel } = Astro.props;
 const t = ml(current);
+const currentPath = `${Astro.url.pathname}${Astro.url.search}`;
 const langs = [
   { code: "zh", label: t.langZh() },
   { code: "ja", label: t.langJa() },
@@ -31,7 +32,12 @@ const langs = [
             {l.label}
           </span>
         ) : (
-          <a href={getRelativeLocaleUrl(l.code as Locale, "/")} hreflang={l.code} lang={l.code} class="text-link">
+          <a
+            href={`/locale-switch?locale=${l.code}&next=${encodeURIComponent(localizePath(currentPath, l.code as Locale))}`}
+            hreflang={l.code}
+            lang={l.code}
+            class="text-link"
+          >
             {l.label}
           </a>
         )}
