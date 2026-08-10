@@ -1,0 +1,51 @@
+name: deploy-preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    environment: preview
+    # This job is a DRY-RUN audit only: it builds the project and produces a
+    # local `wrangler deploy --dry-run` bundle. No CF token, no account write,
+    # no domain write. A real production deploy job is intentionally NOT
+    # created until the human authorizes it; missing secrets then must fail
+    # closed rather than claim success.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable corepack + install (frozen lockfile)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Cloudflare dry-run audit (no external write)
+        run: pnpm exec node --experimental-strip-types scripts/deploy-dryrun.mjs
+
+      - name: Assert no deploy credentials present (dry-run only)
+        run: |
+          if [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo "A Cloudflare deploy token is configured; this workflow must NOT deploy." >&2
+            exit 1
+          fi
+          echo "No deploy token present; confirmed dry-run only (zero external write)."
