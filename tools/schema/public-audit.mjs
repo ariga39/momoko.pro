@@ -75,7 +75,8 @@ function main() {
     if (/<script[^>]+src=["']https?:\/\//i.test(text)) {
       problems.push(`external script in ${rel}`);
     }
-    if (/fonts\.googleapis|fonts\.gstatic|@font-face|https?:\/\/[^\s"']+\.(?:woff2?|ttf|otf)\b/i.test(text)) {
+    // Allow self-hosted /fonts/ woff2 (task #25); block remote CDN font refs.
+    if (/fonts\.googleapis|fonts\.gstatic|https?:\/\/[^\s"']+\.(?:woff2?|ttf|otf)\b/i.test(text)) {
       problems.push(`external font reference in ${rel}`);
     }
     if (/<(?:audio|video|source)\b/i.test(text)) {

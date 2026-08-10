@@ -11,7 +11,10 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "build:public": "PUBLIC_BUILD=1 astro build --outDir dist-public && PUBLIC_BUILD=1 node --experimental-strip-types tools/schema/postbuild.ts",
+    "fonts:install": "node tools/fonts/subset.mjs install",
+    "fonts:lock-source": "node tools/fonts/lock-source.mjs",
+    "fonts:subset": "node tools/fonts/subset.mjs && node tools/fonts/audit.mjs",
+    "build:public": "pnpm fonts:subset && PUBLIC_BUILD=1 astro build --outDir dist-public && PUBLIC_BUILD=1 node --experimental-strip-types tools/schema/postbuild.ts",
     "build:post": "node --experimental-strip-types tools/schema/postbuild.ts",
     "build:verify": "node tools/schema/determinism.mjs",
     "check": "pnpm lint && pnpm typecheck",
@@ -24,6 +27,9 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "12.6.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/noto-sans-jp": "^5.3.0",
+    "@fontsource/noto-sans-sc": "^5.3.0",
     "astro": "^5.1.0"
   },
   "devDependencies": {
@@ -41,6 +47,7 @@
     "eslint": "9.39.5",
     "eslint-plugin-astro": "~1.7.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
+    "fontkit": "^2.0.4",
     "globals": "17.9.0",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.0",

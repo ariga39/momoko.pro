@@ -44,18 +44,11 @@ export default {
         "folio-display": ["clamp(4.25rem, 14vw, 11rem)", { lineHeight: "0.78" }],
       },
       fontFamily: {
-        display: ["Iowan Old Style", "Baskerville", "Times New Roman", "serif"],
+        display: [
+          "var(--font-display, 'Iowan Old Style', 'Baskerville', 'Times New Roman', serif)",
+        ],
         body: [
-          "ui-sans-serif",
-          "system-ui",
-          "Segoe UI",
-          "Roboto",
-          "Helvetica Neue",
-          "Arial",
-          "PingFang SC",
-          "Hiragino Sans",
-          "Noto Sans CJK",
-          "sans-serif",
+          "var(--font-body, ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK', sans-serif)",
         ],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
