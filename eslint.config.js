@@ -7,9 +7,11 @@ export default [
   {
     ignores: [
       ".astro/**",
+      ".venv-fonts/**",
       "dist/**",
       "node_modules/**",
       "playwright-report/**",
+      "public/fonts/**",
       "test-results/**",
       "src/paraglide/**",
     ],
