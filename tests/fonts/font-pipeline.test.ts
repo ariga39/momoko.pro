@@ -81,18 +81,27 @@ describe("subset manifest", () => {
 });
 
 describe("SC/JP are genuinely different (task #25 contract)", () => {
-  it("the same han codepoint resolves to distinct glyphs in SC vs JP subsets", () => {
+  it("the same han codepoint resolves to distinct outlines in SC vs JP subsets", () => {
     const scPath = path.join(OUT_FONTS, "noto-sans-sc-chinese-simplified-400-normal.woff2");
     const jpPath = path.join(OUT_FONTS, "noto-sans-jp-japanese-400-normal.woff2");
     if (!fs.existsSync(scPath) || !fs.existsSync(jpPath)) return; // generator gate
     const fontkit = require("fontkit");
     const sc = fontkit.openSync(scPath);
     const jp = fontkit.openSync(jpPath);
-    const han = [0x6843, 0x65e5, 0x4e2d, 0x672c]; // 桃/日/中/本
-    for (const cp of han) {
-      const scGlyph = sc.glyphForCodePoint(cp).id;
-      const jpGlyph = jp.glyphForCodePoint(cp).id;
-      expect(scGlyph).not.toBe(jpGlyph);
+    // Chars whose simplified (SC) vs Japanese (JP) glyph shapes differ, so the
+    // fonts cannot be aliases. (Many CJK chars are han-unified and identical;
+    // these are the ones that legitimately differ.)
+    const differ = [0x4eac, 0x4eba, 0x4f1a, 0x4ee5]; // 京/人/会/以
+    for (const cp of differ) {
+      // Both subsets must actually contain the codepoint.
+      expect(sc.characterSet.includes(cp)).toBe(true);
+      expect(jp.characterSet.includes(cp)).toBe(true);
+      // Glyph IDs are local indices and prove nothing about shape; compare the
+      // normalized outline path commands instead.
+      const fmt = (cmd: { command: string; args: number[] }): string => `${cmd.command}:${cmd.args.join(",")}`;
+      const scOutline = sc.glyphForCodePoint(cp).path.commands.map(fmt);
+      const jpOutline = jp.glyphForCodePoint(cp).path.commands.map(fmt);
+      expect(scOutline).not.toEqual(jpOutline);
     }
   });
 });
