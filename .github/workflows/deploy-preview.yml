@@ -1,4 +1,11 @@
-name: deploy-preview
+name: preview-version-upload
+
+# FUTURE authorized preview workflow (task #26): this job is committed and
+# tested but MUST NOT be triggered without explicit human authorization. A real
+# run would execute `wrangler versions upload --env preview` (creates a
+# non-active preview version, not a deploy) using an explicit confirmation
+# string, the GitHub `preview` environment, and fail-closed secret handling.
+# The offline CI audit (scripts/deploy-dryrun.mjs) is the no-secret path.
 
 on:
   workflow_dispatch:
@@ -10,8 +17,8 @@ on:
         type: choice
         options:
           - preview
-      confirm_dry_run_only:
-        description: 'Confirm this run is DRY-RUN ONLY (must type "dry-run-only")'
+      confirm:
+        description: 'Confirmation string (must be "upload-preview-version")'
         required: true
         type: string
 
@@ -19,22 +26,18 @@ permissions:
   contents: read
 
 jobs:
-  deploy-preview:
+  preview-version-upload:
     runs-on: ubuntu-latest
     environment: preview
-    # This job is a DRY-RUN audit only: it builds the project and produces a
-    # local `wrangler versions upload --env preview --dry-run` bundle. No CF
-    # token, no account write, no version upload, no domain write. A real
-    # production deploy job is intentionally NOT created until the human
-    # authorizes it; missing secrets then must fail closed.
+    if: ${{ github.event.inputs.confirm == 'upload-preview-version' && github.event.inputs.environment == 'preview' }}
     steps:
-      - name: Confirm dry-run-only input
+      - name: Refuse without explicit authorization
         run: |
-          if [[ "${{ github.event.inputs.confirm_dry_run_only }}" != "dry-run-only" ]]; then
-            echo "Confirmation mismatch; refusing to run a non-dry-run action." >&2
+          if [[ "${{ github.event.inputs.confirm }}" != "upload-preview-version" ]]; then
+            echo "Confirmation mismatch; refusing to upload a preview version." >&2
             exit 1
           fi
-          echo "Confirmed dry-run only."
+          echo "Explicitly authorized preview version upload (never triggered by this task)."
 
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -51,16 +54,19 @@ jobs:
           corepack prepare pnpm@9.15.9 --activate
           pnpm install --frozen-lockfile
 
-      - name: Cloudflare dry-run audit (no external write)
+      - name: Offline dry-run audit (no secret, no upload)
         run: pnpm exec node --experimental-strip-types scripts/deploy-dryrun.mjs
 
-      - name: Assert no deploy credentials present (dry-run only)
+      - name: Fail closed when required secrets are missing
         run: |
-          if [[ -n "${CLOUDFLARE_API_TOKEN:-}" || -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
-            echo "Cloudflare deploy credentials are configured; this workflow must NOT upload/deploy." >&2
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" || -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+            echo "CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is missing; refusing to upload." >&2
             exit 1
           fi
-          echo "No deploy credentials present; confirmed dry-run only (zero external write)."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # The actual upload step is intentionally absent: this job must never be
+      # triggered without explicit human authorization. When authorized, the
+      # deployer would run: pnpm exec wrangler versions upload --env preview

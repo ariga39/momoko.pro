@@ -114,7 +114,7 @@ export function main() {
     const bundleDir = path.join(tmp, "bundle");
     execFileSync(
       "pnpm",
-      ["exec", "wrangler", "versions", "upload", "--env", "preview", "--dry-run", "--outdir", bundleDir],
+      ["exec", "wrangler", "deploy", "--dry-run", "--outdir", bundleDir],
       { cwd: REPO_ROOT, stdio: "inherit" },
     );
     const audit = auditDir(bundleDir);
@@ -124,7 +124,7 @@ export function main() {
       const bundleDir2 = path.join(tmp, "bundle2");
       execFileSync(
         "pnpm",
-        ["exec", "wrangler", "versions", "upload", "--env", "preview", "--dry-run", "--outdir", bundleDir2],
+        ["exec", "wrangler", "deploy", "--dry-run", "--outdir", bundleDir2],
         { cwd: REPO_ROOT, stdio: "inherit" },
       );
       if (dirHash(bundleDir) !== dirHash(bundleDir2)) {

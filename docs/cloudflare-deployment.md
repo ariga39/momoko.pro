@@ -31,25 +31,40 @@ and the site is not published until the human explicitly authorizes it.
 | Source maps present | fails closed (`source_map_present`). |
 | Artifact over Free-plan size limit | fails closed (`worker_size_over_limit`). |
 | Repeated dry-run differs | fails closed (`non_deterministic_bundle`). |
-| Deploy credentials present in dry-run | `deploy-preview` workflow refuses to run. |
+| Deploy credentials present in dry-run | the preview-upload workflow refuses to run. |
 | Missing/invalid confirmation input | workflow fails closed before any step. |
 
-`scripts/deploy-dryrun.mjs` is the single dry-run/audit seam used by both CI and
-the manual `deploy-preview` workflow. The audit checks entry/asset manifest
-presence, bundle size against the Cloudflare Workers Free plan limit
+`scripts/deploy-dryrun.mjs` is the no-secret offline audit seam used by CI. It
+runs `wrangler deploy --dry-run --outdir <tmp>` (or the equivalent
+`versions upload --dry-run`), which only compiles and checks — it never creates
+a preview version or any external object. The audit checks entry/asset
+manifest presence, bundle size against the Cloudflare Workers Free plan limit
 (2026-08-10), absence of source maps/secrets/demo/preview content and external
 deploy dependencies, and byte-identical output across repeated dry-runs.
 
+## Two distinct paths (kept separate)
+
+1. **Offline / CI audit (no secret)**: `wrangler deploy --dry-run --outdir` (or
+   `versions upload --dry-run`). Reproducible bundle/manifest/size/content
+   audit; zero external write. This is what the current `scripts/deploy-dryrun.mjs`
+   and CI execute.
+2. **Future authorized preview upload**: `wrangler versions upload --env
+   preview` (without `--dry-run`), which creates a non-active preview version /
+   preview URL but does not deploy. Committed as `.github/workflows/deploy-preview.yml`
+   with an explicit `upload-preview-version` confirmation, GitHub
+   `environment: preview`, and fail-closed token/account handling. This task
+   only commits and tests the workflow; it **never triggers** the upload.
+
 ## Permission model
 
-- **preview**: manual `workflow_dispatch` on the `preview` GitHub environment,
-  requiring an explicit `dry-run-only` confirmation string. It runs the dry-run
-  audit only and refuses to run if any Cloudflare deploy credential is present.
-  A real `wrangler versions upload --env preview` (non-active preview version)
-  is **documented but never executed** by this task.
+- **preview**: manual `workflow_dispatch` requiring the explicit
+  `upload-preview-version` confirmation and the `preview` environment. It runs
+  the offline dry-run audit first, then fails closed if `CLOUDFLARE_API_TOKEN`
+  or `CLOUDFLARE_ACCOUNT_ID` is missing. The actual `versions upload` step is
+  intentionally not executable by this task.
 - **production**: intentionally **not created** yet. Requires explicit human
   authorization for actual Worker creation, version upload, custom domain/route
-  writes, and deployment. Missing production secrets must fail closed.
+  writes, and deployment.
 
 ## Rollback and domain-switch checklist (not executed)
 
@@ -65,5 +80,9 @@ deploy dependencies, and byte-identical output across repeated dry-runs.
 ## Status
 
 No tag/release, package, image, worker, version, domain, or route is created or
-uploaded by this slice. Offline readiness is verified; the external preview
-upload is **not** executed. Repository visibility stays private.
+uploaded by this slice. The current branch is an **intermediate** development/
+validation object on the static baseline; the final delivery object must be a
+rebase onto the task #20 server main proving `dist/_worker.js/index.js`,
+locale/cookie routing, and the assets binding. Offline readiness and the
+not-executed preview upload are reported separately. Repository visibility
+stays private.
