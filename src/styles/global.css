@@ -1007,7 +1007,7 @@
   }
 
   [data-site-header] .masthead-kicker {
-    color: theme("colors.folio-pink");
+    color: theme("colors.folio-pink-ink");
   }
 
   [data-site-header] .masthead-rule {
@@ -1120,7 +1120,7 @@
   }
 
   .folio-color-value {
-    color: theme("colors.folio-brass") !important;
+    color: theme("colors.folio-brass-ink") !important;
     font-family: theme("fontFamily.mono") !important;
     font-size: 0.72rem !important;
   }
@@ -1135,11 +1135,11 @@
   }
 
   .folio-suits span:nth-child(2) {
-    color: theme("colors.folio-pink");
+    color: theme("colors.folio-pink-ink");
   }
 
   .folio-suits span:nth-child(3) {
-    color: theme("colors.folio-brass");
+    color: theme("colors.folio-brass-ink");
   }
 
   .folio-sheet {
@@ -1181,7 +1181,7 @@
   }
 
   .folio-issue {
-    color: theme("colors.folio-brass");
+    color: theme("colors.folio-brass-ink");
     font-family: theme("fontFamily.mono");
     font-size: 0.64rem;
     letter-spacing: 0.08em;
@@ -1221,7 +1221,7 @@
     gap: 0.65rem;
     max-width: 20rem;
     margin: 1.15rem 0;
-    color: theme("colors.folio-pink");
+    color: theme("colors.folio-pink-ink");
   }
 
   .folio-rule::before,
@@ -1259,7 +1259,7 @@
   }
 
   .folio-chapter-label {
-    color: theme("colors.folio-pink");
+    color: theme("colors.folio-pink-ink");
   }
 
   .folio-chapter h2 {
@@ -1326,7 +1326,7 @@
 
   .folio-song-card-kicker {
     grid-column: 1 / -1;
-    color: theme("colors.folio-pink");
+    color: theme("colors.folio-pink-ink");
   }
 
   .folio-song-card strong {
@@ -1364,7 +1364,7 @@
   }
 
   .chapter-index-code {
-    color: theme("colors.folio-brass");
+    color: theme("colors.folio-brass-light");
     font-family: theme("fontFamily.display");
     font-size: 1.7rem;
     line-height: 1;
@@ -1389,7 +1389,7 @@
   }
 
   .chapter-index-arrow {
-    color: theme("colors.folio-brass");
+    color: theme("colors.folio-brass-light");
     font-size: 1.15rem;
   }
 

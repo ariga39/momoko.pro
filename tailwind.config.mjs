@@ -25,9 +25,12 @@ export default {
         "folio-ink": "#283247",
         "folio-navy": "#243e61",
         "folio-pink": "#ce5c7b",
+        "folio-pink-ink": "#7f1d3f",
         "folio-pink-soft": "#efc5cc",
         "folio-blue": "#9fb9d4",
         "folio-brass": "#bd9340",
+        "folio-brass-ink": "#6f4c14",
+        "folio-brass-light": "#d6ad58",
         "folio-line": "#cdb58b",
       },
       fontSize: {

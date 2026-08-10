@@ -13,6 +13,14 @@ export interface TailwindColors {
   "accent-contrast": string;
   link: string;
   border: string;
+  "folio-paper": string;
+  "folio-paper-deep": string;
+  "folio-navy": string;
+  "folio-blue": string;
+  "folio-pink-soft": string;
+  "folio-pink-ink": string;
+  "folio-brass-ink": string;
+  "folio-brass-light": string;
 }
 
 export interface TailwindTokens {
@@ -42,6 +50,14 @@ export function parseCssTokens(): TailwindTokens {
     "accent-contrast": rawColors["accent-contrast"] ?? "",
     link: rawColors.link ?? "",
     border: rawColors.border ?? "",
+    "folio-paper": rawColors["folio-paper"] ?? "",
+    "folio-paper-deep": rawColors["folio-paper-deep"] ?? "",
+    "folio-navy": rawColors["folio-navy"] ?? "",
+    "folio-blue": rawColors["folio-blue"] ?? "",
+    "folio-pink-soft": rawColors["folio-pink-soft"] ?? "",
+    "folio-pink-ink": rawColors["folio-pink-ink"] ?? "",
+    "folio-brass-ink": rawColors["folio-brass-ink"] ?? "",
+    "folio-brass-light": rawColors["folio-brass-light"] ?? "",
   };
   if (!colors.bg || !colors.text) {
     throw new Error("tailwind.config.mjs colors missing required bg/text tokens");
