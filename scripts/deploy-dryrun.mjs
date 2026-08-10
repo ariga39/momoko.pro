@@ -63,12 +63,14 @@ export function evaluateDeployRoot(audit, { maxBytes = MAX_WORKER_SIZE_BYTES, di
   // Source maps must never ship in static assets (the worker's own .map is a
   // local build artifact not uploaded to the Workers runtime).
   const staticEntries = audit.entries.filter((f) => !f.startsWith("_worker.js"));
+  const workerEntries = audit.entries.filter((f) => f.startsWith("_worker.js"));
   const staticSourceMaps = staticEntries.filter((f) => f.endsWith(".map"));
   if (staticSourceMaps.length > 0) {
     return { ok: false, code: "source_map_present", message: "source maps in static assets must not ship" };
   }
   // Secret/demo/preview markers: check BOTH filenames and file content for
-  // credential-shaped or demo/preview markers in static assets.
+  // credential-shaped or demo/preview markers in static assets AND worker
+  // modules (the whole worker tree, not only the entry).
   const SENSITIVE_MARKERS = [
     /(?:sk|pk|rk)_live_[a-zA-Z0-9]+/,
     /sk_[a-zA-Z0-9]{16,}/,
@@ -78,7 +80,7 @@ export function evaluateDeployRoot(audit, { maxBytes = MAX_WORKER_SIZE_BYTES, di
     /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
     /Bearer [A-Za-z0-9._~-]{20,}/,
   ];
-  const forbiddenPaths = staticEntries.filter((f) => {
+  const forbiddenPaths = audit.entries.filter((f) => {
     const lower = f.toLowerCase();
     return lower.includes("/demo/") || lower.includes("preview-content") || lower.includes("secret-") || lower.includes("credentials");
   });
@@ -96,6 +98,17 @@ export function evaluateDeployRoot(audit, { maxBytes = MAX_WORKER_SIZE_BYTES, di
       break;
     }
   }
+  if (hit === null) {
+    // Non-entry worker chunks must obey the same secret-shaped content policy.
+    for (const rel of workerEntries) {
+      const full = path.join(distDir, rel);
+      const raw = fs.readFileSync(full, "utf8");
+      if (SENSITIVE_MARKERS.some((re) => re.test(raw))) {
+        hit = rel;
+        break;
+      }
+    }
+  }
   if (hit !== null) {
     return { ok: false, code: "secret_shaped_content", message: `sensitive-shaped content in ${hit}` };
   }
@@ -106,13 +119,16 @@ export function evaluateDeployRoot(audit, { maxBytes = MAX_WORKER_SIZE_BYTES, di
       message: `static assets ${staticBytes} bytes exceeds ${maxBytes}`,
     };
   }
-  // Bound the worker bundle itself too.
-  const workerBytes = fs.statSync(path.join(distDir, "_worker.js", "index.js")).size;
+  // Bound the whole worker module tree (all chunks), not just the entry.
+  let workerBytes = 0;
+  for (const rel of workerEntries) {
+    workerBytes += fs.statSync(path.join(distDir, rel)).size;
+  }
   if (workerBytes > maxBytes) {
     return {
       ok: false,
       code: "worker_over_limit",
-      message: `worker bundle ${workerBytes} bytes exceeds ${maxBytes}`,
+      message: `worker module tree ${workerBytes} bytes exceeds ${maxBytes}`,
     };
   }
   return {

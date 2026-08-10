@@ -101,6 +101,28 @@ describe("deploy dry-run audit (task #26)", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("fails closed when a non-entry worker chunk makes the module tree exceed the size limit", () => {
+    const dir = makeDist({
+      "_worker.js/index.js": "entry",
+      "_worker.js/chunks/big.js": "x".repeat(MAX_WORKER_SIZE_BYTES + 1),
+    });
+    const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("worker_over_limit");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("fails closed when a non-entry worker chunk contains secret-shaped markers", () => {
+    const dir = makeDist({
+      "_worker.js/index.js": "worker",
+      "_worker.js/chunks/leak.js": "const t = 'sk_live_abcdef0123456789abcdef';",
+    });
+    const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("secret_shaped_content");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("fails closed on a missing audit", () => {
     const out = evaluateDeployRoot(null);
     expect(out.ok).toBe(false);
