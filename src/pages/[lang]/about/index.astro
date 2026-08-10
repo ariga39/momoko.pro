@@ -16,7 +16,7 @@ const t = ml(lang);
 ---
 
 <SiteLayout lang={lang} title={`${t.aboutTitle()} · ${t.home()}`} canonicalPath={`/${lang}/about/`}>
-  <PageIntro eyebrow="07 / about the desk" title={t.aboutTitle()} lede={t.visualArchiveLede()} />
+  <PageIntro eyebrow={`07 / ${t.visualAbout()}`} title={t.aboutTitle()} lede={t.visualArchiveLede()} />
   <div class="about-layout">
     <article class="about-copy">
       <p>{t.aboutBody()}</p>

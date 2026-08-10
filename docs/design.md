@@ -5,7 +5,7 @@
 范围: 非官方 fan site（周防桃子 / ミリシタ idol master million live）。三语 zh/ja/en。
 域名: 用户已有 `momoko.pro`。
 
-**MVP 锁定**：Git canonical 内容 + GitHub Actions 构建/调度 + **Cloudflare Pages 静态托管（GitHub Actions Direct Upload 为唯一部署面）**。**无运行时 Worker / KV / Cron Trigger / D1 / Queues / R2 / Vectorize / Pages Functions**。AI 是 CI/本地任务的 provider-neutral 可选依赖，**未选定供应商前不标"启用"**。
+**MVP 锁定**：Git canonical 内容 + GitHub Actions 构建/调度 + **Cloudflare Pages Functions server rendering（GitHub Actions Direct Upload 为唯一部署面）**。请求时渲染只负责入口语言协商与显式页面路由；不引入 KV/D1/Cron Trigger/Queues/R2/Vectorize。AI 是 CI/本地任务的 provider-neutral 可选依赖，**未选定供应商前不标"启用"**。
 
 **交付物**：`design.md`（本文）+ `adr.md`（ADR/待决策）+ `sources.md`（人类证据说明）+ `config/sources.json`（机器可读来源配置）+ `schemas/*.json`（JSON Schema）+ `mvp-tests.md` + `phases.md`。
 
@@ -33,7 +33,7 @@
 
 | 路由 | 页面 | MVP? |
 |---|---|---|
-| `/` | 语言选择页（x-default）或固定静态重定向到默认语言 | ✅ |
+| `/` | 服务端按 cookie/Accept-Language 重定向到本地化首页 | ✅ |
 | `/news` `/news/[id]` | 新闻归档 + 详情 | ✅ |
 | `/wiki/character` | 角色百科（设定档案） | ✅ |
 | `/wiki/songs` | 歌曲/CD 列表 | ✅ |
@@ -47,14 +47,14 @@
 
 ### 1.2 三语路由
 
-- `/zh/...`, `/ja/...`, `/en/...`。`/` 为 **x-default 语言选择页**（无 Worker/Functions，**不做服务端 Accept-Language 读取**）或固定静态 302 到默认语言（如 `/ja`）。
+- `/zh/...`, `/ja/...`, `/en/...`。`/` 由服务端按有效 `momoko_locale` cookie → `Accept-Language` → `ja` 返回 302；无匹配或无 JavaScript 时直接得到 `/ja/`，不显示语言选择门页。
 - canonical/alternate 按**页面内容身份 + 已审核版本**生成，而不是按“路由存在”生成；具体 SEO 规则见下。
-- 路由由 Astro 原生 `i18n` 配置统一声明：`locales=["ja","zh","en"]`、`defaultLocale="ja"`、`prefixDefaultLocale=true`；页面链接使用 `astro:i18n` helper，避免手拼 locale URL。`/` 仍是显式 x-default 选择页，不启用浏览器语言自动跳转。
+- 路由由 Astro 的 `locales=["ja","zh","en"]` 集合与 `astro:i18n` helper 统一校验和生成链接；入口协商由 server middleware/route 显式负责（Astro `routing: "manual"`），因为 `/search`、`/locale-switch` 等非本地化 utility route 必须保持可达。`/` 只按 `momoko_locale` cookie → `Accept-Language` → `ja` 返回 302；显式 localized URL 不被入口协商重写。
 - **界面文案与内容译文分层**：导航、按钮、状态提示等 UI chrome 使用 Paraglide JS 的类型安全 message catalog；新闻/百科等编辑内容继续使用 `content.<lang>.md` + review state schema。i18n runtime 不得覆盖 `draft/reviewed/stale/retracted`，也不得把缺译自动伪装成已审核译文。
 - 不启用 Astro/Paraglide 的内容级静默 rewrite fallback。缺失或 stale 的编辑内容继续由现有 renderer 回退到源语言，并显示 `LocaleNotice`；它不是请求 locale 的翻译版本。
 - **真实翻译页**：只有 locale 文件 body 非空、`review_status=reviewed`、`source_content_hash` 等于当前源版本且未 retracted，才是可发布语言版本；该页 `<html lang>`、title/OG 与正文语言一致并 self-canonical。
 - **fallback 页**：使用源语言正文、`<html lang=source_lang>`、源语言 title/OG，canonical 指向源语言 URL，并设置 `noindex,follow`；`LocaleNotice` 明示请求语言缺译/失效。该请求 locale 不进入 hreflang 集合。
-- **hreflang 集合**：按同一内容身份计算，只含源语言页及满足上述条件的真实翻译页；使用全限定 URL，包含自身，并由每个集合成员输出完全相同的双向集合。新闻/百科详情的 `x-default` 指向该内容的源语言页；站点根语言选择页只作为站点入口/列表层的 `x-default`，不冒充每篇详情的 alternate。
+- **hreflang 集合**：按同一内容身份计算，只含源语言页及满足上述条件的真实翻译页；使用全限定 URL，包含自身，并由每个集合成员输出完全相同的双向集合。新闻/百科详情的 `x-default` 指向该内容的源语言页；站点根的 `x-default` 只作为站点入口层，不冒充每篇详情的 alternate。
 
 ---
 
@@ -62,8 +62,8 @@
 
 | 层 | 默认选择 | 版本/锁定 | 可替换条件 |
 |---|---|---|---|
-| 静态生成器 | **Astro** | 仓库 `pnpm-lock.yaml` 锁精确版本 | 无法满足三语/hreflang 或构建复杂度超阈值时另评 |
-| i18n | **Astro 原生 i18n routing + Paraglide JS（仅 UI 文案）** | `pnpm-lock.yaml`；catalog 与 locale 集合在 CI 对账 | Paraglide SSG/Cloudflare 兼容性或维护性出现实证问题时回退为 Astro 原生 routing + typed local catalog |
+| 渲染框架 | **Astro server + `@astrojs/cloudflare`** | 仓库 `pnpm-lock.yaml` 锁精确版本；server worker + Pages 静态资产 | 无法满足三语/hreflang 或构建复杂度超阈值时另评 |
+| i18n | **Astro 原生 i18n routing + Paraglide JS（仅 UI 文案）** | `pnpm-lock.yaml`；catalog 与 locale 集合在 CI 对账 | Paraglide/Cloudflare 兼容性或维护性出现实证问题时回退为 Astro 原生 routing + typed local catalog |
 | 语言/runtime | **TypeScript**（Node ≥ 20） | `engines` 字段 + lockfile | 团队主导语言变更需 ADR |
 | 包管理器 | **pnpm** | `pnpm-lock.yaml` 强制提交，CI `frozen-lockfile` | 需 ADR |
 | Schema 校验 | **JSON Schema + Ajv** | 版本锁定于 lockfile | 需 ADR |
@@ -74,11 +74,11 @@
 | Pages 部署 | **GitHub Actions Direct Upload**（wrangler） | 见 §8.3（唯一部署面） | ADR-06 |
 | AI 摘要/翻译 | provider-neutral（未选） | 不锁定；未选前不启用 | ADR-08 |
 
-i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 URL helper（<https://docs.astro.build/en/guides/internationalization/>）；Paraglide 提供 Astro/Vite 集成、类型安全 message function 与静态生成方案（<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>）。i18next core 是可行的 runtime i18n 方案（<https://www.i18next.com/overview/getting-started>），但本项目选择对 Astro SSG 有直接上游指南、编译期类型安全的 Paraglide，减少本切片的自建适配面。多语言 SEO 规则依据 Google Search Central（<https://developers.google.com/search/docs/specialty/international/localized-versions>、<https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls>）。
+i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 URL helper（<https://docs.astro.build/en/guides/internationalization/>）；Paraglide 提供 Astro/Vite 集成、类型安全 message function 与可编译到 server/SSG 的 catalog（<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>）。i18next core 是可行的 runtime i18n 方案（<https://www.i18next.com/overview/getting-started>），但本项目选择编译期类型安全的 Paraglide，减少本切片的自建适配面。多语言 SEO 规则依据 Google Search Central（<https://developers.google.com/search/docs/specialty/international/localized-versions>、<https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls>）。
 
 ### 2.1 页面视觉实现约束
 
-页面优先使用 Tailwind utilities；需要跨页面复用的模式进入 `src/styles/global.css` 的 Tailwind `@layer`，不另起平行全局 CSS 体系。颜色、字体、间距和断点等设计值必须来自 `tailwind.config.mjs` 的 token。task #2 最终认可的 v0.5 方向是文字主导的角色 folio：窄书脊、纸页横线、细金线、粉/蓝/金与深蓝分区、章节式入口；不依赖官方图片或复制性素材。首页稳定角色简介与动态编辑内容必须分层，后者在未审核时显式标为 DEMO/coming soon。
+页面优先使用 Tailwind utilities；需要跨页面复用的模式进入 `src/styles/global.css` 的 Tailwind `@layer`，不另起平行全局 CSS 体系。颜色、字体、间距和断点等设计值必须来自 `tailwind.config.mjs` 的 token。task #2 最终认可的 v0.5 方向是文字主导的角色 folio：窄书脊、纸页横线、细金线、粉/蓝/金与深蓝分区、章节式入口；不依赖官方图片或复制性素材。站点自有的灰蓝 wordmark 是带 OFL-1.1 归属的本地 SVG，不加载远程字体/图像。首页稳定角色简介与动态编辑内容必须分层，后者在未审核时显式标为 DEMO/coming soon。桌面首页的三项章节入口是唯一主导航 landmark；inner pages 保留完整 global nav，移动端保留 compact menu，并覆盖 320/375/768/1024/1280/1440/1600/1920/2048 宽度。
 
 ---
 
@@ -254,7 +254,7 @@ reviewed_at: null
 - 含 `manifest_version`、每条 `{path, kind, source_id, source_item_id, content_hash, review_status, locales{lang:{status, hash, reviewed_by, stale_at}}, retracted_at}`。
 - 唯一键：`(source_id, source_item_id, lang)`；文件名/目录即该键编码。
 - **schema_version / 迁移**：`schema_version` 递增；迁移走一次性脚本（`tools/schema/migrations/vN_vM.*`），改写文件，禁止手改；空库/旧库回归。
-- **cache 失效契约**：任何 content 变化 → 重建 → 索引重建；发布时静态资源带内容 hash 文件名；HTML 短 TTL、hashed 资产 immutable。
+- **cache 失效契约**：任何 content 变化 → 重建 → 索引重建；发布时静态资源带内容 hash 文件名；server-rendered HTML 短 TTL、hashed 资产 immutable。
 
 ### 6.4 content_hash 定义
 
@@ -427,7 +427,7 @@ sequenceDiagram
   participant UA
   participant S as Cloudflare Pages/CDN
   UA->>S: GET /news/2026-08-08-x
-  S-->>UA: 静态渲染（locale 回退 / 客户端倒计时；/ 为语言选择页）
+  S-->>UA: server 渲染（locale 回退；/ 按 cookie/Accept-Language 协商）
 ```
 
 **人工录入（manual-import）**
@@ -466,7 +466,7 @@ sequenceDiagram
 
 | 包 | owned files（互斥目录） | 接口（契约） | 依赖 | 验收测试 | 集成顺序 |
 |---|---|---|---|---|---|
-| **A. frontend/design-system** | `src/**`、`e2e/**` | 只读 content + build 产物契约（§6）；Astro i18n routing + Paraglide UI catalog | 无（示例内容先行） | 三语路由、UI key/catalog 对账、响应式、hreflang、CSP、缺译回退、语言选择页 | B 契约后并行 |
+| **A. frontend/design-system** | `src/**`、`e2e/**` | 只读 content + build 产物契约（§6）；Astro locale helpers + Paraglide UI catalog | 无（示例内容先行） | 三语路由、UI key/catalog 对账、响应式、hreflang、CSP、缺译回退、`/` server 协商 | B 契约后并行 |
 | **B. content-schema/CI** | `schemas/**`、`tools/schema/**`、`config/*.json`（校验） | schema+manifest 契约、job 输入/输出、schema_version/唯一键、content_hash | 无 | schema 正/反实例校验、幂等、无变化静默、双重构建确定性、迁移空库/旧库、CJK 搜索夹具+fallback | **先冻结** |
 | **C. ingestion（cron+manual 双 seam）** | `tools/ingest/**` | B 的 schema/PR 接口、错误 enum、allowlist | B | 来源 allowlist、去重、错误 enum、bounded-root 文件写入、cron 只跑 `automated_fetch=true` 已验证 adapter（false 走 manual-import；无允许来源/无变化静默） | B 后 |
 | **D. i18n/editorial** | `content/*/content.<lang>.md`、`tools/editorial/**` | B schema + A 渲染契约；AI 只消费人工笔记；状态转移写入者 | B+C | 三语不撒谎、T 分级、stale、retract 原子、AI 输入边界、独立 reviewer 审计 | B+C 后 |
@@ -505,6 +505,6 @@ sequenceDiagram
 | 官方信息聚合 | §4/§5/§6 | T 分级、去重、无变化静默、（future 才测抓取链） |
 | 角色百科 | §1/§6 | 实体渲染、三语回退 |
 | 纪念日系统 | §1/§6/T0 | 纪念日计算、T0 生成但人工 merge |
-| 三语 | §1.2/§3 | hreflang、stale、缺译回退、语言选择页 |
+| 三语 | §1.2/§3 | hreflang、stale、缺译回退、`/` server 协商 |
 | 技术栈 | §2/§10 | 架构、零成本断言、静态资产定价断言、Pages 限制 |
 | 争议评估 | §4/§8/T2 | 版权边界、无 X embed/API/抓取、人物内容人工门 |

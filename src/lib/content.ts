@@ -4,12 +4,25 @@ import matter from "gray-matter";
 
 import { fileURLToPath } from "node:url";
 import { validateFile } from "../../tools/schema/validate.ts";
+import { embeddedPackage } from "./embedded-package.ts";
+import { runtimeEnv } from "./runtime-config.ts";
 
-export const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+const EMBEDDED_ROOT = "/__momoko_embedded_content_package__";
 
-const DEFAULT_CONTENT_ROOT = path.join(REPO_ROOT, "content");
-const TEST_CONTENT_PACKAGE_BASE = path.join(REPO_ROOT, "tests", "fixtures", "content-package");
-const DEV_CONTENT_PACKAGE_BASE = path.join(REPO_ROOT, "content-dev");
+function resolveRepositoryRoot(): string {
+  const explicit = runtimeEnv("MOMOKO_REPO_ROOT");
+  if (explicit && path.isAbsolute(explicit)) return explicit;
+  try {
+    return path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+  } catch {
+    // Cloudflare's module runtime does not provide a file URL for bundled
+    // worker modules. Local Wrangler still exposes the project cwd; a real
+    // deployment must supply content as an explicit package or remain empty.
+    return typeof process.cwd === "function" ? process.cwd() : "/";
+  }
+}
+
+export const REPO_ROOT = resolveRepositoryRoot();
 const PACKAGE_ROOT_ENV = "MOMOKO_CONTENT_PACKAGE_ROOT";
 const PACKAGE_MODE_ENV = "MOMOKO_CONTENT_PACKAGE_MODE";
 
@@ -32,6 +45,36 @@ export interface ContentPackageManifest {
   visual_catalog?: "visual-catalog.json";
 }
 
+function embeddedFile(relativePath: string): string {
+  const file = embeddedPackage.files[relativePath];
+  if (file === undefined) throw new ContentPackageError("content_package_file_missing", "content package file is missing");
+  return file;
+}
+
+export function readEmbeddedPackageFile(relativePath: string): string {
+  if (!embeddedPackage.enabled) throw new ContentPackageError("content_package_not_embedded", "content package is not embedded");
+  return embeddedFile(relativePath);
+}
+
+function embeddedHasFile(relativePath: string): boolean {
+  return Object.prototype.hasOwnProperty.call(embeddedPackage.files, relativePath);
+}
+
+function assertEmbeddedBinding(): void {
+  const raw = runtimeEnv(PACKAGE_ROOT_ENV);
+  const mode = runtimeEnv(PACKAGE_MODE_ENV);
+  if (runtimeEnv("PUBLIC_BUILD") === "1" && (raw !== undefined || mode !== undefined)) {
+    throw new ContentPackageError("public_build_content_override_forbidden", "public build cannot use a content override");
+  }
+  if (embeddedPackage.explicit) {
+    if (raw !== embeddedPackage.relativeRoot || mode !== embeddedPackage.mode) {
+      throw new ContentPackageError("content_package_binding_mismatch", "content package binding does not match the build");
+    }
+  } else if (raw !== undefined || mode !== undefined) {
+    throw new ContentPackageError("content_package_binding_mismatch", "content package override is not part of this build");
+  }
+}
+
 function isInside(child: string, parent: string): boolean {
   const relative = path.relative(parent, child);
   return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
@@ -44,9 +87,17 @@ function isInside(child: string, parent: string): boolean {
  * content from an environment variable or a silent fallback.
  */
 export function getContentRoot(): string {
-  const raw = process.env[PACKAGE_ROOT_ENV];
-  const mode = process.env[PACKAGE_MODE_ENV] as ContentPackageMode | undefined;
-  if (process.env.PUBLIC_BUILD === "1" && (raw !== undefined || mode !== undefined)) {
+  if (embeddedPackage.enabled) {
+    assertEmbeddedBinding();
+    return EMBEDDED_ROOT;
+  }
+  const repoRoot = resolveRepositoryRoot();
+  const defaultContentRoot = path.join(repoRoot, "content");
+  const testContentPackageBase = path.join(repoRoot, "tests", "fixtures", "content-package");
+  const devContentPackageBase = path.join(repoRoot, "content-dev");
+  const raw = runtimeEnv(PACKAGE_ROOT_ENV);
+  const mode = runtimeEnv(PACKAGE_MODE_ENV) as ContentPackageMode | undefined;
+  if (runtimeEnv("PUBLIC_BUILD") === "1" && (raw !== undefined || mode !== undefined)) {
     throw new ContentPackageError(
       "public_build_content_override_forbidden",
       "public build cannot use a content override",
@@ -68,8 +119,8 @@ export function getContentRoot(): string {
         "content package root must be a relative repository path",
       );
     }
-    const root = path.resolve(REPO_ROOT, raw);
-    const allowedRoot = mode === "test" ? TEST_CONTENT_PACKAGE_BASE : DEV_CONTENT_PACKAGE_BASE;
+    const root = path.resolve(repoRoot, raw);
+    const allowedRoot = mode === "test" ? testContentPackageBase : devContentPackageBase;
     if (!isInside(root, allowedRoot)) {
       throw new ContentPackageError(
         `${mode}_content_package_outside_root`,
@@ -78,13 +129,13 @@ export function getContentRoot(): string {
     }
     return assertContentRoot(root);
   }
-  if (process.env[PACKAGE_MODE_ENV] !== undefined) {
+  if (runtimeEnv(PACKAGE_MODE_ENV) !== undefined) {
     throw new ContentPackageError(
       "content_package_mode_without_root",
       `${PACKAGE_MODE_ENV} requires an explicit ${PACKAGE_ROOT_ENV}`,
     );
   }
-  return assertContentRoot(DEFAULT_CONTENT_ROOT);
+  return assertContentRoot(defaultContentRoot);
 }
 
 function assertContentRoot(root: string): string {
@@ -126,12 +177,26 @@ function readPackageManifest(root: string): ContentPackageManifest {
   return manifest as ContentPackageManifest;
 }
 
+function readEmbeddedPackageManifest(): ContentPackageManifest {
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(embeddedFile("package.json"));
+  } catch {
+    throw new ContentPackageError("content_package_manifest_invalid", "content package package.json is not valid JSON");
+  }
+  const checked = validateFile("content-package.schema.json", manifest);
+  if (!checked.valid) {
+    throw new ContentPackageError("content_package_manifest_invalid", "content package manifest failed schema validation");
+  }
+  return manifest as ContentPackageManifest;
+}
+
 function assertKnownPackageEntries(root: string, manifest: ContentPackageManifest): void {
   const allowed = new Set(["package.json", "news", "retractions"]);
   if (manifest.visual_catalog) {
-    const mode = process.env[PACKAGE_MODE_ENV];
+    const mode = runtimeEnv(PACKAGE_MODE_ENV);
     if (
-      process.env[PACKAGE_ROOT_ENV] === undefined ||
+      runtimeEnv(PACKAGE_ROOT_ENV) === undefined ||
       (mode !== "test" && mode !== "dev")
     ) {
       throw new ContentPackageError(
@@ -154,8 +219,39 @@ function packageManifest(root: string): ContentPackageManifest {
   return manifest;
 }
 
+function embeddedPackageManifest(): ContentPackageManifest {
+  const manifest = readEmbeddedPackageManifest();
+  const topLevel = new Set<string>();
+  for (const file of Object.keys(embeddedPackage.files)) {
+    const [entry] = file.split("/");
+    if (entry) topLevel.add(entry);
+  }
+  const allowed = new Set(["package.json", "news", "retractions"]);
+  if (manifest.visual_catalog) {
+    if (!embeddedPackage.explicit || (embeddedPackage.mode !== "test" && embeddedPackage.mode !== "dev")) {
+      throw new ContentPackageError(
+        "visual_catalog_mode_required",
+        "visual catalog is allowed only for an explicit test or dev content package",
+      );
+    }
+    allowed.add(manifest.visual_catalog);
+  }
+  for (const entry of topLevel) {
+    if (!allowed.has(entry)) {
+      throw new ContentPackageError("content_package_entry_unsupported", "unsupported content package entry");
+    }
+  }
+  for (const file of Object.keys(embeddedPackage.files)) {
+    if (file.startsWith("news/") && !/\/index\.md$|\/content\.(ja|zh|en)\.md$|\/editorial-history\.json$/.test(file)) {
+      throw new ContentPackageError("content_package_entry_unsupported", "unsupported news entry");
+    }
+  }
+  return manifest;
+}
+
 /** Read and validate a package manifest after enforcing its top-level boundary. */
 export function readContentPackageManifest(): ContentPackageManifest {
+  if (embeddedPackage.enabled) return embeddedPackageManifest();
   return packageManifest(getContentRoot());
 }
 
@@ -165,6 +261,7 @@ function retractedPaths(): Set<string> {
 }
 
 function loadRetractions(contentRoot = getContentRoot()): Set<string> {
+  if (embeddedPackage.enabled) return loadEmbeddedRetractions();
   const out = new Set<string>();
   const root = path.join(contentRoot, "retractions");
   if (!fs.existsSync(root)) return out;
@@ -207,6 +304,26 @@ function loadRetractions(contentRoot = getContentRoot()): Set<string> {
     }
   };
   walk(root);
+  return out;
+}
+
+function loadEmbeddedRetractions(): Set<string> {
+  const out = new Set<string>();
+  for (const [file, text] of Object.entries(embeddedPackage.files)) {
+    if (!file.startsWith("retractions/")) continue;
+    if (!file.endsWith(".json")) throw new ContentPackageError("content_package_entry_unsupported", "unsupported retraction entry");
+    let rec: Record<string, unknown>;
+    try {
+      rec = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      throw new ContentPackageError("content_package_retraction_invalid", "invalid retraction file");
+    }
+    const checked = validateFile("retraction.schema.json", rec);
+    if (!checked.valid) throw new ContentPackageError("content_package_retraction_invalid", "invalid retraction file");
+    if (typeof rec.content_path === "string" && (rec.status === "requested" || rec.status === "active")) {
+      out.add(rec.content_path);
+    }
+  }
   return out;
 }
 
@@ -260,8 +377,8 @@ export interface NewsItem {
 const LOCALE_LANGS = ["ja", "zh", "en"] as const;
 type LocaleLang = (typeof LOCALE_LANGS)[number];
 
-function parseCanonical(filePath: string): { meta: ContentMeta; body: string } {
-  const { data, content } = matter(fs.readFileSync(filePath, "utf-8"));
+function parseCanonicalText(filePath: string, text: string): { meta: ContentMeta; body: string } {
+  const { data, content } = matter(text);
   const record = { ...(data as Record<string, unknown>), body: content.trim() };
   const checked = validateFile("content.schema.json", record);
   if (!checked.valid) {
@@ -271,6 +388,10 @@ function parseCanonical(filePath: string): { meta: ContentMeta; body: string } {
     );
   }
   return { meta: normalizeContentMeta(record), body: content.trim() };
+}
+
+function parseCanonical(filePath: string): { meta: ContentMeta; body: string } {
+  return parseCanonicalText(filePath, fs.readFileSync(filePath, "utf-8"));
 }
 
 /** Map frontmatter snake_case keys to the camelCase ContentMeta shape. */
@@ -296,8 +417,8 @@ function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
   return meta;
 }
 
-function parseLocale(filePath: string): LocaleFile {
-  const { data, content } = matter(fs.readFileSync(filePath, "utf-8"));
+function parseLocaleText(filePath: string, text: string): LocaleFile {
+  const { data, content } = matter(text);
   const lang = path.basename(filePath).match(/^content\.(ja|zh|en)\.md$/)?.[1];
   if (!lang) throw new Error(`cannot infer lang from ${filePath}`);
   const d = data as Record<string, unknown>;
@@ -325,6 +446,10 @@ function parseLocale(filePath: string): LocaleFile {
   };
 }
 
+function parseLocale(filePath: string): LocaleFile {
+  return parseLocaleText(filePath, fs.readFileSync(filePath, "utf-8"));
+}
+
 function loadNewsItem(contentRoot: string, dir: string): NewsItem {
   const { meta, body } = parseCanonical(path.join(dir, "index.md"));
   const locales: NewsItem["locales"] = {};
@@ -346,8 +471,20 @@ function loadNewsItem(contentRoot: string, dir: string): NewsItem {
   };
 }
 
+function loadEmbeddedNewsItem(dir: string): NewsItem {
+  const canonicalPath = `${dir}/index.md`;
+  const { meta, body } = parseCanonicalText(canonicalPath, embeddedFile(canonicalPath));
+  const locales: NewsItem["locales"] = {};
+  for (const lang of LOCALE_LANGS) {
+    const file = `${dir}/content.${lang}.md`;
+    if (embeddedHasFile(file)) locales[lang] = parseLocaleText(file, embeddedFile(file));
+  }
+  return { slug: dir.slice("news/".length), canonical: meta, canonicalBody: body, locales };
+}
+
 /** Scan content/news/** and load every canonical item. */
 export function loadNews(): NewsItem[] {
+  if (embeddedPackage.enabled) return loadEmbeddedNews();
   const contentRoot = getContentRoot();
   const manifest = packageManifest(contentRoot);
   // Validate every retraction record even for an empty package or before an
@@ -391,7 +528,29 @@ export function loadNews(): NewsItem[] {
   // Production builds are always public-safe. Draft/stale/retracted records
   // are available only to an explicit test/dev package override, while
   // PUBLIC_BUILD=1 also forces the same filter for that override.
-  if (process.env.PUBLIC_BUILD === "1" || process.env[PACKAGE_ROOT_ENV] === undefined) {
+  if (runtimeEnv("PUBLIC_BUILD") === "1" || runtimeEnv(PACKAGE_ROOT_ENV) === undefined) {
+    return out.filter(isCurrentReviewed);
+  }
+  return out;
+}
+
+function loadEmbeddedNews(): NewsItem[] {
+  const manifest = embeddedPackageManifest();
+  loadEmbeddedRetractions();
+  const dirs = new Set<string>();
+  for (const file of Object.keys(embeddedPackage.files)) {
+    if (file.startsWith("news/") && file.endsWith("/index.md")) {
+      dirs.add(file.slice(0, -"/index.md".length));
+    }
+  }
+  const out = [...dirs].sort().map((dir) => loadEmbeddedNewsItem(dir));
+  if (manifest.status === "empty" && out.length > 0) {
+    throw new ContentPackageError("content_package_empty_with_content", "empty content package contains canonical content");
+  }
+  if (manifest.status === "ready" && out.length === 0) {
+    throw new ContentPackageError("content_package_ready_without_content", "ready content package contains no canonical content");
+  }
+  if (runtimeEnv("PUBLIC_BUILD") === "1" || runtimeEnv(PACKAGE_ROOT_ENV) === undefined) {
     return out.filter(isCurrentReviewed);
   }
   return out;
