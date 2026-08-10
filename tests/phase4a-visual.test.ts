@@ -174,6 +174,20 @@ describe("Phase 4A visual package boundary", () => {
 });
 
 describe("Phase 4A progressive-enhancement contract", () => {
+  it("keeps stable Momoko content outside the DEMO catalog and demotes policy to the footer", () => {
+    const layout = fs.readFileSync(path.join(root, "src/components/SiteLayout.astro"), "utf8");
+    const home = fs.readFileSync(path.join(root, "src/pages/[lang].astro"), "utf8");
+    const about = fs.readFileSync(path.join(root, "src/pages/[lang]/about/index.astro"), "utf8");
+
+    const navBlock = layout.match(/const nav = \[([\s\S]*?)\];/)?.[1] ?? "";
+    expect(navBlock).not.toContain("/source-policy/");
+    expect(layout).toMatch(/href=\{getRelativeLocaleUrl\(lang, "\/source-policy\/"\)\}/);
+    expect(home).toContain("profile-section");
+    expect(home).toContain("millionlive-anime.idolmaster-official.jp/character/momoko/");
+    expect(home.indexOf("profile-section")).toBeLessThan(home.indexOf("<DemoNotice"));
+    expect(about).not.toContain("DemoNotice");
+  });
+
   it("has a native details mobile menu with JS focus return, not dialog semantics", () => {
     const layout = fs.readFileSync(path.join(root, "src/components/SiteLayout.astro"), "utf8");
     expect(layout).toMatch(/<details[^>]+data-mobile-menu/);
