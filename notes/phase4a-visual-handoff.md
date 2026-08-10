@@ -1,8 +1,8 @@
 # Phase 4A visual experience handoff
 
-Status: task #19 narrow successor after the exact-head peer found three final precision gaps on `fd50be86ace9eb61e8f63e78e1425bff7ec2feb6`: handoff traceability, two missing real-class contrast assertions, and 320px folio-facts readability. The candidate keeps the accepted v0.5 direction and adds only those fixes to the previously reviewed structure, tokens, screenshots, and browser gates. The new candidate's parent is `fd50be86ace9eb61e8f63e78e1425bff7ec2feb6`; the exact full SHA of the commit containing this handoff is recorded in the task-thread delivery and PR #14 machine readback.
+Status: task #19 docs-only successor after the exact-head peer accepted the three runtime/visual precision fixes in code/test head `9ad6ae9664f1ce27f25f1be118d4cda1ce448c41` and found only this handoff traceability gap. The reviewed code head keeps the accepted v0.5 direction and includes the structure, tokens, screenshots, and browser gates. This successor changes only the handoff; its parent is the reviewed code head `9ad6ae9664f1ce27f25f1be118d4cda1ce448c41`.
 
-Implementation branch: `feat/task19-v05-mirai`. PR #14 remains the sole review object; its status is Draft until the new exact-head CI and independent peer gates close. The branch is based on `main` at observed base `406af4c5ce71fbeaf536d5c7f64a96dc4f0b56cc`. No deployment or production write is authorized.
+Implementation branch: `feat/task19-v05-mirai`. PR #14 remains the sole review object; its status is Draft until this docs-only successor's exact-head CI and independent peer gate close. The branch is based on `main` at observed base `406af4c5ce71fbeaf536d5c7f64a96dc4f0b56cc`; the preceding reviewed code head is `9ad6ae9664f1ce27f25f1be118d4cda1ce448c41`. No deployment or production write is authorized.
 
 ## Direction and measurable tokens
 
@@ -61,4 +61,4 @@ The successor's a11y test checks both the token contrast ratios and the actual s
 - `pnpm build:verify`: **28 files byte-identical**; `git diff --check` clean;
 - the structure checkpoint passed independent visual/UX review; the new exact-head hosted CI and successor re-peer remain required before final GO.
 
-The successor's hosted CI and peer must be evaluated only on the new exact head. Evidence from `c733be97...` proves the unchanged v0.5 direction/non-regression gates, but does not prove the successor's three repaired contracts.
+The docs-only successor's hosted CI and peer must be evaluated only on its new exact head. The code/test head recorded above is the implementation object whose three repaired contracts were independently checked; this commit adds no runtime or screenshot changes. Evidence from `c733be97...` proves the unchanged v0.5 direction/non-regression gates, but does not prove the later repairs.
