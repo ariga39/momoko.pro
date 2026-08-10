@@ -30,7 +30,7 @@ Status: task #33 (Astro i18n 导航 / 根协商 / 全站链接爬测) — author
 
 ```text
 task / owner / peer: task #33 / @momoko 监督 / peer 待 @momoko 路由
-base SHA: 461ab12ee420e8c33c04e22712bd984756bc5489
+base SHA: 4fd0ab6 (live main; rebased after task #25 font-subset merge #17)
 exact head SHA / PR: see PR #19 body — live GitHub value only (not tracked
   here to avoid self-referential commits; per supervisor convention)
 hosted CI run + terminal result: see PR #19 checks (live)
@@ -40,18 +40,21 @@ changed scope: astro.config.mjs; src/middleware.ts; src/pages/404.astro,
   src/components/SiteLayout.astro; docs/adr.md, docs/design.md;
   e2e/i18n-link-crawl.spec.ts (new, 11 tests), e2e/site.smoke.spec.ts;
   src/pages/[lang]/fixtures/[...slug].ts (test-mode-only crawl fixtures);
-  visual baselines (10 linux, regenerated via scripts/regenerate-visual-baselines.sh;
-  6 PNG real delta vs base, 4 byte-identical); docs/visual-baseline-env.md;
+  visual baselines (10 linux, regenerated via scripts/regenerate-visual-baselines.sh
+  after the task #25 font merge; 7 PNG real delta vs base 4fd0ab6, 3 detail
+  PNGs byte-identical to base); docs/visual-baseline-env.md;
   scripts/regenerate-visual-baselines.sh + scripts/run-browser-suite.sh;
   tests/visual-env-contract.test.ts (static env gate); .github/workflows/ci.yml (ubuntu-24.04)
 submitted tests: BFS crawl 11 (pages=57 incl. 3 dotted-path HTML fixtures,
   edges=1086, forms=18, assets=3 content-type-classified, canonicalChecks=57,
   hreflangChecks=171 incl. detail identity closure with full per-member
-  label/locale/identity/origin validation on FULL URLs) + updated smoke 17;
-  unit 187 (174 + 13 i18n-alternates negatives: external alternate href,
+  label/locale/identity/origin validation on FULL URLs) + updated smoke 17 +
+  visual 8 (incl. task #25 CLS gate); canonical container suite 36/36;
+  unit 199 (incl. 13 i18n-alternates negatives: external alternate href,
   external member canonical, mislabeled hreflang, duplicate/foreign/empty
   hreflang, identity mismatch, reciprocal missing/extra; +
-  visual-env-contract static gate); lint/typecheck clean
+  visual-env-contract static gate; + task #25 font pipeline tests);
+  lint/typecheck clean
 privacy/secret scan: wrapper ls-remote only; no credential output
 external-write statement: none (no deploy, no Cloudflare write, no live GET)
 remaining blocker / next owner: hosted CI terminal state; independent peer
