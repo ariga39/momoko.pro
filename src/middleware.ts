@@ -22,14 +22,17 @@ export const onRequest: MiddlewareHandler = async (context: APIContext, next) =>
   }
 
   // Legacy unprefixed /search: negotiate the locale and redirect to the
-  // localized route. With prefix-always routing the built-in middleware would
-  // 404 non-locale routes, so this seam lives here instead of a page.
+  // localized route, preserving any query string. With prefix-always routing
+  // the built-in middleware would 404 non-locale routes, so this seam lives
+  // here instead of a page. Exact-path match only: "/" and "/search" (query
+  // excluded from pathname); trailing-slash variants and any other unprefixed
+  // path fall through to normal routing.
   if (pathname === "/search") {
     const locale = resolveRequestLocale(
       context.cookies.get(LOCALE_COOKIE_NAME)?.value,
       context.request.headers.get("accept-language"),
     );
-    return context.redirect(`/${locale}/search/`, 303);
+    return context.redirect(`/${locale}/search/${context.url.search}`, 303);
   }
 
   return next();

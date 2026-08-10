@@ -125,6 +125,40 @@ test("legacy /search negotiates to /{lang}/search/ and never renders a hardcoded
   expect(ja.headers().location).toBe("/ja/search/");
 });
 
+test("legacy /search preserves the query string through the negotiated redirect", async ({ request }) => {
+  const withQuery = await request.get("/search?q=%E5%90%88%E6%88%90&page=2", {
+    maxRedirects: 0,
+    headers: { Cookie: "momoko_locale=en" },
+  });
+  expect(withQuery.status()).toBe(303);
+  expect(withQuery.headers().location).toBe("/en/search/?q=%E5%90%88%E6%88%90&page=2");
+});
+
+test("middleware redirects ONLY the exact / and /search paths, nothing else", async ({ request }) => {
+  const mustNotRedirect = ["/news/", "/about/", "/foo", "/search/", "/SEARCH", "/assets/x.png", "/favicon.ico", "/_astro/x.js"];
+  for (const path of mustNotRedirect) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    if (response.status() >= 300 && response.status() < 400) {
+      const location = response.headers().location ?? "";
+      expect(location.startsWith("/search") || location === "/", `${path} must not redirect to a search/locale seam`).toBe(false);
+    }
+  }
+  // the two seams still redirect
+  expect((await request.get("/", { maxRedirects: 0 })).status()).toBe(302);
+  expect((await request.get("/search", { maxRedirects: 0 })).status()).toBe(303);
+});
+
+test("platform security header rules are intact (static asset responses)", async ({ request }) => {
+  // _headers rules are applied at the platform edge; wrangler dev --local
+  // applies them to static asset responses. The middleware chain itself never
+  // touches headers — this proves the rules still load.
+  const asset = await request.get("/momoko-logo.svg");
+  expect(asset.headers()["x-frame-options"]).toBe("DENY");
+  expect(asset.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(asset.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(asset.headers()["content-security-policy"]).toContain("default-src 'self'");
+});
+
 test("unknown paths return true 404 with language chosen from path", async ({ page, request }) => {
   const zh = await request.get("/zh/nope/", { maxRedirects: 0 });
   expect(zh.status()).toBe(404);
