@@ -213,7 +213,26 @@ test("axe finds no violations on the demo home and dense timeline", async ({ pag
   }
 });
 
-test("visual baselines cover trilingual long titles, both mobile widths, and a dense desktop page", async ({ page }) => {
+test("visual baselines cover the v0.5 home and trilingual long titles", async ({ page }) => {
+  const homeCases = [
+    { lang: "zh", width: 320, name: "phase4a-v05-home-zh-320.png" },
+    { lang: "ja", width: 375, name: "phase4a-v05-home-ja-375.png" },
+    { lang: "en", width: 1440, name: "phase4a-v05-home-en-1440.png" },
+  ];
+  for (const item of homeCases) {
+    await page.setViewportSize({ width: item.width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "none" });
+    await page.goto(demoUrl(`/${item.lang}/`), { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page).toHaveScreenshot(item.name, {
+      animations: "disabled",
+      caret: "hide",
+      fullPage: true,
+      maxDiffPixelRatio: 0.002,
+      scale: "css",
+    });
+  }
+
   const cases = [
     { lang: "zh", width: 320, name: "phase4a-zh-detail-320.png" },
     { lang: "ja", width: 375, name: "phase4a-ja-detail-375.png" },

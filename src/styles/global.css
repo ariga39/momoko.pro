@@ -994,6 +994,557 @@
   }
 }
 
+@layer components {
+  [data-site-header] .masthead-subtitle {
+    display: block;
+    max-width: 14rem;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.display");
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+
+  [data-site-header] .masthead-kicker {
+    color: theme("colors.folio-pink");
+  }
+
+  [data-site-header] .masthead-rule {
+    background: linear-gradient(
+      90deg,
+      theme("colors.folio-pink") 0 24%,
+      theme("colors.folio-pink-soft") 24% 47%,
+      theme("colors.folio-brass") 47% 62%,
+      theme("colors.folio-blue") 62% 80%,
+      theme("colors.folio-navy") 80% 100%
+    );
+  }
+
+  .home-v05 {
+    min-width: 0;
+    color: theme("colors.folio-ink");
+  }
+
+  .folio-spectrum {
+    display: grid;
+    grid-template-columns: 1.2fr 1.9fr 0.8fr 1.65fr 0.9fr;
+    height: 0.5rem;
+    overflow: hidden;
+  }
+
+  .folio-spectrum-pink {
+    background: theme("colors.folio-pink");
+  }
+
+  .folio-spectrum-blue {
+    background: theme("colors.folio-blue");
+  }
+
+  .folio-spectrum-brass {
+    background: theme("colors.folio-brass");
+  }
+
+  .folio-spectrum-pale {
+    background: theme("colors.folio-pink-soft");
+  }
+
+  .folio-spectrum-navy {
+    background: theme("colors.folio-navy");
+  }
+
+  .folio-layout {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.18fr) minmax(0, 1.55fr) minmax(16rem, 0.8fr);
+    min-width: 0;
+    border: 1px solid theme("colors.folio-line");
+    border-top: 0;
+    background: theme("colors.folio-paper");
+  }
+
+  .folio-layout > * {
+    min-width: 0;
+    min-height: 35rem;
+  }
+
+  .folio-spine {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 1.5rem;
+    padding: 1rem 0.8rem;
+    border-right: 1px solid theme("colors.folio-line");
+    background: linear-gradient(180deg, theme("colors.folio-pink-soft"), theme("colors.folio-paper-deep"));
+  }
+
+  .folio-spine-number {
+    color: theme("colors.folio-pink");
+    font-family: theme("fontFamily.display");
+    font-size: clamp(4.25rem, 10vw, 8rem);
+    font-weight: 700;
+    letter-spacing: -0.08em;
+    line-height: 0.72;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  .folio-spine-facts {
+    display: grid;
+    align-content: end;
+    gap: 0.75rem;
+  }
+
+  .folio-spine-facts div {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(36, 62, 97, 0.28);
+  }
+
+  .folio-spine-facts span,
+  .folio-facts dt {
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .folio-spine-facts strong {
+    overflow-wrap: anywhere;
+    color: theme("colors.folio-ink");
+    font-family: theme("fontFamily.display");
+    font-size: 0.9rem;
+    line-height: 1.15;
+  }
+
+  .folio-color-value {
+    color: theme("colors.folio-brass") !important;
+    font-family: theme("fontFamily.mono") !important;
+    font-size: 0.72rem !important;
+  }
+
+  .folio-suits {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.25rem;
+    color: theme("colors.folio-navy");
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .folio-suits span:nth-child(2) {
+    color: theme("colors.folio-pink");
+  }
+
+  .folio-suits span:nth-child(3) {
+    color: theme("colors.folio-brass");
+  }
+
+  .folio-sheet {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1.25rem, 4vw, 3.5rem);
+    overflow: hidden;
+    background-color: theme("colors.folio-paper");
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2.85rem,
+      rgba(189, 147, 64, 0.22) 2.85rem,
+      rgba(189, 147, 64, 0.22) calc(2.85rem + 1px)
+    );
+  }
+
+  .folio-sheet-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: clamp(2rem, 8vh, 5rem);
+  }
+
+  .folio-eyebrow,
+  .folio-chapter-label,
+  .chapter-index-word,
+  .folio-song-card-kicker {
+    margin: 0;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+
+  .folio-issue {
+    color: theme("colors.folio-brass");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+  }
+
+  .folio-name {
+    display: grid;
+    max-width: 100%;
+    margin: 0;
+    color: theme("colors.folio-ink");
+    font-family: theme("fontFamily.display");
+    font-size: clamp(4.25rem, 13vw, 10rem);
+    font-weight: 700;
+    letter-spacing: -0.14em;
+    line-height: 0.76;
+    overflow-wrap: anywhere;
+  }
+
+  .folio-name span:last-child {
+    padding-left: 0.9em;
+    color: theme("colors.folio-pink");
+  }
+
+  .folio-name-latin {
+    margin: 1.2rem 0 0;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.display");
+    font-size: clamp(0.85rem, 1.5vw, 1.2rem);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+  }
+
+  .folio-rule {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 0.65rem;
+    max-width: 20rem;
+    margin: 1.15rem 0;
+    color: theme("colors.folio-pink");
+  }
+
+  .folio-rule::before,
+  .folio-rule::after {
+    height: 1px;
+    background: theme("colors.folio-brass");
+    content: "";
+  }
+
+  .folio-intro {
+    max-width: 24rem;
+    margin: 0;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.display");
+    font-size: clamp(1.25rem, 2.2vw, 1.85rem);
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .folio-tagline {
+    max-width: 24rem;
+    margin: 1rem 0 0;
+    color: theme("colors.ink-soft");
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  .folio-chapter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: clamp(1.25rem, 3vw, 2.5rem);
+    border-left: 1px solid theme("colors.folio-line");
+    background: linear-gradient(180deg, rgba(159, 185, 212, 0.3), rgba(248, 241, 223, 0.78) 48%, rgba(239, 197, 204, 0.35));
+  }
+
+  .folio-chapter-label {
+    color: theme("colors.folio-pink");
+  }
+
+  .folio-chapter h2 {
+    margin: 0;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.display");
+    font-size: clamp(1.4rem, 2.5vw, 2.1rem);
+    line-height: 1.05;
+  }
+
+  .folio-chapter-lede {
+    margin: 0;
+    color: theme("colors.folio-ink");
+    font-size: 0.86rem;
+    line-height: 1.75;
+  }
+
+  .folio-source-link {
+    width: fit-content;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .folio-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem 1rem;
+    margin: 0.8rem 0 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(36, 62, 97, 0.26);
+  }
+
+  .folio-facts div {
+    min-width: 0;
+  }
+
+  .folio-facts dd {
+    margin: 0.12rem 0 0;
+    overflow-wrap: anywhere;
+    color: theme("colors.folio-ink");
+    font-family: theme("fontFamily.display");
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .folio-song-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.2rem 0.75rem;
+    align-items: center;
+    margin-top: auto;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid theme("colors.folio-navy");
+    color: theme("colors.folio-navy");
+    text-decoration: none;
+  }
+
+  .folio-song-card:hover {
+    background: theme("colors.folio-pink-soft");
+  }
+
+  .folio-song-card-kicker {
+    grid-column: 1 / -1;
+    color: theme("colors.folio-pink");
+  }
+
+  .folio-song-card strong {
+    font-family: theme("fontFamily.display");
+    font-size: 1rem;
+  }
+
+  .chapter-index {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 1px solid theme("colors.folio-navy");
+    border-top: 0;
+    background: theme("colors.folio-navy");
+  }
+
+  .chapter-index-link {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    min-width: 0;
+    padding: 1.15rem 1rem;
+    border-right: 1px solid rgba(248, 241, 223, 0.35);
+    color: theme("colors.folio-paper");
+    text-decoration: none;
+  }
+
+  .chapter-index-link:last-child {
+    border-right: 0;
+  }
+
+  .chapter-index-link:hover {
+    background: theme("colors.folio-pink");
+    color: theme("colors.folio-paper");
+  }
+
+  .chapter-index-code {
+    color: theme("colors.folio-brass");
+    font-family: theme("fontFamily.display");
+    font-size: 1.7rem;
+    line-height: 1;
+  }
+
+  .chapter-index-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.2rem;
+  }
+
+  .chapter-index-word {
+    color: theme("colors.folio-blue");
+    font-size: 0.58rem;
+  }
+
+  .chapter-index-copy strong {
+    overflow-wrap: anywhere;
+    font-family: theme("fontFamily.display");
+    font-size: 0.9rem;
+    line-height: 1.25;
+  }
+
+  .chapter-index-arrow {
+    color: theme("colors.folio-brass");
+    font-size: 1.15rem;
+  }
+
+  .home-notes {
+    margin-top: clamp(2.5rem, 7vw, 5rem);
+    padding-top: 1.2rem;
+    border-top: 1px solid theme("colors.folio-line");
+  }
+
+  .home-notes-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .home-notes-heading h2 {
+    margin: 0.3rem 0 0;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.display");
+    font-size: clamp(1.5rem, 3vw, 2.4rem);
+  }
+
+  .home-notes-heading > a {
+    flex: none;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.mono");
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .home-empty {
+    padding: 1.5rem;
+    border: 1px solid theme("colors.folio-line");
+    background: theme("colors.folio-paper");
+  }
+
+  .home-empty h3 {
+    margin: 0.35rem 0 0;
+    color: theme("colors.folio-navy");
+    font-family: theme("fontFamily.display");
+    font-size: 1.4rem;
+  }
+
+  .home-empty p:last-child {
+    max-width: 42rem;
+    margin-bottom: 0;
+    color: theme("colors.ink-soft");
+  }
+
+  .folio-footer {
+    background: theme("colors.folio-navy");
+    color: theme("colors.folio-paper");
+  }
+
+  .folio-footer .footer-label,
+  .folio-footer a {
+    color: theme("colors.folio-pink-soft");
+  }
+
+  .folio-footer-notice {
+    color: rgba(248, 241, 223, 0.76);
+  }
+
+  @media (max-width: 56rem) {
+    .folio-layout {
+      grid-template-columns: minmax(4.7rem, 0.22fr) minmax(0, 1fr);
+    }
+
+    .folio-spine {
+      grid-row: span 2;
+    }
+
+    .folio-chapter {
+      min-height: auto !important;
+      border-top: 1px solid theme("colors.folio-line");
+      border-left: 0;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .folio-layout {
+      grid-template-columns: minmax(4.1rem, 0.24fr) minmax(0, 1fr);
+    }
+
+    .folio-sheet-heading {
+      align-items: start;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .folio-name {
+      font-size: clamp(3.75rem, 19vw, 6.25rem);
+    }
+
+    .folio-name span:last-child {
+      padding-left: 0.35em;
+    }
+
+    .folio-facts {
+      grid-template-columns: 1fr;
+    }
+
+    .chapter-index {
+      grid-template-columns: 1fr;
+    }
+
+    .chapter-index-link,
+    .chapter-index-link:last-child {
+      border-right: 0;
+      border-bottom: 1px solid rgba(248, 241, 223, 0.35);
+    }
+
+    .chapter-index-link:last-child {
+      border-bottom: 0;
+    }
+
+    .home-notes-heading {
+      align-items: start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 22rem) {
+    .folio-layout {
+      grid-template-columns: 3.7rem minmax(0, 1fr);
+    }
+
+    .folio-spine {
+      gap: 1rem;
+      padding-inline: 0.55rem;
+    }
+
+    .folio-spine-number {
+      font-size: 3.9rem;
+    }
+
+    .folio-spine-facts span {
+      font-size: 0.52rem;
+      letter-spacing: 0.02em;
+    }
+
+    .folio-spine-facts strong {
+      font-size: 0.72rem;
+    }
+
+    .folio-sheet,
+    .folio-chapter {
+      padding-inline: 0.9rem;
+    }
+  }
+}
+
 @media (forced-colors: active) {
   *,
   *::before,
@@ -1011,6 +1562,19 @@
 
   .masthead-rule {
     background: Highlight;
+  }
+
+  .folio-spectrum {
+    background: CanvasText;
+  }
+
+  .folio-spectrum span {
+    background: CanvasText;
+  }
+
+  .chapter-index {
+    border-color: CanvasText;
+    background: CanvasText;
   }
 }
 

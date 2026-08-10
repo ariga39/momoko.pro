@@ -23,8 +23,8 @@ test("home is a static language selector with x-default + all hreflang alternate
 
 test("locale page lists the synthetic news item with hreflang alternates", async ({ page }) => {
   await page.goto("/zh/");
-  await expect(page.locator("h1")).toHaveText("周防桃子");
-  await expect(page.locator(".profile-section")).toContainText("桃子是谁？");
+  await expect(page.locator("h1")).toContainText("周防");
+  await expect(page.locator("[data-home-v05] .folio-chapter")).toContainText("桃子是谁？");
   await expect(page.locator(".card-grid a").first()).toHaveAttribute("lang", "zh");
   await expect(page.locator("main")).not.toContainText("S1-synth-2026-08-08-002");
   await expect(page.locator("main")).not.toContainText("S1-synth-2026-08-08-003");
@@ -116,15 +116,15 @@ test("language switcher navigates between locales", async ({ page }) => {
   await page.goto("/zh/");
   await page.locator("nav[aria-label='语言切换 / Language switcher'] a[href='/ja/']").click();
   await expect(page).toHaveURL(/\/ja\//);
-  await expect(page.locator("h1")).toHaveText("周防桃子");
-  await expect(page.locator(".profile-section")).toContainText("桃子ってどんなアイドル？");
+  await expect(page.locator("h1")).toContainText("周防");
+  await expect(page.locator("[data-home-v05] .folio-chapter")).toContainText("桃子ってどんなアイドル？");
 });
 
 test("UI chrome renders in each page locale (Paraglide pinned to route)", async ({ page }) => {
   await page.goto("/en/about/");
   await expect(page.locator("h1")).toHaveText("About momoko.pro");
   await expect(page).toHaveTitle(/About momoko\.pro/);
-  await expect(page.locator("nav[aria-label='Main navigation']")).toContainText("News");
+  await expect(page.locator("nav[aria-label='Main navigation']")).toContainText("Stories");
   await expect(page.locator("nav[aria-label='Main navigation']")).not.toContainText("Source Policy");
   await expect(page.locator("footer a[href='/en/source-policy/']")).toHaveText("Source Policy");
   await expect(page.locator("nav[aria-label='Language switcher']")).toBeVisible();
@@ -132,12 +132,12 @@ test("UI chrome renders in each page locale (Paraglide pinned to route)", async 
 
   await page.goto("/zh/about/");
   await expect(page.locator("h1")).toHaveText("关于 momoko.pro");
-  await expect(page.locator("nav[aria-label='主导航']")).toContainText("新闻");
+  await expect(page.locator("nav[aria-label='主导航']")).toContainText("故事");
   await expect(page.locator("nav[aria-label='语言切换 / Language switcher']")).toBeVisible();
 
   await page.goto("/ja/about/");
   await expect(page.locator("h1")).toHaveText("momoko.pro について");
-  await expect(page.locator("nav[aria-label='メインナビゲーション']")).toContainText("ニュース");
+  await expect(page.locator("nav[aria-label='メインナビゲーション']")).toContainText("STORIES");
   await expect(page.locator("nav[aria-label='言語切り替え']")).toBeVisible();
 });
 

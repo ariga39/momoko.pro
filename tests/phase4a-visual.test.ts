@@ -178,14 +178,25 @@ describe("Phase 4A progressive-enhancement contract", () => {
     const layout = fs.readFileSync(path.join(root, "src/components/SiteLayout.astro"), "utf8");
     const home = fs.readFileSync(path.join(root, "src/pages/[lang].astro"), "utf8");
     const about = fs.readFileSync(path.join(root, "src/pages/[lang]/about/index.astro"), "utf8");
+    const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+    const design = fs.readFileSync(path.join(root, "docs/design.md"), "utf8");
 
     const navBlock = layout.match(/const nav = \[([\s\S]*?)\];/)?.[1] ?? "";
     expect(navBlock).not.toContain("/source-policy/");
     expect(layout).toMatch(/href=\{getRelativeLocaleUrl\(lang, "\/source-policy\/"\)\}/);
-    expect(home).toContain("profile-section");
+    expect(home).toContain('"data-visual-contract": "v0.5"');
+    expect(home).toContain("folio-spine");
+    expect(home).toContain("folio-sheet");
+    expect(home).toContain("folio-chapter");
+    expect(home).not.toMatch(/<img\b|<svg\b/);
+    expect(home.match(/code: "0[1-3]"/g)).toHaveLength(3);
     expect(home).toContain("millionlive-anime.idolmaster-official.jp/character/momoko/");
-    expect(home.indexOf("profile-section")).toBeLessThan(home.indexOf("<DemoNotice"));
+    expect(home.indexOf("folio-sheet")).toBeLessThan(home.indexOf("<DemoNotice"));
     expect(about).not.toContain("DemoNotice");
+    expect(readme).toContain("Pages use Tailwind CSS utilities first.");
+    expect(readme).toContain("tailwind.config.mjs");
+    expect(design).toContain("页面优先使用 Tailwind utilities");
+    expect(design).toContain("src/styles/global.css");
   });
 
   it("has a native details mobile menu with JS focus return, not dialog semantics", () => {
