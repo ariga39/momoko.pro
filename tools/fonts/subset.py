@@ -65,9 +65,7 @@ SUBSET_FLAGS = [
     "--layout-features=*",
     "--drop-tables+=DSIG",
     "--name-IDs=0,1,2,3,4,6",
-    "--no-hinting",
 ]
-
 
 def collect_slices(fontroot: Path, pkg: str, css_files: list[str]) -> list[Path]:
     """Return every WOFF2 shard referenced by the given family CSS files."""
