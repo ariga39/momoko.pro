@@ -1,8 +1,17 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
 import "../styles/global.css";
+import "../styles/fonts.css";
 import { ml, type Locale } from "../lib/messages.ts";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
+
+// Locale-only preload (task #25): each locale preloads only its own primary
+// webfont face for the first screen; supplementary slices load on demand.
+const PRIMARY_FONT: Record<Locale, string> = {
+  zh: "/fonts/noto-sans-sc-chinese-simplified-400-normal.woff2",
+  ja: "/fonts/noto-sans-jp-japanese-400-normal.woff2",
+  en: "/fonts/inter-latin-400-normal.woff2",
+};
 
 interface Props {
   lang: Locale;
@@ -49,6 +58,7 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
     ))}
     <link rel="alternate" hreflang="x-default" href={xDefaultHref ?? "https://momoko.pro/"} />
     <link rel="canonical" href={`https://momoko.pro${canonical}`} />
+    <link rel="preload" href={PRIMARY_FONT[lang]} as="font" type="font/woff2" crossorigin="anonymous" />
     <title>{title}</title>
   </head>
   <body class:list={["min-h-screen bg-bg text-text", isHome && "home-body"]} {...(bodyData ?? {})}>

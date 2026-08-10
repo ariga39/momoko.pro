@@ -25,3 +25,8 @@ wrangler.toml.local
 .DS_Store
 .idea/
 .vscode/
+
+# generated self-hosted fonts (task #25 subset output)
+public/fonts/
+.venv-fonts/
+__pycache__/
