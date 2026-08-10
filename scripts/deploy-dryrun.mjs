@@ -162,9 +162,10 @@ export function main() {
       return fail("missing_worker_entry", "dist/_worker.js/index.js not present; build the server output first");
     }
     // Confirm Wrangler accepts the config and compiles the worker (zero write).
+    // `--env preview` removes multi-environment ambiguity in the offline audit.
     execFileSync(
       "pnpm",
-      ["exec", "wrangler", "deploy", "--dry-run", "--outdir", path.join(tmp, "bundle")],
+      ["exec", "wrangler", "deploy", "--env", "preview", "--dry-run", "--outdir", path.join(tmp, "bundle")],
       { cwd: REPO_ROOT, stdio: "inherit" },
     );
     // Audit the deploy root (the actual artifact set).
