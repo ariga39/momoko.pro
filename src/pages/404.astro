@@ -1,15 +1,26 @@
 ---
 import SiteLayout from "../components/SiteLayout.astro";
+import { localeFromPath, LOCALE_COOKIE_NAME, resolveRequestLocale, type Locale } from "../lib/locale.ts";
 import { ml } from "../lib/messages.ts";
 
-const t = ml("ja");
+// 404 language follows the requested path first, then cookie, then
+// Accept-Language, then the default locale — so /zh/nope/ renders zh chrome
+// while an unprefixed unknown path falls back to the negotiated locale.
+const pathLocale = localeFromPath(Astro.url.pathname);
+const lang: Locale =
+  pathLocale ??
+  resolveRequestLocale(
+    Astro.cookies.get(LOCALE_COOKIE_NAME)?.value,
+    Astro.request.headers.get("accept-language"),
+  );
+const t = ml(lang);
 ---
 
-<SiteLayout lang="ja" title={`${t.notFound()} — ${t.home()}`} canonicalPath="/404.html" noindex>
+<SiteLayout lang={lang} title={`${t.notFound()} — ${t.home()}`} canonicalPath="/404.html" noindex>
   <div class="py-8 text-center">
     <h1 class="text-2xl">{t.notFound()}</h1>
     <p>{t.notFoundBody()}</p>
-    <nav aria-label="回到首页">
+    <nav aria-label={t.backHome()}>
       <ul class="flex justify-center gap-3">
         <li><a href="/">{t.backHome()}</a></li>
         <li><a href="/zh/">中文</a></li>

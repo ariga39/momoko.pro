@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    # Pinned to ubuntu-24.04 (not latest): visual snapshot baselines are
+    # generated against this runner's font set (see
+    # docs/visual-baseline-env.md + scripts/regenerate-visual-baselines.sh).
     # PR-triggered path injects no secrets (§8.3): no CF token, no model key, no deploy.
     env:
       CI: "true"

@@ -2,7 +2,8 @@
 import { getRelativeLocaleUrl } from "astro:i18n";
 import "../styles/global.css";
 import "../styles/fonts.css";
-import { ml, type Locale } from "../lib/messages.ts";
+import { LOCALES, localeFromPath, type Locale } from "../lib/locale.ts";
+import { ml } from "../lib/messages.ts";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
 
 // Locale-only preload (task #25): each locale preloads only its own primary
@@ -34,12 +35,28 @@ const isHome = bodyData?.["data-page"] === "home";
 const robotsContent = robots ?? (noindex ? "noindex" : undefined);
 const nav = [
   { href: getRelativeLocaleUrl(lang, "/news/"), label: t.navStories() },
-  { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongs() },
+  { href: getRelativeLocaleUrl(lang, "/encyclopedia/"), label: t.navEncyclopedia() },
+  { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongsLive() },
   { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navAnniversary() },
   { href: getRelativeLocaleUrl(lang, "/about/"), label: t.navAbout() },
+  { href: getRelativeLocaleUrl(lang, "/search/"), label: t.navSearch() },
 ];
 const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
 const homeUrl = getRelativeLocaleUrl(lang, "/");
+// Default alternates mirror the page's own localized path across locales
+// (exact siblings); pages with content-identity alternates (news detail)
+// pass the `alternates` prop explicitly instead.
+const defaultAlternates = (() => {
+  const currentLocale = localeFromPath(canonical);
+  if (!currentLocale) return [];
+  return LOCALES.map((other) => ({
+    hreflang: other,
+    href:
+      other === currentLocale
+        ? `https://momoko.pro${canonical}`
+        : `https://momoko.pro${canonical.replace(`/${currentLocale}`, `/${other}`)}`,
+  }));
+})();
 ---
 
 <!doctype html>
@@ -49,11 +66,7 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     {robotsContent && <meta name="robots" content={robotsContent} />}
-    {(alternates ?? [
-      { hreflang: "zh", href: "https://momoko.pro/zh/" },
-      { hreflang: "ja", href: "https://momoko.pro/ja/" },
-      { hreflang: "en", href: "https://momoko.pro/en/" },
-    ]).map((alt) => (
+    {(alternates ?? defaultAlternates).map((alt) => (
       <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />
     ))}
     <link rel="alternate" hreflang="x-default" href={xDefaultHref ?? "https://momoko.pro/"} />
