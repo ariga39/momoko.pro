@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Run the FULL Playwright browser suite (smoke + link crawl + visual) in the
-# canonical runner-matching container. Same environment as
-# scripts/regenerate-visual-baselines.sh — use this to verify any change that
-# can affect rendering or routes against the exact environment hosted CI uses.
+# canonical runner-matching container (pinned by DIGEST below). Same
+# environment as scripts/regenerate-visual-baselines.sh — use this to verify
+# any change that can affect rendering or routes against the exact environment
+# hosted CI uses.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
