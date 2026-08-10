@@ -90,6 +90,7 @@ async function main() {
       "--fontroot", path.join(ROOT, "node_modules/@fontsource"),
       "--manifest", MANIFEST,
       "--css", CSS,
+      "--lock", path.join(__dirname, "source-lock.json"),
     ],
     { cwd: ROOT, stdio: "inherit" },
   );

@@ -12,6 +12,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "fonts:install": "node tools/fonts/subset.mjs install",
+    "fonts:lock-source": "node tools/fonts/lock-source.mjs",
     "fonts:subset": "node tools/fonts/subset.mjs && node tools/fonts/audit.mjs",
     "build:public": "pnpm fonts:subset && PUBLIC_BUILD=1 astro build --outDir dist-public && PUBLIC_BUILD=1 node --experimental-strip-types tools/schema/postbuild.ts",
     "build:post": "node --experimental-strip-types tools/schema/postbuild.ts",

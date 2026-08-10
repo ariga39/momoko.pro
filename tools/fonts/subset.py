@@ -148,6 +148,33 @@ def find_ofl_text(fontroot: Path, pkg: str) -> str:
     return text.rstrip() + "\n"
 
 
+def verify_source_lock(fontroot: Path, lock_path: Path) -> None:
+    """Verify the committed source lock against the real @fontsource files.
+
+    This is the trusted pin: it must hold BEFORE subsetting so a replaced shard,
+    altered LICENSE, or changed package version fails closed independent of the
+    generated output."""
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    for pkg, spec in lock["packages"].items():
+        pkg_dir = fontroot / pkg
+        pkg_json = json.loads((pkg_dir / "package.json").read_text(encoding="utf-8"))
+        if str(pkg_json.get("version")) != str(spec["version"]):
+            raise SystemExit(
+                f"[fonts] FAIL source lock: {pkg} version {pkg_json.get('version')!r} != pinned {spec['version']!r}"
+            )
+        license_file = pkg_dir / "LICENSE"
+        if not license_file.exists():
+            raise SystemExit(f"[fonts] FAIL source lock: {pkg}/LICENSE missing")
+        if sha256_file(license_file) != spec["license_sha256"]:
+            raise SystemExit(f"[fonts] FAIL source lock: {pkg}/LICENSE sha256 mismatch")
+        for shard, expected in spec["shards"].items():
+            shard_file = pkg_dir / "files" / shard
+            if not shard_file.exists():
+                raise SystemExit(f"[fonts] FAIL source lock: {pkg} shard missing: {shard}")
+            if sha256_file(shard_file) != expected:
+                raise SystemExit(f"[fonts] FAIL source lock: {pkg} shard sha256 mismatch: {shard}")
+
+
 def write_fonts_css(out_dir: Path, manifest: dict[str, object], css_target: Path) -> None:
     """Generate src/styles/fonts.css with @font-face rules derived from the
     emitted fonts' actual cmaps, plus the locale-scoped font stack variables.
@@ -222,12 +249,17 @@ def main() -> int:
     parser.add_argument("--fontroot", required=True, help="node_modules/@fontsource root")
     parser.add_argument("--manifest", required=True, help="output manifest path")
     parser.add_argument("--css", required=True, help="output src/styles/fonts.css path")
+    parser.add_argument("--lock", required=True, help="committed source lock JSON (tools/fonts/source-lock.json)")
     args = parser.parse_args()
 
     corpus = json.loads(Path(args.corpus).read_text(encoding="utf-8"))
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     fontroot = Path(args.fontroot)
+
+    # Verify the committed source lock against the real @fontsource files BEFORE
+    # generating anything, so a replaced shard/license/version fails closed.
+    verify_source_lock(fontroot, Path(args.lock))
 
     manifest: dict[str, object] = {
         "locales": {},

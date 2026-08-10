@@ -29,3 +29,4 @@ wrangler.toml.local
 # generated self-hosted fonts (task #25 subset output)
 public/fonts/
 .venv-fonts/
+__pycache__/

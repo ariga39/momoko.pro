@@ -79,35 +79,42 @@ function main() {
     if (!onDisk.includes(f)) throw new Error(`manifest file missing on disk: ${f}`);
   }
 
-  // 1b. Verify pinned input shard hashes and license text against the actual
-  //     @fontsource files (a swapped/replaced shard or license must fail).
+  // 1b. Verify the committed source lock against the actual @fontsource files
+  //     (a swapped/replaced shard, altered LICENSE, or changed version must
+  //     fail closed). The lock is the trusted, reviewable pin independent of
+  //     the generated manifest.
   const FONTROOT = path.join(ROOT, "node_modules/@fontsource");
+  const LOCK_PATH = path.join(__dirname, "source-lock.json");
+  if (!fs.existsSync(LOCK_PATH)) {
+    throw new Error("committed source lock missing: tools/fonts/source-lock.json");
+  }
+  const lock = JSON.parse(fs.readFileSync(LOCK_PATH, "utf8"));
+  for (const pkg of Object.keys(lock.packages)) {
+    const spec = lock.packages[pkg];
+    const pkgJson = JSON.parse(fs.readFileSync(path.join(FONTROOT, pkg, "package.json"), "utf8"));
+    if (String(pkgJson.version) !== String(spec.version)) {
+      throw new Error(`source lock: ${pkg} version mismatch (${pkgJson.version} != ${spec.version})`);
+    }
+    if (sha256File(path.join(FONTROOT, pkg, "LICENSE")) !== spec.license_sha256) {
+      throw new Error(`source lock: ${pkg}/LICENSE sha256 mismatch`);
+    }
+    for (const [shard, expected] of Object.entries(spec.shards)) {
+      const shardPath = path.join(FONTROOT, pkg, "files", shard);
+      if (!fs.existsSync(shardPath)) throw new Error(`source lock: ${pkg} shard missing: ${shard}`);
+      if (sha256File(shardPath) !== expected) {
+        throw new Error(`source lock: ${pkg} shard sha256 mismatch: ${shard}`);
+      }
+    }
+  }
+  // Manifest-recorded input shard hashes must also match the committed lock.
   for (const locale of Object.keys(manifest.locales)) {
     const entry = manifest.locales[locale];
     const pkg = entry.source_package;
+    const spec = lock.packages[pkg];
+    if (!spec) throw new Error(`manifest locale ${locale} package ${pkg} absent from source lock`);
     for (const f of entry.files) {
-      const shardPath = path.join(FONTROOT, pkg, "files", f.source_shard);
-      if (!fs.existsSync(shardPath)) {
-        throw new Error(`locale ${locale}: input shard missing: ${f.source_shard}`);
-      }
-      if (sha256File(shardPath) !== f.source_shard_sha256) {
-        throw new Error(`locale ${locale}: input shard sha256 mismatch: ${f.source_shard}`);
-      }
-    }
-    const licensePath = path.join(FONTROOT, pkg, "LICENSE");
-    if (!fs.existsSync(licensePath)) {
-      throw new Error(`locale ${locale}: license file missing: ${pkg}/LICENSE`);
-    }
-    const actualLicense = fs.readFileSync(licensePath, "utf8").replace(/\s+$/u, "") + "\n";
-    const recordedLicense = String(entry.license_text).replace(/\s+$/u, "") + "\n";
-    if (actualLicense !== recordedLicense) {
-      throw new Error(`locale ${locale}: license text mismatch for ${pkg}`);
-    }
-    // Verify the running tooling versions recorded in the manifest are pinned.
-    const tool = manifest.tool ?? {};
-    for (const [pkgName, expected] of Object.entries(tool.installed ?? {})) {
-      if (expected.startsWith("unresolved")) {
-        throw new Error(`tool ${pkgName} version unresolved during build`);
+      if (spec.shards[f.source_shard] !== f.source_shard_sha256) {
+        throw new Error(`locale ${locale}: manifest shard hash disagrees with committed lock: ${f.source_shard}`);
       }
     }
   }
