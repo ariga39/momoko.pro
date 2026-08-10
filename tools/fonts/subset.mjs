@@ -26,7 +26,6 @@ const PYTHON = process.env.MOMOKO_FONTTOOLS_PYTHON
 function provision() {
   if (process.env.MOMOKO_PYFTSUBSET || fs.existsSync(PYTHON)) return;
   const req = path.join(__dirname, "requirements.txt");
-  fs.mkdirSync(VENV, { recursive: true });
   const python3 = process.env.MOMOKO_PYTHON3 || "python3";
   let usedUv = false;
   try {
