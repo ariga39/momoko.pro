@@ -150,4 +150,26 @@ describe("preview-upload workflow contract (task #26)", () => {
     const ci = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/ci.yml"), "utf8");
     expect(ci).toContain("scripts/deploy-dryrun.mjs");
   });
+
+  it("runs the offline dry-run audit before the preview upload step (wiring + order)", () => {
+    const yml = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/deploy-preview.yml"), "utf8");
+    const dryRunIdx = yml.indexOf("scripts/deploy-dryrun.mjs");
+    // Anchor on the actual gated upload step (not the header comment).
+    const uploadIdx = yml.indexOf("pnpm exec wrangler versions upload --env preview");
+    expect(dryRunIdx, "preview workflow must invoke the offline dry-run script").toBeGreaterThan(-1);
+    expect(uploadIdx, "preview workflow must still contain the gated versions upload").toBeGreaterThan(-1);
+    expect(dryRunIdx, "dry-run audit must run before the upload step").toBeLessThan(uploadIdx);
+  });
+
+  it("keeps the dry-run audit secret-free and the upload gated (no dry-run on upload, no secrets in audit step)", () => {
+    const yml = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/deploy-preview.yml"), "utf8");
+    const dryRunStep = yml.slice(yml.indexOf("Offline dry-run audit"), yml.indexOf("Fail closed when required secrets are missing"));
+    expect(dryRunStep).toContain("scripts/deploy-dryrun.mjs");
+    expect(dryRunStep).not.toMatch(/secrets\./i);
+    expect(dryRunStep).not.toMatch(/CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID/);
+    // The gated upload itself must remain a real version upload (never --dry-run).
+    const uploadBlock = yml.slice(yml.indexOf("pnpm exec wrangler versions upload --env preview"));
+    expect(uploadBlock).toContain("wrangler versions upload --env preview");
+    expect(uploadBlock).not.toMatch(/--dry-run/);
+  });
 });

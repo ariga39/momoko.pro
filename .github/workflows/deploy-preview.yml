@@ -55,6 +55,9 @@ jobs:
           corepack prepare pnpm@9.15.9 --activate
           pnpm install --frozen-lockfile
 
+      - name: Offline dry-run audit before upload (no secret, no write)
+        run: pnpm exec node --experimental-strip-types scripts/deploy-dryrun.mjs
+
       - name: Fail closed when required secrets are missing
         run: |
           if [[ -z "${CLOUDFLARE_API_TOKEN:-}" || -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
