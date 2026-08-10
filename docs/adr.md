@@ -28,9 +28,9 @@
 - future：D1 搜索仅在官方能力与 CJK 质量证据都优于静态方案时选择；Vectorize 留作规模/语义检索达到明确阈值后的升级。
 
 ## ADR-06 渲染与部署（ADR-RENDER/DEPLOY）
-- **MVP 锁定：Cloudflare Pages 静态托管；部署面 = GitHub Actions Direct Upload（唯一）**——Git canonical 内容由 GitHub Actions 构建为静态站点；**无运行时 Worker / Pages Functions / 原生 Git 集成**；静态资产请求免费且不限量（https://developers.cloudflare.com/workers/platform/pricing/ ）。
+- **MVP 锁定：Cloudflare Pages Functions server rendering；部署面 = GitHub Actions Direct Upload（唯一）**——Git canonical 内容由 GitHub Actions 构建为 Astro server worker，静态资产仍由 Pages 托管；运行时只处理入口语言协商与页面渲染，不使用 KV/D1/Cron Trigger/Queues/R2/Vectorize（https://developers.cloudflare.com/workers/platform/pricing/ ）。
 - **manifest.json 不提交仓库**：构建期全量生成到 dist，双重构建确定性验证。
-- `/` 为 x-default 语言选择页或固定静态 302；**无服务端 Accept-Language 读取**。
+- `/` 由 server worker 按有效 locale cookie → `Accept-Language` → `ja` 返回 302；localized URL 不被重写。
 - **PR 不接触 CF secret**：`pull_request` 仅无 secret 构建+Playwright+artifact；生产部署仅受信 main merge；远端 preview 由 maintainer 对固定 SHA 手动 `workflow_dispatch`（default-branch workflow）。
 - future：如需秒级发布或复杂服务端查询，可引入 D1 + 请求时渲染（打开 ADR）。
 - 改变条件：出现非 Git 编辑者、秒级发布、构建瓶颈或复杂服务端查询（需量化证据）。
@@ -61,12 +61,13 @@
 - 改变条件：构建复杂度超阈值、CJK 搜索夹具不通过需 fallback、团队主导语言变更——均需另开 ADR。
 
 ## ADR-12 i18n 分层（ADR-I18N）
-- 决策：Astro 原生 i18n routing 负责 `/ja|zh|en` 路由、locale 校验与 URL helper；Paraglide JS 只负责导航、按钮、状态提示等 UI message catalog。静态构建按 Paraglide Astro SSG 指南在 prerender 时显式设置 locale，不引入运行时语言服务。
-- 路由：三种语言全部带前缀；`/` 保留 x-default 语言选择页，不读取 `Accept-Language`、不自动跳转。URL 是 locale 真相源。
+- 决策：Astro 原生 i18n routing 负责 `/ja|zh|en` 路由、locale 校验与 URL helper；Paraglide JS 只负责导航、按钮、状态提示等 UI message catalog。server worker 编译同一 typed catalog，不引入运行时语言服务；其 SSG 指南仅作为 catalog 编译与 locale 对账参考。
+- 路由：三种语言全部带前缀；Astro locale 集合负责校验/helper，`routing: "manual"` 由 server route 处理 `/` 的有效 locale cookie → `Accept-Language` → `ja` 302（避免原生 middleware 把 `/search`、`/locale-switch` 等 utility route 转成 404）。URL 仍是 locale 真相源；显式 localized URL 不自动改写。
+- 首页视觉导航：桌面首页 masthead 只保留本地灰蓝 wordmark、语言切换和必要 utility；01/02/03 章节链接组成独立且三语命名的主导航 landmark。inner pages 保留完整 global nav，移动端首页保留 compact global menu。wordmark 的 outlined paths 使用本地 `public/momoko-logo.svg`，并随附 Libre Baskerville/Nunito OFL-1.1 attribution；不加载远程字体或官方图像。
 - 内容边界：编辑内容仍以 `content.<lang>.md`、`source_content_hash` 与 `review_status` 为唯一真相；Paraglide/Astro fallback 不得改变或推断审核状态。缺失或 stale 内容只能显式回退源语言并显示提示。
 - SEO：真实翻译必须 body 非空、`reviewed`、绑定当前源 hash 且未 retracted；真实翻译页 self-canonical。fallback 页使用源语言 `lang`/metadata、canonical 到源页并 `noindex,follow`，请求 locale 不进入 alternate。每个内容身份的 hreflang 集合使用全限定 URL、包含自身并在全部成员上双向一致；详情 `x-default` 指向源页，站点根选择页只服务入口/列表层。
-- CI 门：UI message key 必须类型检查；三语 catalog key 集合完整；Astro locale 集合与 Paraglide locale 集合完全相等；按内容身份验证真实翻译/fallback 的 `lang`、metadata、canonical、robots 与 hreflang 双向集合；构建保持静态、确定且离线。
-- 不采用：本切片不选 i18next；它是可行的 runtime i18n 方案，但 Paraglide 有直接的 Astro SSG 上游指南、编译期 message 类型安全且更少自建适配面。也不继续维护散落在组件中的手写三语对象。
+- CI 门：UI message key 必须类型检查；三语 catalog key 集合完整；Astro locale 集合与 Paraglide locale 集合完全相等；按内容身份验证真实翻译/fallback 的 `lang`、metadata、canonical、robots 与 hreflang 双向集合；Cloudflare server build 保持确定且离线，cookie/Accept-Language 只在请求时影响入口跳转。
+- 不采用：本切片不选 i18next；它是可行的 runtime i18n 方案，但 Paraglide 有直接的 Astro 集成指南、编译期 message 类型安全且更少自建适配面。也不继续维护散落在组件中的手写三语对象。
 - 代价：增加 Paraglide 编译步骤、`project.inlang` 和生成代码；UI 与编辑内容有两个明确层次。收益是 UI key/参数类型安全、编译期发现拼写错误和后续翻译工具链兼容。
-- 改变条件：若 Paraglide 的 Astro SSG/Cloudflare 构建出现可复现兼容问题、维护停滞或生成物破坏确定性，回退为 Astro 原生 routing + 单一 typed local catalog；编辑内容模型不变。
+- 改变条件：若 Paraglide 的 Astro/Cloudflare server 构建出现可复现兼容问题、维护停滞或生成物破坏确定性，回退为 Astro 原生 routing + 单一 typed local catalog；编辑内容模型不变。
 - 依据（2026-08-09）：<https://docs.astro.build/en/guides/internationalization/>、<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>、<https://www.i18next.com/overview/getting-started>、<https://developers.google.com/search/docs/specialty/international/localized-versions>、<https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls>。

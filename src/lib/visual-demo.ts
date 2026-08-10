@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ContentPackageError, getContentRoot, readContentPackageManifest } from "./content.ts";
+import { ContentPackageError, getContentRoot, readContentPackageManifest, readEmbeddedPackageFile } from "./content.ts";
+import { embeddedPackage } from "./embedded-package.ts";
 import { validateFile } from "../../tools/schema/validate.ts";
+import { runtimeEnv } from "./runtime-config.ts";
 
 export type VisualLocale = "en" | "ja" | "zh";
 
@@ -93,17 +95,44 @@ function readVisualCatalogFile(filePath: string): VisualCatalog {
   };
 }
 
+function readEmbeddedVisualCatalog(relativePath: string): VisualCatalog {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readEmbeddedPackageFile(relativePath));
+  } catch (error) {
+    if (error instanceof ContentPackageError) throw error;
+    throw new ContentPackageError("visual_catalog_invalid", "visual catalog is not valid JSON");
+  }
+  const checked = validateFile("visual-catalog.schema.json", raw);
+  if (!checked.valid) throw new ContentPackageError("visual_catalog_invalid", "visual catalog failed schema validation");
+  const catalog = raw as {
+    notice: VisualLocaleText;
+    encyclopedia: EncyclopediaEntry[];
+    songs_live: SongLiveEntry[];
+    anniversaries: AnniversaryEntry[];
+  };
+  return {
+    mode: "demo",
+    notice: catalog.notice,
+    encyclopedia: catalog.encyclopedia,
+    songsLive: catalog.songs_live,
+    anniversaries: catalog.anniversaries,
+  };
+}
+
 /** Load only an explicit test/dev catalog declared by the validated package manifest. */
 export function loadVisualCatalog(): VisualCatalog {
   const root = getContentRoot();
   const manifest = readContentPackageManifest();
   if (!manifest.visual_catalog) return emptyVisualCatalog();
-  const mode = process.env.MOMOKO_CONTENT_PACKAGE_MODE;
+  const mode = runtimeEnv("MOMOKO_CONTENT_PACKAGE_MODE");
   if (mode !== "test" && mode !== "dev") {
     throw new ContentPackageError(
       "visual_catalog_mode_required",
       "visual catalog requires an explicit test or dev content package mode",
     );
   }
-  return readVisualCatalogFile(path.join(root, manifest.visual_catalog));
+  return embeddedPackage.enabled
+    ? readEmbeddedVisualCatalog(manifest.visual_catalog)
+    : readVisualCatalogFile(path.join(root, manifest.visual_catalog));
 }

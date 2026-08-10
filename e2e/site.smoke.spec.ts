@@ -1,20 +1,32 @@
 import { expect, test } from "@playwright/test";
 
-test("home is a static language selector with x-default + all hreflang alternates", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("h1")).toHaveText(/momoko\.pro/);
-  await expect(page.locator('link[rel="alternate"][hreflang="zh"]')).toHaveAttribute(
-    "href",
-    "https://momoko.pro/zh/",
-  );
-  await expect(page.locator('link[rel="alternate"][hreflang="ja"]')).toHaveAttribute(
-    "href",
-    "https://momoko.pro/ja/",
-  );
-  await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute(
-    "href",
-    "https://momoko.pro/en/",
-  );
+test("root negotiates a localized home on the server", async ({ page }) => {
+  const zh = await page.request.get("/", {
+    maxRedirects: 0,
+    headers: { "Accept-Language": "zh-CN,ja;q=0.8" },
+  });
+  expect(zh.status()).toBe(302);
+  expect(zh.headers().location).toBe("/zh/");
+
+  const cookieWins = await page.request.get("/", {
+    maxRedirects: 0,
+    headers: { Cookie: "momoko_locale=en", "Accept-Language": "zh-CN" },
+  });
+  expect(cookieWins.status()).toBe(302);
+  expect(cookieWins.headers().location).toBe("/en/");
+
+  const unsupported = await page.request.get("/", {
+    maxRedirects: 0,
+    headers: { "Accept-Language": "fr-FR,de;q=0.8" },
+  });
+  expect(unsupported.status()).toBe(302);
+  expect(unsupported.headers().location).toBe("/ja/");
+});
+
+test("explicit localized URLs stay canonical and never negotiate again", async ({ page }) => {
+  const response = await page.request.get("/zh/", { maxRedirects: 0 });
+  expect(response.status()).toBe(200);
+  await page.goto("/zh/");
   await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
     "href",
     "https://momoko.pro/",
@@ -106,23 +118,61 @@ test("unknown route returns the 404 page with navigation", async ({ page }) => {
   await expect(page.locator("nav[aria-label='回到首页'] a[href='/zh/']")).toBeVisible();
 });
 
+test("homepage keeps chapter navigation independent while desktop global nav stays on inner pages", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/zh/");
+  await expect(page.locator("img.masthead-logo")).toHaveAttribute("src", "/momoko-logo.svg");
+  await expect(page.locator("header nav[aria-label='主导航']")).toHaveCount(0);
+  await expect(page.locator("nav[data-nav-landmark='home-chapters']")).toBeVisible();
+  await expect(page.locator("nav[data-nav-landmark='home-chapters'] a")).toHaveCount(3);
+
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.goto("/zh/");
+  await expect(page.locator("details[data-mobile-menu]")).toBeVisible();
+  await page.locator("details[data-mobile-menu] summary").click();
+  await expect(page.locator("details[data-mobile-menu] nav[aria-label='主导航 mobile']")).toBeVisible();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/zh/about/");
+  await expect(page.locator("header nav[aria-label='主导航']")).toBeVisible();
+});
+
 test("navigation is keyboard-accessible: skip link + focusable nav links", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/zh/");
   await expect(page.locator("a.skip-link")).toHaveAttribute("href", "#main");
-  const nav = page.locator("nav[aria-label='主导航']");
-  await expect(nav).toBeVisible();
-  await nav.locator("a").first().focus();
-  await expect(nav.locator("a").first()).toBeFocused();
+  const chapters = page.locator("nav[data-nav-landmark='home-chapters']");
+  await expect(chapters).toBeVisible();
+  await chapters.locator("a").first().focus();
+  await expect(chapters.locator("a").first()).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(nav.locator("a").nth(1)).toBeFocused();
+  await expect(chapters.locator("a").nth(1)).toBeFocused();
 });
 
 test("language switcher navigates between locales", async ({ page }) => {
   await page.goto("/zh/");
-  await page.locator("nav[aria-label='语言切换 / Language switcher'] a[href='/ja/']").click();
+  const switchLink = page.locator("nav[aria-label='语言切换 / Language switcher'] a[hreflang='ja']");
+  await expect(switchLink).toHaveAttribute("href", /locale-switch\?locale=ja/);
+  await switchLink.click();
   await expect(page).toHaveURL(/\/ja\//);
   await expect(page.locator("h1")).toContainText("周防");
   await expect(page.locator("[data-home-v05] .folio-chapter")).toContainText("桃子ってどんなアイドル？");
+
+  const cookie = (await page.context().cookies()).find((item) => item.name === "momoko_locale");
+  expect(cookie).toMatchObject({ value: "ja", path: "/", httpOnly: true, sameSite: "Lax" });
+});
+
+test("language switch keeps the current detail slug and rejects open redirects", async ({ page }) => {
+  await page.goto("/zh/news/2026/S1-synth-2026-08-08-001/");
+  await page.locator("nav[aria-label='语言切换 / Language switcher'] a[hreflang='en']").click();
+  await expect(page).toHaveURL(/\/en\/news\/2026\/S1-synth-2026-08-08-001\//);
+
+  const rejected = await page.request.get(
+    "/locale-switch?locale=en&next=https%3A%2F%2Fevil.example%2F",
+    { maxRedirects: 0 },
+  );
+  expect(rejected.status()).toBe(400);
+  expect(rejected.headers()["set-cookie"]).toBeUndefined();
 });
 
 test("UI chrome renders in each page locale (Paraglide pinned to route)", async ({ page }) => {
@@ -130,10 +180,13 @@ test("UI chrome renders in each page locale (Paraglide pinned to route)", async 
   await expect(page.locator("h1")).toHaveText("About momoko.pro");
   await expect(page).toHaveTitle(/About momoko\.pro/);
   await expect(page.locator("nav[aria-label='Main navigation']")).toContainText("Stories");
+  await expect(page.locator("nav[aria-label='Main navigation']")).toContainText("Anniversaries");
   await expect(page.locator("nav[aria-label='Main navigation']")).not.toContainText("Source Policy");
   await expect(page.locator("footer a[href='/en/source-policy/']")).toHaveText("Source Policy");
   await expect(page.locator("nav[aria-label='Language switcher']")).toBeVisible();
   await expect(page.locator("body")).toContainText("unofficial fan site");
+  await expect(page.locator("body")).not.toContainText("editorial desk");
+  await expect(page.locator("body")).not.toContainText("049");
 
   await page.goto("/zh/about/");
   await expect(page.locator("h1")).toHaveText("关于 momoko.pro");

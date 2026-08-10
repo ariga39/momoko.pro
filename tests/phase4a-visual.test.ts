@@ -121,6 +121,8 @@ describe("Phase 4A visual package boundary", () => {
       fs.copyFileSync(source, destination);
     };
     copy("src/lib/content.ts");
+    copy("src/lib/embedded-package.ts");
+    copy("src/lib/runtime-config.ts");
     copy("tools/schema/validate.ts");
     for (const entry of fs.readdirSync(path.join(root, "schemas"))) {
       if (entry.endsWith(".schema.json")) copy(path.join("schemas", entry));
@@ -186,9 +188,12 @@ describe("Phase 4A progressive-enhancement contract", () => {
     expect(layout).toMatch(/href=\{getRelativeLocaleUrl\(lang, "\/source-policy\/"\)\}/);
     expect(home).toContain('"data-visual-contract": "v0.5"');
     expect(home).toContain("folio-spine");
+    expect(home).toContain("folio-spine-label");
     expect(home).toContain("folio-sheet");
     expect(home).toContain("folio-chapter");
-    expect(home).not.toMatch(/<img\b|<svg\b/);
+    expect(home).not.toMatch(/<svg\b/);
+    expect(layout).toContain('src="/momoko-logo.svg"');
+    expect(layout).toContain("masthead-logo");
     expect(home.match(/code: "0[1-3]"/g)).toHaveLength(3);
     expect(home).toContain("millionlive-anime.idolmaster-official.jp/character/momoko/");
     expect(home).not.toContain("DemoNotice");
@@ -198,6 +203,8 @@ describe("Phase 4A progressive-enhancement contract", () => {
     expect(readme).toContain("tailwind.config.mjs");
     expect(design).toContain("页面优先使用 Tailwind utilities");
     expect(design).toContain("src/styles/global.css");
+    expect(layout).not.toContain("editorial desk");
+    expect(home).not.toContain("049");
   });
 
   it("has a native details mobile menu with JS focus return, not dialog semantics", () => {

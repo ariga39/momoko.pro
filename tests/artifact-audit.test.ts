@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -18,6 +19,7 @@ function productionEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   delete env.MOMOKO_CONTENT_PACKAGE_ROOT;
   delete env.MOMOKO_CONTENT_PACKAGE_MODE;
+  delete env.MOMOKO_CONTENT_PACKAGE_PREVIEW;
   delete env.MOMOKO_BUILD_OUT_DIR;
   return env;
 }
@@ -48,6 +50,28 @@ function asArray(v: Json | undefined): Json[] {
 
 function asRecord(v: Json | undefined): Record<string, Json> {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, Json>) : {};
+}
+
+function serverArtifactText(dir: string): string {
+  const files: string[] = [];
+  const walk = (current: string) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile()) files.push(full);
+    }
+  };
+  walk(dir);
+  return files
+    .filter((file) => /\.(?:html|json|css|js|mjs)$/.test(file))
+    .map((file) => fs.readFileSync(file, "utf8"))
+    .join("\n");
+}
+
+function expectServerArtifact(dir: string): void {
+  expect(fs.existsSync(path.join(dir, "_worker.js", "index.js"))).toBe(true);
+  expect(fs.existsSync(path.join(dir, "_routes.json"))).toBe(true);
+  expect(fs.existsSync(path.join(dir, "_headers"))).toBe(true);
 }
 
 describe("production artifact boundary", () => {
@@ -89,8 +113,8 @@ describe("production artifact boundary", () => {
     const manifest = asRecord(readJson(PUBLIC, "manifest.json"));
     expect(asArray(manifest.entries)).toHaveLength(0);
     expect(asArray(readJson(PUBLIC, "search.json"))).toHaveLength(0);
-    expect(fs.existsSync(path.join(PUBLIC, "zh", "news", "index.html"))).toBe(true);
-    expect(fs.existsSync(path.join(DEFAULT, "zh", "news", "index.html"))).toBe(true);
+    expectServerArtifact(PUBLIC);
+    expectServerArtifact(DEFAULT);
     expect(fs.existsSync(path.join(PUBLIC, "zh", "news", "2026"))).toBe(false);
     expect(fs.existsSync(path.join(DEFAULT, "zh", "news", "2026"))).toBe(false);
   });
@@ -114,10 +138,32 @@ describe("production artifact boundary", () => {
       const text = fs.readFileSync(file, "utf8");
       expect(text).not.toMatch(/synthetic|合成夹具|demo news|fake news/i);
       expect(text).not.toMatch(/<script[^>]+src=["']https?:\/\//i);
-      expect(file).not.toMatch(/\.(?:png|jpe?g|gif|webp|svg|mp3|wav|ogg|m4a|flac|mp4|webm)$/i);
+      expect(text).not.toMatch(/fonts\.googleapis|fonts\.gstatic|@font-face|https?:\/\/[^\s"']+\.(?:woff2?|ttf|otf)\b/i);
+      if (file.endsWith(".svg")) {
+        expect(path.relative(PUBLIC, file)).toBe("momoko-logo.svg");
+      } else {
+        expect(file).not.toMatch(/\.(?:png|jpe?g|gif|webp|mp3|wav|ogg|m4a|flac|mp4|webm)$/i);
+      }
       expect(file).not.toMatch(/(?:^|[/._-])(?:crawler|cron|deploy|maintenance|research)(?:[/._-]|$)/i);
-      expect(text).not.toMatch(/<(?:img|audio|video|source)\b/i);
+      expect(text).not.toMatch(/<(?:audio|video|source)\b/i);
+      for (const match of text.matchAll(/<img\b[^>]*>/gi)) {
+        expect(match[0]).toMatch(/src=["']\/momoko-logo\.svg["']/i);
+      }
     }
+    const logo = path.join(PUBLIC, "momoko-logo.svg");
+    expect(fs.existsSync(logo)).toBe(true);
+    expect(createHash("sha256").update(fs.readFileSync(logo)).digest("hex")).toBe(
+      "aaa29433b3996850b1c482c4cfe19865294876751d388ee2d1437af62b99dbe7",
+    );
+    const logoText = fs.readFileSync(logo, "utf8");
+    expect(logoText).toContain('viewBox="0 0 1200 220"');
+    expect(logoText).toContain("LibreBaskerville-OFL.txt");
+    expect(logoText).toContain("Nunito-OFL.txt");
+    for (const attribution of ["LibreBaskerville-OFL.txt", "Nunito-OFL.txt"]) {
+      const text = fs.readFileSync(path.join(PUBLIC, attribution), "utf8");
+      expect(text).toContain("SIL Open Font License, Version 1.1");
+    }
+    expect(files.filter((file) => /rose/i.test(path.relative(PUBLIC, file)))).toHaveLength(0);
   });
 
   it("explicit reviewed-current fixture package alone produces one trilingual item", () => {
@@ -128,8 +174,11 @@ describe("production artifact boundary", () => {
     expect(asRecord(asRecord(entries[0]).locales).ja).toBeTruthy();
     expect(asRecord(asRecord(entries[0]).locales).zh).toBeTruthy();
     expect(asRecord(asRecord(entries[0]).locales).en).toBeTruthy();
-    expect(fs.existsSync(path.join(FIXTURE, "zh", "news", "2026", "S1-synth-2026-08-08-001", "index.html"))).toBe(true);
-    expect(fs.existsSync(path.join(FIXTURE, "zh", "news", "2026", "S1-synth-2026-08-08-002", "index.html"))).toBe(false);
+    expectServerArtifact(FIXTURE);
+    const fixtureText = serverArtifactText(FIXTURE);
+    expect(fixtureText).toContain("S1-synth-2026-08-08-001");
+    expect(fixtureText).not.toContain("S1-synth-2026-08-08-002");
+    expect(fixtureText).not.toContain("S1-synth-2026-08-08-003");
   });
 
   it("keeps the explicit visual DEMO artifact separate from production empty output", () => {
@@ -139,25 +188,15 @@ describe("production artifact boundary", () => {
     expect(asArray(visualManifest.entries)).toHaveLength(1);
     expect(asRecord(asArray(visualManifest.entries)[0]).source_id).toBe("S99");
 
-    const publicText = fs.readFileSync(path.join(PUBLIC, "zh", "index.html"), "utf8");
-    // The v0.5 homepage is intentionally stable and contains no DEMO stream.
-    // Verify the explicit visual package on its dynamic detail route instead.
-    const visualText = fs.readFileSync(
-      path.join(
-        VISUAL_FIXTURE,
-        "zh",
-        "news",
-        "2026",
-        "S99-visual-demo-archive-001",
-        "index.html",
-      ),
-      "utf8",
-    );
-    expect(publicText).not.toMatch(/DEMO|S99-visual-demo-archive-001|visual-fixture-reviewer|example\.invalid/i);
-    expect(visualText).toMatch(/DEMO|S99-visual-demo-archive-001|visual-fixture-reviewer|example\.invalid/i);
-    expect(fs.existsSync(path.join(PUBLIC, "en", "songs-live", "index.html"))).toBe(true);
-    expect(fs.existsSync(path.join(VISUAL_FIXTURE, "en", "songs-live", "index.html"))).toBe(true);
-    expect(fs.readFileSync(path.join(VISUAL_FIXTURE, "en", "songs-live", "index.html"), "utf8")).toMatch(/DEMO/);
+    expectServerArtifact(PUBLIC);
+    expectServerArtifact(VISUAL_FIXTURE);
+    const publicText = serverArtifactText(PUBLIC);
+    const visualText = serverArtifactText(VISUAL_FIXTURE);
+    // Server output keeps route code in the worker; fixture identity is only
+    // present in the explicit post-build manifest, never in public output.
+    expect(publicText).not.toMatch(/S99-visual-demo-archive-001|visual-fixture-reviewer|example\.invalid/i);
+    expect(visualText).toMatch(/S99-visual-demo-archive-001|example\.invalid/i);
+    expect(publicText).not.toMatch(/S1-synth-2026-08-08-00[123]/i);
   });
 
   it("keeps security headers in the empty public artifact", () => {
