@@ -48,6 +48,12 @@ describe("color tokens — WCAG AA contrast", () => {
     expect(globalCss).toMatch(
       /\.chapter-index-arrow\s*\{\s*color:\s*theme\("colors\.folio-brass-light"\)/,
     );
+    expect(globalCss).toMatch(
+      /\[data-site-header\]\s+\.masthead-kicker\s*\{\s*color:\s*theme\("colors\.folio-pink-ink"\)/,
+    );
+    expect(globalCss).toMatch(
+      /\.chapter-index-code\s*\{\s*color:\s*theme\("colors\.folio-brass-light"\)/,
+    );
   });
 
   it("contrastRatio is symmetric and bounded", () => {

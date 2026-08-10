@@ -1833,9 +1833,10 @@
     }
 
     body.home-body .home-v05 .folio-spine-facts {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(3, max-content);
       align-content: center;
       gap: 0.6rem;
+      justify-content: center;
       padding-inline: 1rem;
     }
 
@@ -1953,6 +1954,22 @@
     body.home-body .home-site-footer-inner {
       grid-template-columns: 1fr auto;
       padding-inline: 1rem;
+    }
+  }
+
+  @media (max-width: 22rem) {
+    body.home-body .home-v05 .folio-spine-facts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 0.35rem;
+      row-gap: 0.35rem;
+    }
+
+    body.home-body .home-v05 .folio-spine-facts div:last-child {
+      grid-column: 1 / -1;
+    }
+
+    body.home-body .home-v05 .folio-spine-facts strong {
+      white-space: nowrap;
     }
   }
 }

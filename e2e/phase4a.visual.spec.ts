@@ -232,6 +232,28 @@ test("visual baselines cover the v0.5 home and trilingual long titles", async ({
       });
       expect(colorLineCount, `${item.width}px folio color must stay on one line`).toBe(1);
     }
+    if (item.width === 320) {
+      const factsLayout = await page.locator(".folio-spine-facts").evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        items: [...element.children].map((item) => ({
+          clientWidth: item.clientWidth,
+          scrollWidth: item.scrollWidth,
+          valueLines: (() => {
+            const value = item.querySelector("strong");
+            if (!value) return 0;
+            const range = document.createRange();
+            range.selectNodeContents(value);
+            return range.getClientRects().length;
+          })(),
+        })),
+      }));
+      expect(factsLayout.scrollWidth, "320px folio facts must not overflow internally").toBeLessThanOrEqual(
+        factsLayout.clientWidth,
+      );
+      expect(factsLayout.items.every((item) => item.scrollWidth <= item.clientWidth)).toBe(true);
+      expect(factsLayout.items.map((item) => item.valueLines)).toEqual([1, 1, 1]);
+    }
     await expect(page).toHaveScreenshot(item.name, {
       animations: "disabled",
       caret: "hide",

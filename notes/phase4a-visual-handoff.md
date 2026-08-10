@@ -1,8 +1,8 @@
 # Phase 4A visual experience handoff
 
-Status: task #19 final successor after the exact-head visual/UX peer found two WCAG AA and handoff-truthfulness gaps, followed by an approved structure checkpoint. The successor keeps the accepted v0.5 direction and adds only the agreed structure correction (single canvas, exact desktop proportions, no home dynamic stream, responsive order), text-contrast tokens/usages, class-level regression coverage, final screenshot refinements (non-breaking folio color value and continuous paper right column), and this handoff. The reviewed predecessor was `c733be97bf8dc451fb7ebd81c5cd02d436272757`; the successor commit containing this handoff is the current review object, with its full SHA recorded in the task-thread delivery message.
+Status: task #19 narrow successor after the exact-head peer found three final precision gaps on `fd50be86ace9eb61e8f63e78e1425bff7ec2feb6`: handoff traceability, two missing real-class contrast assertions, and 320px folio-facts readability. The candidate keeps the accepted v0.5 direction and adds only those fixes to the previously reviewed structure, tokens, screenshots, and browser gates. The new candidate's parent is `fd50be86ace9eb61e8f63e78e1425bff7ec2feb6`; the exact full SHA of the commit containing this handoff is recorded in the task-thread delivery and PR #14 machine readback.
 
-Implementation branch: `feat/task19-v05-mirai`. Successor parent: `d5dbac56089f0c27314dfc9044b9d02263c8c607`. The branch is the sole head of Draft PR #14, based on `main` (observed base `406af4c5ce71fbeaf536d5c7f64a96dc4f0b56cc`). No deployment or production write is authorized.
+Implementation branch: `feat/task19-v05-mirai`. PR #14 remains the sole review object; its status is Draft until the new exact-head CI and independent peer gates close. The branch is based on `main` at observed base `406af4c5ce71fbeaf536d5c7f64a96dc4f0b56cc`. No deployment or production write is authorized.
 
 ## Direction and measurable tokens
 
@@ -59,6 +59,6 @@ The successor's a11y test checks both the token contrast ratios and the actual s
 - existing browser visual/a11y suite remains **20 passed**;
 - default build **24 pages**; public build **24 pages / 28 postbuild files**; public audit **OK**;
 - `pnpm build:verify`: **28 files byte-identical**; `git diff --check` clean;
-- the structure checkpoint passed independent visual/UX review; exact-head hosted CI and the successor re-peer remain required before final GO.
+- the structure checkpoint passed independent visual/UX review; the new exact-head hosted CI and successor re-peer remain required before final GO.
 
-The successor's hosted CI and peer must be evaluated only on the new exact head. Evidence from `c733be97...` proves the unchanged v0.5 direction/non-regression gates, but does not prove the successor's two repaired contracts.
+The successor's hosted CI and peer must be evaluated only on the new exact head. Evidence from `c733be97...` proves the unchanged v0.5 direction/non-regression gates, but does not prove the successor's three repaired contracts.
