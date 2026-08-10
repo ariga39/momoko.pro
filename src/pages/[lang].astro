@@ -1,13 +1,7 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
-import DemoNotice from "../components/DemoNotice.astro";
-import EditorialCard from "../components/EditorialCard.astro";
-import PageIntro from "../components/PageIntro.astro";
-import SectionHeading from "../components/SectionHeading.astro";
 import SiteLayout from "../components/SiteLayout.astro";
-import { loadPublishedNews, resolveLocale } from "../lib/content.ts";
 import { ml, type Locale } from "../lib/messages.ts";
-import { loadVisualCatalog } from "../lib/visual-demo.ts";
 
 export function getStaticPaths() {
   return [
@@ -19,103 +13,104 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = ml(lang);
-const catalog = loadVisualCatalog();
-const news = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
-const langNames = { zh: t.langZh(), ja: t.langJa(), en: t.langEn() };
-const featured = news.slice(0, 3);
-const statItems = [
-  { label: t.visualLatest(), value: news.length },
-  { label: t.visualEncyclopedia(), value: catalog.encyclopedia.length },
-  { label: t.visualSongsLive(), value: catalog.songsLive.length },
+const chapterLinks = [
+  {
+    code: "01",
+    word: "STORIES",
+    label: t.homeStories(),
+    href: getRelativeLocaleUrl(lang, "/news/"),
+  },
+  {
+    code: "02",
+    word: "SONGS",
+    label: t.homeSongs(),
+    href: getRelativeLocaleUrl(lang, "/songs-live/"),
+  },
+  {
+    code: "03",
+    word: "LITTLE THINGS",
+    label: t.homeLittleThings(),
+    href: getRelativeLocaleUrl(lang, "/encyclopedia/"),
+  },
 ];
 ---
 
-<SiteLayout lang={lang} title={`${langNames[lang]} · ${t.home()}`} canonicalPath={`/${lang}/`}>
-  <DemoNotice lang={lang} catalog={catalog} />
-  <PageIntro eyebrow={t.visualArchiveEyebrow()} title={`${langNames[lang]} — ${t.visualArchiveTitle()}`} lede={t.visualArchiveLede()} />
+<SiteLayout
+  lang={lang}
+  title={`${t.home()} · ${t.profileTitle()}`}
+  description={t.homeTagline()}
+  canonicalPath={`/${lang}/`}
+  bodyData={{ "data-page": "home", "data-visual-contract": "v0.5" }}
+>
+  <div class="home-v05" data-home-v05>
+    <div class="folio-layout" data-folio-layout>
+      <aside class="folio-spine" aria-label={t.homeFolioLabel()}>
+        <div class="folio-spine-number" aria-hidden="true">049</div>
+        <div class="folio-spine-facts">
+          <div>
+            <span>{t.profileAge()}</span>
+            <strong>{t.profileAgeValue()}</strong>
+          </div>
+          <div>
+            <span>{t.profileBirthday()}</span>
+            <strong>{t.profileBirthdayValue()}</strong>
+          </div>
+          <div>
+            <span>{t.homeFolioColor()}</span>
+            <strong class="folio-color-value">#EFB864</strong>
+          </div>
+        </div>
+        <div class="folio-suits" aria-hidden="true">
+          <span>♠</span><span>♥</span><span>♦</span><span>♣</span>
+        </div>
+      </aside>
 
-  <section class="hero-grid" aria-labelledby="home-hero-title">
-    <div class="hero-copy">
-      <p class="eyebrow">{langNames[lang]} / {t.home()}</p>
-      <h2 id="home-hero-title" class="hero-title">{t.homeTagline()}</h2>
-      <p class="max-w-prose text-lg text-text-secondary">{t.visualEmptyBody()}</p>
-      <div class="hero-actions">
-        <a class="button-primary" href={getRelativeLocaleUrl(lang, "/news/")} lang={lang}>{t.visualArchive()} <span aria-hidden="true">→</span></a>
-        <a class="button-secondary" href={getRelativeLocaleUrl(lang, "/about/")} lang={lang}>{t.visualAbout()}</a>
-      </div>
-    </div>
-    <div class="hero-stamp" aria-label={t.visualFictional()}>
-      <span class="hero-stamp-top">folio / 001</span>
-      <span class="hero-stamp-mark" aria-hidden="true">✦</span>
-      <strong>{catalog.mode === "demo" ? "DEMO" : "OPEN"}</strong>
-      <span class="hero-stamp-bottom">{catalog.mode === "demo" ? "架空 / fictional" : "review desk"}</span>
-    </div>
-  </section>
-
-  <section class="stat-strip" aria-label={t.visualResults()}>
-    {statItems.map((stat) => (
-      <div class="stat-cell">
-        <strong>{stat.value}</strong>
-        <span>{stat.label}</span>
-      </div>
-    ))}
-  </section>
-
-  <section class="mt-12" aria-labelledby="latest-heading">
-    <SectionHeading
-      eyebrow="01 / desk notes"
-      title={t.visualLatest()}
-      href={getRelativeLocaleUrl(lang, "/news/")}
-      linkLabel={t.visualArchive()}
-    />
-    {featured.length > 0 ? (
-      <div class="card-grid">
-        {featured.map((item) => {
-          const resolved = resolveLocale(item, lang);
-          return (
-            <EditorialCard
-              href={`/${lang}/news/${item.slug}/`}
-              eyebrow={item.canonical.publishedAt.slice(0, 10)}
-              title={item.canonical.title}
-              body={resolved.body}
-              meta={`${item.canonical.sourceId} · ${resolved.translated ? lang : item.canonical.lang}`}
-              lang={lang}
-            />
-          );
-        })}
-      </div>
-    ) : (
-      <section class="empty-state" aria-labelledby="home-empty-title">
-        <p class="eyebrow">{t.visualArchiveEyebrow()}</p>
-        <h3 id="home-empty-title" class="section-title">{t.visualEmptyTitle()}</h3>
-        <p class="mt-3 max-w-prose text-text-secondary">{t.visualEmptyBody()}</p>
+      <section class="folio-sheet" aria-labelledby="momoko-name">
+        <div class="folio-sheet-heading">
+          <p class="folio-eyebrow">{t.profileEyebrow()}</p>
+          <span class="folio-issue">049 / 2026</span>
+        </div>
+        <h1 id="momoko-name" class="folio-name">
+          <span lang="ja">周防</span>
+          <span lang="ja">桃子</span>
+        </h1>
+        <p class="folio-name-latin">MOMOKO SUOU</p>
+        <div class="folio-rule" aria-hidden="true"><span>♥</span></div>
+        <p class="folio-intro">{t.homeIntro()}</p>
       </section>
-    )}
-  </section>
 
-  <section class="mt-12" aria-labelledby="index-heading">
-    <SectionHeading eyebrow="02 / index tabs" title={t.visualEncyclopedia()} />
-    <div class="quick-links-grid" id="index-heading">
-      <a class="quick-link" href={getRelativeLocaleUrl(lang, "/encyclopedia/")}>
-        <span class="quick-link-index">A</span>
-        <span><strong>{t.navEncyclopedia()}</strong><small>{catalog.encyclopedia.length} entries</small></span>
-        <span aria-hidden="true">↗</span>
-      </a>
-      <a class="quick-link" href={getRelativeLocaleUrl(lang, "/songs-live/")}>
-        <span class="quick-link-index">B</span>
-        <span><strong>{t.navSongsLive()}</strong><small>{catalog.songsLive.length} entries</small></span>
-        <span aria-hidden="true">↗</span>
-      </a>
-      <a class="quick-link" href={getRelativeLocaleUrl(lang, "/anniversary/")}>
-        <span class="quick-link-index">C</span>
-        <span><strong>{t.navAnniversary()}</strong><small>{catalog.anniversaries.length} entries</small></span>
-        <span aria-hidden="true">↗</span>
-      </a>
-      <a class="quick-link" href="/search">
-        <span class="quick-link-index">D</span>
-        <span><strong>{t.visualSearch()}</strong><small>{news.length} searchable notes</small></span>
-        <span aria-hidden="true">↗</span>
-      </a>
+      <aside class="folio-chapter" aria-labelledby="opening-note-title">
+        <p class="folio-chapter-label">{t.homeChapterOpening()}</p>
+        <h2 id="opening-note-title">{t.profileTitle()}</h2>
+        <p class="folio-chapter-lede">{t.profileIntro()}</p>
+        <a
+          class="folio-source-link"
+          href="https://millionlive-anime.idolmaster-official.jp/character/momoko/"
+          rel="external noreferrer"
+        >{t.profileSource()} <span aria-hidden="true">↗</span></a>
+
+        <a class="folio-song-card" href={getRelativeLocaleUrl(lang, "/songs-live/")}>
+          <span class="folio-song-card-kicker">02 / {t.homeChapterSong()}</span>
+          <strong>{t.navSongsLive()}</strong>
+          <span aria-hidden="true">↗</span>
+        </a>
+      </aside>
     </div>
-  </section>
+
+    <nav class="chapter-index" aria-labelledby="chapter-index-title" data-chapter-index>
+      <h2 id="chapter-index-title" class="sr-only">{t.homeChapterIndex()}</h2>
+      {chapterLinks.map((chapter) => (
+        <a class="chapter-index-link" href={chapter.href}>
+          <span class="chapter-index-copy">
+            <span class="chapter-index-meta">
+              <span class="chapter-index-code">{chapter.code}</span>
+              <span class="chapter-index-word"> / {chapter.word}</span>
+            </span>
+            <strong>{chapter.label}</strong>
+          </span>
+          <span class="chapter-index-arrow" aria-hidden="true">↗</span>
+        </a>
+      ))}
+    </nav>
+  </div>
 </SiteLayout>

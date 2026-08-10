@@ -1,6 +1,6 @@
 # momoko.pro — 整站技术实现方案
 
-状态: task #3 设计候选 v1.6（修订版，待 @momoko 验收）。不写生产代码；只产出可实施设计。
+状态: task #19 visual successor implementation contract, building on the accepted task #2 v0.5 direction.
 
 范围: 非官方 fan site（周防桃子 / ミリシタ idol master million live）。三语 zh/ja/en。
 域名: 用户已有 `momoko.pro`。
@@ -69,11 +69,16 @@
 | Schema 校验 | **JSON Schema + Ajv** | 版本锁定于 lockfile | 需 ADR |
 | 单元测试 | **Vitest** | 同上 | 需 ADR |
 | 浏览器测试 | **Playwright** | 同上 | 需 ADR |
+| 页面样式 | **Tailwind CSS** | `tailwind.config.mjs` tokens + `global.css` `@layer` | 共享模式与 token 结构发生变化时需 ADR |
 | 搜索 | **Pagefind（build-time）** | 见 §7.2 验收夹具 + fallback | ADR-05 |
 | Pages 部署 | **GitHub Actions Direct Upload**（wrangler） | 见 §8.3（唯一部署面） | ADR-06 |
 | AI 摘要/翻译 | provider-neutral（未选） | 不锁定；未选前不启用 | ADR-08 |
 
 i18n 选择依据（检索于 2026-08-09）：Astro 已内建 locale 路由与 URL helper（<https://docs.astro.build/en/guides/internationalization/>）；Paraglide 提供 Astro/Vite 集成、类型安全 message function 与静态生成方案（<https://paraglidejs.com/astro>、<https://paraglidejs.com/static-site-generation>）。i18next core 是可行的 runtime i18n 方案（<https://www.i18next.com/overview/getting-started>），但本项目选择对 Astro SSG 有直接上游指南、编译期类型安全的 Paraglide，减少本切片的自建适配面。多语言 SEO 规则依据 Google Search Central（<https://developers.google.com/search/docs/specialty/international/localized-versions>、<https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls>）。
+
+### 2.1 页面视觉实现约束
+
+页面优先使用 Tailwind utilities；需要跨页面复用的模式进入 `src/styles/global.css` 的 Tailwind `@layer`，不另起平行全局 CSS 体系。颜色、字体、间距和断点等设计值必须来自 `tailwind.config.mjs` 的 token。task #2 最终认可的 v0.5 方向是文字主导的角色 folio：窄书脊、纸页横线、细金线、粉/蓝/金与深蓝分区、章节式入口；不依赖官方图片或复制性素材。首页稳定角色简介与动态编辑内容必须分层，后者在未审核时显式标为 DEMO/coming soon。
 
 ---
 
