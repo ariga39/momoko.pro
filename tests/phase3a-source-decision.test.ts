@@ -57,7 +57,7 @@ afterEach(() => {
 describe("Phase 3A source-policy no-fetch decision", () => {
   it("blocks every configured source before HTTP or draft/publication writes", async () => {
     const sources = loadSources();
-    expect(sources).toHaveLength(5);
+    expect(sources).toHaveLength(6);
     expect(sources.every((source) => source.fetch_frequency === "manual")).toBe(true);
     expect(sources.every((source) => source.automated_fetch === false)).toBe(true);
     expect(sources.every((source) => sourceAllowedToFetch(source, "/") === false)).toBe(true);
@@ -91,7 +91,7 @@ describe("Phase 3A source-policy no-fetch decision", () => {
     const result = await runCron();
 
     expect(result).toEqual({ fetched: [], produced: 0, duplicates: 0, errors: {} });
-    expect([...adapterCalls.values()]).toEqual([0, 0, 0, 0, 0]);
+    expect([...adapterCalls.values()]).toEqual([0, 0, 0, 0, 0, 0]);
     expect(http).not.toHaveBeenCalled();
     expect(outputSnapshot()).toEqual(before);
   });

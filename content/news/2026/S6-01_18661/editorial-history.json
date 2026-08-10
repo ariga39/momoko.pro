@@ -1,0 +1,53 @@
+{
+  "history_version": "1",
+  "identity": "S6|01_18661",
+  "events": [
+    {
+      "operation_id": "draft:sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": null,
+      "to": "draft",
+      "actor": "serika-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-05-25T21:00:00+09:00",
+      "reason": "task #31 S6 human-directed single-page sample",
+      "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "sequence": 1,
+      "event_id": "cfb0e91e-ea5d-4b9a-9cef-ce1b603e5b5b"
+    },
+    {
+      "operation_id": "draft:sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741:zh",
+      "scope": "locale",
+      "lang": "zh",
+      "from": null,
+      "to": "draft",
+      "actor": "serika-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-05-25T21:00:00+09:00",
+      "reason": "translation draft; human review required",
+      "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "content_hash": "sha256:d0c7de150f564715a413cc28a3f8aed4a18bf2b18559a5669cb162fd9b81bed6",
+      "model_version": "opencode-go/deepseek-v4-flash",
+      "sequence": 2,
+      "event_id": "43cf62cb-8a02-4bef-ab33-dd49dde21f93"
+    },
+    {
+      "operation_id": "draft:sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741:en",
+      "scope": "locale",
+      "lang": "en",
+      "from": null,
+      "to": "draft",
+      "actor": "serika-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-05-25T21:00:00+09:00",
+      "reason": "translation draft; human review required",
+      "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "content_hash": "sha256:ed1b009d9fd1f16d66d1fc9cc0db3db44d4bdb994de5c2d45d8f32102a432a7b",
+      "model_version": "opencode-go/deepseek-v4-flash",
+      "sequence": 3,
+      "event_id": "fb55edde-f5f5-4cf5-9b0e-fbcb0a65e677"
+    }
+  ]
+}
