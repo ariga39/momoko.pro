@@ -50,6 +50,16 @@ export function evaluateDeployRoot(audit, { maxBytes = MAX_WORKER_SIZE_BYTES, di
   if (!audit.entries.includes("_worker.js/index.js")) {
     return { ok: false, code: "missing_worker_entry", message: "dist has no _worker.js/index.js" };
   }
+  // `.assetsignore` is required so the server `_worker.js` is never exposed as
+  // a public asset.
+  if (!audit.entries.includes(".assetsignore")) {
+    return { ok: false, code: "missing_assets_ignore", message: "dist has no .assetsignore" };
+  }
+  // `_routes.json` is the Astro Cloudflare asset manifest; require it so
+  // static assets are served via the manifest rather than ad hoc.
+  if (!audit.entries.includes("_routes.json")) {
+    return { ok: false, code: "missing_routes_manifest", message: "dist has no _routes.json asset manifest" };
+  }
   // Source maps must never ship in static assets (the worker's own .map is a
   // local build artifact not uploaded to the Workers runtime).
   const staticEntries = audit.entries.filter((f) => !f.startsWith("_worker.js"));
@@ -57,23 +67,37 @@ export function evaluateDeployRoot(audit, { maxBytes = MAX_WORKER_SIZE_BYTES, di
   if (staticSourceMaps.length > 0) {
     return { ok: false, code: "source_map_present", message: "source maps in static assets must not ship" };
   }
-  // No demo/preview/secret content markers in static assets (hashed _worker.js
-  // chunk filenames may legitimately contain substrings like "demo").
-  const forbidden = staticEntries.filter((f) => {
+  // Secret/demo/preview markers: check BOTH filenames and file content for
+  // credential-shaped or demo/preview markers in static assets.
+  const SENSITIVE_MARKERS = [
+    /(?:sk|pk|rk)_live_[a-zA-Z0-9]+/,
+    /sk_[a-zA-Z0-9]{16,}/,
+    /pk_[a-zA-Z0-9]{16,}/,
+    /ghp_[a-zA-Z0-9]{16,}/,
+    /AKIA[0-9A-Z]{16}/,
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+    /Bearer [A-Za-z0-9._~-]{20,}/,
+  ];
+  const forbiddenPaths = staticEntries.filter((f) => {
     const lower = f.toLowerCase();
-    return (
-      lower.includes("/demo/") ||
-      lower.includes("preview-content") ||
-      lower.includes("secret-") ||
-      lower.includes("credentials")
-    );
+    return lower.includes("/demo/") || lower.includes("preview-content") || lower.includes("secret-") || lower.includes("credentials");
   });
-  if (forbidden.length > 0) {
+  if (forbiddenPaths.length > 0) {
     return { ok: false, code: "forbidden_content", message: "demo/preview/secret content in deploy root" };
   }
   let staticBytes = 0;
+  let hit = null;
   for (const rel of staticEntries) {
-    staticBytes += fs.statSync(path.join(distDir, rel)).size;
+    const full = path.join(distDir, rel);
+    staticBytes += fs.statSync(full).size;
+    const raw = fs.readFileSync(full, "utf8");
+    if (SENSITIVE_MARKERS.some((re) => re.test(raw))) {
+      hit = rel;
+      break;
+    }
+  }
+  if (hit !== null) {
+    return { ok: false, code: "secret_shaped_content", message: `sensitive-shaped content in ${hit}` };
   }
   if (staticBytes > maxBytes) {
     return {
@@ -82,13 +106,24 @@ export function evaluateDeployRoot(audit, { maxBytes = MAX_WORKER_SIZE_BYTES, di
       message: `static assets ${staticBytes} bytes exceeds ${maxBytes}`,
     };
   }
+  // Bound the worker bundle itself too.
+  const workerBytes = fs.statSync(path.join(distDir, "_worker.js", "index.js")).size;
+  if (workerBytes > maxBytes) {
+    return {
+      ok: false,
+      code: "worker_over_limit",
+      message: `worker bundle ${workerBytes} bytes exceeds ${maxBytes}`,
+    };
+  }
   return {
     ok: true,
     code: "dry_run_success",
     static_entries: staticEntries.length,
     static_bytes: staticBytes,
+    worker_bytes: workerBytes,
     has_worker_entry: true,
-    has_assets_ignore: audit.entries.includes(".assetsignore"),
+    has_assets_ignore: true,
+    has_routes_manifest: true,
   };
 }
 

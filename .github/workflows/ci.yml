@@ -46,6 +46,9 @@ jobs:
       - name: Post-build artifacts
         run: pnpm build:post
 
+      - name: Cloudflare offline dry-run audit (no secret, no upload)
+        run: pnpm exec node --experimental-strip-types scripts/deploy-dryrun.mjs
+
       - name: Browser smoke (Playwright)
         run: |
           pnpm exec playwright install --with-deps chromium

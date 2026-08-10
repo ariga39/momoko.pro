@@ -29,12 +29,13 @@ jobs:
   preview-version-upload:
     runs-on: ubuntu-latest
     environment: preview
-    if: ${{ github.event.inputs.confirm == 'upload-preview-version' && github.event.inputs.environment == 'preview' }}
+    # No job-level skip: any dispatch must reach the confirmation gate so a
+    # mismatch fails closed, never a green no-op.
     steps:
       - name: Refuse without exact confirmation
         run: |
-          if [[ "${{ github.event.inputs.confirm }}" != "upload-preview-version" ]]; then
-            echo "Confirmation mismatch; refusing to upload a preview version." >&2
+          if [[ "${{ github.event.inputs.confirm }}" != "upload-preview-version" || "${{ github.event.inputs.environment }}" != "preview" ]]; then
+            echo "Confirmation/environment mismatch; refusing to upload a preview version." >&2
             exit 1
           fi
           echo "Explicitly authorized preview version upload."
