@@ -47,10 +47,11 @@ changed scope: astro.config.mjs; src/middleware.ts; src/pages/404.astro,
 submitted tests: BFS crawl 11 (pages=57 incl. 3 dotted-path HTML fixtures,
   edges=1086, forms=18, assets=3 content-type-classified, canonicalChecks=57,
   hreflangChecks=171 incl. detail identity closure with full per-member
-  label/locale/identity validation) + updated smoke 17;
-  unit 185 (174 + 11 i18n-alternates negatives: mislabeled hreflang,
-  duplicate/foreign/empty hreflang, identity mismatch, reciprocal
-  missing/extra; + visual-env-contract static gate); lint/typecheck clean
+  label/locale/identity/origin validation on FULL URLs) + updated smoke 17;
+  unit 187 (174 + 13 i18n-alternates negatives: external alternate href,
+  external member canonical, mislabeled hreflang, duplicate/foreign/empty
+  hreflang, identity mismatch, reciprocal missing/extra; +
+  visual-env-contract static gate); lint/typecheck clean
 privacy/secret scan: wrapper ls-remote only; no credential output
 external-write statement: none (no deploy, no Cloudflare write, no live GET)
 remaining blocker / next owner: hosted CI terminal state; independent peer
