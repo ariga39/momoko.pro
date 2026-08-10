@@ -1,74 +1,77 @@
 // Deterministic self-host font subsetting (task #25).
-// Copies the locale woff2 slices referenced by @fontsource CSS into public/fonts
-// and writes a manifest. Fail-closed: if coverage drops, exits non-zero.
+// Builds the per-locale required codepoint corpus from the rendered content,
+// feeds the pinned fonttools[woff]/pyftsubset path via subset.py, and fails
+// closed if any required character is missing from the emitted WOFF2 cmap or
+// the shipped total exceeds the <1,000,000 byte contract.
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const FONTROOT = path.join(ROOT, "node_modules/@fontsource");
 const OUT = path.join(ROOT, "public/fonts");
+const MANIFEST = path.join(OUT, "manifest.json");
+const CORPUS_TMP = path.join(ROOT, "node_modules/.cache/momoko-font-corpus.json");
 
-const LOCALES = [
-  { locale: "zh", pkg: "noto-sans-sc", cssFile: "chinese-simplified-400.css" },
-  { locale: "ja", pkg: "noto-sans-jp", cssFile: "japanese-400.css" },
-  { locale: "en", pkg: "inter", cssFile: "latin-400.css" },
-];
+const LOCALES = ["zh", "ja", "en"];
+const VENV = path.join(ROOT, ".venv-fonts");
+const PYFTSUBSET = process.env.MOMOKO_PYFTSUBSET
+  ? path.resolve(process.env.MOMOKO_PYFTSUBSET)
+  : path.join(VENV, "bin/pyftsubset");
+const PYTHON = process.env.MOMOKO_FONTTOOLS_PYTHON
+  ? path.resolve(process.env.MOMOKO_FONTTOOLS_PYTHON)
+  : path.join(VENV, "bin/python");
 
-function parseRanges(spec) {
-  return spec
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const [a, b] = part.split("-");
-      const start = parseInt(a.replace("U+", ""), 16);
-      const end = b ? parseInt(b.replace("U+", ""), 16) : start;
-      return [start, end];
-    });
-}
-
-function slices(pkgDir, cssText) {
-  const out = [];
-  for (const block of cssText.split("@font-face")) {
-    const m = block.match(/url\(([^)]+\.woff2)\)/);
-    const r = block.match(/unicode-range:\s*([^;]+);/);
-    if (!m) continue;
-    out.push({
-      url: m[1].replace(/["']/g, "").replace(/^\.\//, ""),
-      ranges: r ? parseRanges(r[1]) : [],
+function provision() {
+  if (process.env.MOMOKO_PYFTSUBSET || fs.existsSync(PYTHON)) return;
+  const req = path.join(__dirname, "requirements.txt");
+  fs.mkdirSync(VENV, { recursive: true });
+  const python3 = process.env.MOMOKO_PYTHON3 || "python3";
+  let usedUv = false;
+  try {
+    execFileSync(python3, ["-m", "venv", VENV], { cwd: ROOT, stdio: "pipe" });
+  } catch {
+    execFileSync("uv", ["venv", VENV], { cwd: ROOT, stdio: "inherit" });
+    usedUv = true;
+  }
+  if (usedUv) {
+    execFileSync("uv", ["pip", "install", "--python", PYTHON, "-r", req], { cwd: ROOT, stdio: "inherit" });
+  } else {
+    execFileSync(PYTHON, ["-m", "pip", "install", "--disable-pip-version-check", "-r", req], {
+      cwd: ROOT,
+      stdio: "inherit",
     });
   }
-  return out;
 }
 
-function main() {
-  fs.mkdirSync(OUT, { recursive: true });
-  const manifest = { locales: {} };
-  for (const { locale, pkg, cssFile } of LOCALES) {
-    const pkgDir = path.join(FONTROOT, pkg);
-    const base = fs.readFileSync(path.join(pkgDir, "400.css"), "utf8");
-    const localeCss = fs.readFileSync(path.join(pkgDir, cssFile), "utf8");
-    const all = [...slices(pkgDir, base), ...slices(pkgDir, localeCss)];
-    const files = [];
-    for (const slice of all) {
-      const src = path.join(pkgDir, slice.url);
-      const dest = path.join(OUT, path.basename(slice.url));
-      if (!fs.existsSync(src)) {
-        throw new Error(`font slice missing: ${slice.url}`);
-      }
-      fs.copyFileSync(src, dest);
-      files.push(path.basename(slice.url));
-    }
-    manifest.locales[locale] = { files };
-    console.log(`[fonts] ${locale}: ${files.length} slices -> public/fonts`);
-  }
-  fs.writeFileSync(
-    path.join(ROOT, "public/fonts/manifest.json"),
-    JSON.stringify(manifest, null, 2) + "\n",
+async function main() {
+  provision();
+  const { requiredCodepoints } = await import("./pipeline.ts");
+  fs.mkdirSync(path.dirname(CORPUS_TMP), { recursive: true });
+  const corpus = {};
+  for (const locale of LOCALES) corpus[locale] = requiredCodepoints(locale);
+  fs.writeFileSync(CORPUS_TMP, JSON.stringify(corpus));
+
+  execFileSync(
+    PYTHON,
+    [
+      path.join(__dirname, "subset.py"),
+      "--corpus", CORPUS_TMP,
+      "--out", OUT,
+      "--pyftsubset", PYFTSUBSET,
+      "--fontroot", path.join(ROOT, "node_modules/@fontsource"),
+      "--manifest", MANIFEST,
+    ],
+    { cwd: ROOT, stdio: "inherit" },
   );
-  console.log("[fonts] manifest written");
+
+  // Surface the budget line for CI logs.
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
+  console.log(`[fonts] manifest written: ${manifest.total_bytes} bytes total (< ${manifest.budget_bytes} budget)`);
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

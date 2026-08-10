@@ -2,19 +2,27 @@
  * Deterministic font subset / coverage pipeline for momoko.pro.
  *
  * Each locale binds to a distinct glyph source: zh -> Noto Sans SC,
- * ja -> Noto Sans JP, en -> Inter (all OFL-1.1). @fontsource ships these as
- * per-locale unicode-range slices; this module verifies that the required
- * character corpus (UI messages + reviewed content package) is fully covered
- * by the locale source, and emits a manifest of the self-hosted WOFF2 files.
+ * ja -> Noto Sans JP, en -> Inter (all OFL-1.1). The required corpus for a
+ * locale is the set of characters its pages actually render in that locale's
+ * own language: UI messages, the visual catalog strings for that locale, and
+ * the reviewed content (canonical titles render on every locale page; the
+ * resolved body renders the locale translation or the canonical source body).
  *
- * Fail-closed: if a required character is missing from the locale font, the
- * build must fail rather than silently falling back to another region's
- * glyphs.
+ * The generator (tools/fonts/subset.py) carves each locale font from the
+ * pinned @fontsource shards to exactly these codepoints and verifies cmap
+ * coverage fail-closed: any required character missing from the emitted subset
+ * aborts the build. Characters the source family genuinely cannot provide
+ * (foreign-script fixtures such as the trilingual language-switcher labels)
+ * are recorded as system fallback and never silently dropped.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
+import matter from "gray-matter";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface LocaleFontSpec {
   locale: string;
@@ -51,6 +59,8 @@ export const LOCALE_FONTS: LocaleFontSpec[] = [
   },
 ];
 
+export const LOCALES = LOCALE_FONTS.map((spec) => spec.locale);
+
 export function localeFont(locale: string): LocaleFontSpec {
   const spec = LOCALE_FONTS.find((item) => item.locale === locale);
   if (!spec) throw new Error(`unsupported locale: ${locale}`);
@@ -61,62 +71,155 @@ function readJson(p: string): Record<string, unknown> {
   return JSON.parse(fs.readFileSync(p, "utf8"));
 }
 
+function addChars(chars: Set<string>, text: string): void {
+  for (const ch of text) chars.add(ch);
+}
+
 /** Collect every unique character from the UI messages for a locale. */
 export function messageChars(locale: string): Set<string> {
-  const messagesFile = path.resolve(
-    __dirname,
-    `../../messages/${locale}.json`,
-  );
+  const messagesFile = path.resolve(__dirname, `../../messages/${locale}.json`);
   const messages = readJson(messagesFile);
   const chars = new Set<string>();
   const walk = (value: unknown): void => {
-    if (typeof value === "string") {
-      for (const ch of value) chars.add(ch);
-    } else if (Array.isArray(value)) {
-      value.forEach(walk);
-    } else if (value && typeof value === "object") {
-      Object.values(value).forEach(walk);
-    }
+    if (typeof value === "string") addChars(chars, value);
+    else if (Array.isArray(value)) value.forEach(walk);
+    else if (value && typeof value === "object") Object.values(value).forEach(walk);
   };
   walk(messages);
   return chars;
 }
 
-/** Collect every unique character from the reviewed content package. */
-export function contentChars(): Set<string> {
+/** Visual catalog strings declared by the test/dev content package, for a locale. */
+export function visualCatalogChars(locale: string): Set<string> {
   const chars = new Set<string>();
-  const roots = [
-    path.resolve(__dirname, "../../tests/fixtures/content-package"),
-  ];
-  const seen = new Set<string>();
-  const visit = (p: string): void => {
-    let stat;
-    try {
-      stat = fs.statSync(p);
-    } catch {
-      return;
-    }
-    if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(p)) visit(path.join(p, entry));
-      return;
-    }
-    if (!/\.(json|md|txt)$/.test(p)) return;
-    const key = path.resolve(p);
-    if (seen.has(key)) return;
-    seen.add(key);
-    const raw = fs.readFileSync(p, "utf8");
-    for (const ch of raw) chars.add(ch);
+  const catalogPath = path.resolve(
+    __dirname,
+    "../../tests/fixtures/content-package/visual-demo/visual-catalog.json",
+  );
+  if (!fs.existsSync(catalogPath)) return chars;
+  let catalog: unknown;
+  try {
+    catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+  } catch {
+    return chars;
+  }
+  const collectStrings = (value: unknown): string[] => {
+    if (typeof value === "string") return [value];
+    if (typeof value === "number") return [String(value)]; // years render as text
+    if (Array.isArray(value)) return value.flatMap(collectStrings);
+    if (value && typeof value === "object") return Object.values(value).flatMap(collectStrings);
+    return [];
   };
-  for (const root of roots) visit(root);
+  // Locale-scoped object keys: notice.{locale}, encyclopedia[].name.{locale}, etc.
+  const walkLocale = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(walkLocale);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        if (key === locale) {
+          for (const str of collectStrings(child)) addChars(chars, str);
+        } else if (Array.isArray(child)) {
+          for (const item of child) {
+            if (item && typeof item === "object") {
+              const locVal = (item as Record<string, unknown>)[locale];
+              if (locVal !== undefined) for (const str of collectStrings(locVal)) addChars(chars, str);
+              // Shared tags render on every locale page; their glyphs must exist
+              // in every locale font (they are Latin in the fixtures).
+              const tags = (item as Record<string, unknown>).tags;
+              if (Array.isArray(tags)) for (const tag of tags) addChars(chars, String(tag));
+              // Shared scalar fields rendered as text (e.g. song/live year, id).
+              for (const [field, value] of Object.entries(item as Record<string, unknown>)) {
+                if (field === "tags") continue;
+                if (typeof value === "number" || typeof value === "string") {
+                  for (const str of collectStrings(value)) addChars(chars, str);
+                } else if (value && typeof value === "object") {
+                  walkLocale(value); // nested {locale: string} maps (title/venue/note)
+                }
+              }
+            }
+          }
+        } else if (child && typeof child === "object") {
+          walkLocale(child);
+        }
+      }
+    }
+  };
+  walkLocale(catalog);
   return chars;
 }
 
-/** Union of UI messages + content for a locale (locale text is locale-scoped). */
+/** Locate every content package news index.md under the test fixture root. */
+function walkContentItems(): string[] {
+  const base = path.resolve(__dirname, "../../tests/fixtures/content-package");
+  const out: string[] = [];
+  if (!fs.existsSync(base)) return out;
+  const visit = (p: string): void => {
+    for (const entry of fs.readdirSync(p, { withFileTypes: true })) {
+      const full = path.join(p, entry.name);
+      if (entry.isDirectory()) visit(full);
+      else if (entry.name === "index.md") out.push(full);
+    }
+  };
+  visit(base);
+  return out;
+}
+
+/**
+ * Characters rendered by the news content for a locale: the canonical title
+ * (renders on every locale page) plus the resolved body (locale translation
+ * when present, otherwise the canonical source body). Only published reviewed
+ * items are public-facing; this mirrors src/lib/content.ts rendering rules.
+ */
+export function newsChars(locale: string): Set<string> {
+  const chars = new Set<string>();
+  for (const itemPath of walkContentItems()) {
+    let parsed: { data: Record<string, unknown>; content: string };
+    try {
+      parsed = matter(fs.readFileSync(itemPath, "utf8"));
+    } catch {
+      continue;
+    }
+    const { data, content } = parsed;
+    // Public surface only renders reviewed, non-retracted items. Other items
+    // are lifecycle fixtures excluded from the shipped font contract.
+    const reviewStatus = String(data.review_status ?? "");
+    if (reviewStatus !== "reviewed") continue;
+    addChars(chars, String(data.title ?? ""));
+    const localeFile = path.join(path.dirname(itemPath), `content.${locale}.md`);
+    if (fs.existsSync(localeFile)) {
+      try {
+        const loc = matter(fs.readFileSync(localeFile, "utf8"));
+        addChars(chars, loc.content);
+      } catch {
+        addChars(chars, content);
+      }
+    } else {
+      addChars(chars, content);
+    }
+  }
+  return chars;
+}
+
+/**
+ * Required characters for a locale: everything its pages render in that
+ * locale's own language (UI + visual catalog + reviewed news content).
+ */
 export function requiredChars(locale = "zh"): Set<string> {
   const chars = new Set<string>();
   for (const ch of messageChars(locale)) chars.add(ch);
-  for (const ch of contentChars()) chars.add(ch);
+  for (const ch of visualCatalogChars(locale)) chars.add(ch);
+  for (const ch of newsChars(locale)) chars.add(ch);
   return chars;
+}
+
+/** Serialize a locale's required codepoint set (sorted, deduplicated). */
+export function requiredCodepoints(locale: string): number[] {
+  return [...requiredChars(locale)]
+    .map((ch) => ch.codePointAt(0)!)
+    .filter((cp) => cp >= 0x20 && cp !== 0x7f) // control characters need no glyph
+    .sort((a, b) => a - b);
 }
 
 interface Slice {
@@ -162,7 +265,11 @@ function familySlices(fontRoot: string, spec: LocaleFontSpec): Slice[] {
   return [...parseFontCss(base), ...parseFontCss(locale)];
 }
 
-/** Check that every required character is covered by the locale font slices. */
+/**
+ * Check that every required character is covered by the source font family's
+ * declared unicode ranges. (The authoritative fail-closed cmap check runs in
+ * subset.py against the emitted fonts; this guards the corpus itself.)
+ */
 export async function checkCoverage(
   locale: string,
   chars: Set<string>,

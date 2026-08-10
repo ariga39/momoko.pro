@@ -34,6 +34,9 @@ jobs:
           corepack prepare pnpm@9.15.9 --activate
           pnpm install --frozen-lockfile
 
+      - name: Generate self-hosted font subsets (deterministic, <1MB budget)
+        run: pnpm fonts:subset
+
       - name: Lint and typecheck
         run: pnpm check
 
