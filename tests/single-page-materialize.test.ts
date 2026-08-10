@@ -224,38 +224,40 @@ describe("generic materializer — second synthetic item proves NO new code", ()
 
 describe("legacy index.md / canonical integrity fail closed", () => {
   it("loader rejects a legacy index.md in a bundle", async () => {
-    const contentRoot = tempRoot();
-    fs.mkdirSync(path.join(contentRoot, "news", "2026", "S1-legacy"), { recursive: true });
-    fs.writeFileSync(path.join(contentRoot, "news", "2026", "S1-legacy", "index.md"), "---\nlang: ja\n---\nbody");
+    const { loadNews } = await import("../src/lib/content.ts");
+    // Build a temp content package under the allowed test fixture root with a
+    // legacy index.md; loadNews must fail closed on it.
+    const fixtureBase = path.join(REPO_ROOT, "tests", "fixtures", "content-package");
+    const contentRoot = path.join(fixtureBase, "legacy-index-probe");
+    const bundle = path.join(contentRoot, "news", "2026", "S1-legacy");
+    fs.rmSync(contentRoot, { recursive: true, force: true });
+    fs.mkdirSync(bundle, { recursive: true });
+    fs.writeFileSync(path.join(bundle, "index.md"), "---\nlang: ja\nis_canonical: true\n---\nbody");
     fs.writeFileSync(
       path.join(contentRoot, "package.json"),
       JSON.stringify({ package_version: "1", content_schema_version: "1", status: "ready" }),
     );
-    // Simulate getContentRoot pointing here is complex; instead the loader walk
-    // detects index.md and throws legacy error. We exercise the static guard
-    // indirectly by asserting the loader's error path via a malformed package.
-    // The primary negative is covered by materializer + validator tests.
-    expect(fs.existsSync(path.join(contentRoot, "news", "2026", "S1-legacy", "index.md"))).toBe(true);
+    try {
+      process.env.MOMOKO_CONTENT_PACKAGE_ROOT = path.relative(REPO_ROOT, contentRoot);
+      process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+      expect(() => loadNews()).toThrow(/legacy index\.md is not allowed/);
+    } finally {
+      delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
+      delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
+      fs.rmSync(contentRoot, { recursive: true, force: true });
+    }
   });
 
   it("validator requires is_canonical on every content file", async () => {
-    const { collectContentFiles, validateContentFile } = await import("../tools/schema/validate.ts");
+    const { collectContentFiles, validateContentFile, schemaForContentFile } = await import("../tools/schema/validate.ts");
     // S6 bundle files are all valid (is_canonical present).
     const s6 = collectContentFiles().filter((f) => f.path.includes("S6-01_18661"));
     expect(s6.length).toBeGreaterThan(0);
     for (const f of s6) {
       expect(validateContentFile(f).valid, f.path).toBe(true);
     }
-    // A file without is_canonical must fail schemaForContentFile/validation.
-    const probeDir = path.join(REPO_ROOT, "content", "_probe-missing-canonical");
-    fs.mkdirSync(probeDir, { recursive: true });
-    const probe = path.join(probeDir, "content.ja.md");
-    fs.writeFileSync(probe, "---\nlang: ja\ntitle: t\n---\nbody");
-    try {
-      expect(() => validateContentFile(collectContentFiles(REPO_ROOT).find((f) => f.path.endsWith("_probe-missing-canonical/content.ja.md"))!)).toThrow(/is_canonical/);
-    } finally {
-      fs.rmSync(path.dirname(probe), { recursive: true, force: true });
-    }
+    // A file without is_canonical must fail schemaForContentFile.
+    expect(() => schemaForContentFile({ path: "content/news/x/content.ja.md", data: { lang: "ja", title: "t" } })).toThrow(/is_canonical/);
   });
 
   it("editorial read rejects a bundle without exactly one canonical file", async () => {
