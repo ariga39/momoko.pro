@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { MAX_WORKER_SIZE_BYTES, auditDir, evaluateBundle, hasWranglerConfig } from "../scripts/deploy-dryrun.mjs";
@@ -61,5 +62,25 @@ describe("deploy dry-run audit (task #26)", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+
+describe("preview-upload workflow contract (task #26)", () => {
+  it("contains the real gated versions upload (not dry-run) and no production deploy", () => {
+    const root = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+    const yml = fs.readFileSync(path.join(root, ".github/workflows/deploy-preview.yml"), "utf8");
+    // The real upload command exists, without --dry-run.
+    expect(yml).toContain("wrangler versions upload --env preview");
+    expect(yml).toContain('upload-preview-version');
+    expect(yml).toContain("environment: preview");
+    // No production deploy, route, or domain write.
+    expect(yml).not.toContain("wrangler deploy");
+    expect(yml).not.toMatch(/--dry-run/);
+    expect(yml).not.toMatch(/route/);
+    expect(yml).not.toMatch(/domain/);
+    // Fail-closed secrets.
+    expect(yml).toContain("CLOUDFLARE_API_TOKEN");
+    expect(yml).toContain("CLOUDFLARE_ACCOUNT_ID");
   });
 });
