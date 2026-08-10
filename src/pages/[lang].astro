@@ -1,6 +1,7 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
 import SiteLayout from "../components/SiteLayout.astro";
+import { isLocale } from "../lib/locale.ts";
 import { ml, type Locale } from "../lib/messages.ts";
 
 export function getStaticPaths() {
@@ -11,7 +12,9 @@ export function getStaticPaths() {
   ];
 }
 
-const { lang } = Astro.params as { lang: Locale };
+const rawLang = Astro.params.lang;
+if (!isLocale(rawLang)) return Astro.rewrite("/404");
+const lang = rawLang as Locale;
 const t = ml(lang);
 const chapterLinks = [
   {
@@ -45,7 +48,7 @@ const chapterLinks = [
   <div class="home-v05" data-home-v05>
     <div class="folio-layout" data-folio-layout>
       <aside class="folio-spine" aria-label={t.homeFolioLabel()}>
-        <div class="folio-spine-number" aria-hidden="true">049</div>
+        <div class="folio-spine-label">{t.homeFolioLabel()}</div>
         <div class="folio-spine-facts">
           <div>
             <span>{t.profileAge()}</span>
@@ -68,7 +71,6 @@ const chapterLinks = [
       <section class="folio-sheet" aria-labelledby="momoko-name">
         <div class="folio-sheet-heading">
           <p class="folio-eyebrow">{t.profileEyebrow()}</p>
-          <span class="folio-issue">049 / 2026</span>
         </div>
         <h1 id="momoko-name" class="folio-name">
           <span lang="ja">周防</span>
@@ -97,7 +99,13 @@ const chapterLinks = [
       </aside>
     </div>
 
-    <nav class="chapter-index" aria-labelledby="chapter-index-title" data-chapter-index>
+    <nav
+      class="chapter-index"
+      aria-labelledby="chapter-index-title"
+      aria-label={t.homeChapterIndex()}
+      data-chapter-index
+      data-nav-landmark="home-chapters"
+    >
       <h2 id="chapter-index-title" class="sr-only">{t.homeChapterIndex()}</h2>
       {chapterLinks.map((chapter) => (
         <a class="chapter-index-link" href={chapter.href}>

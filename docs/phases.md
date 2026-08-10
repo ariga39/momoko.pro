@@ -9,7 +9,7 @@
 
 | 包 | owned files（互斥目录） | 接口（契约） | 依赖 | 验收测试 | 集成顺序 |
 |---|---|---|---|---|---|
-| **A. frontend/design-system** | `src/**`（Astro pages/components/styles）、`e2e/**` | 只读 content + build 产物契约（design.md §6） | 无（示例内容先行） | 三语路由、响应式、hreflang、CSP、缺译回退、`/` 语言选择页 | B 契约后并行 |
+| **A. frontend/design-system** | `src/**`（Astro pages/components/styles）、`e2e/**` | 只读 content + build 产物契约（design.md §6） | 无（示例内容先行） | 三语路由、响应式、hreflang、CSP、缺译回退、`/` server 协商 | B 契约后并行 |
 | **B. content-schema/CI** | `schemas/**`、`tools/schema/**`、`config/*.json`（校验） | schema+manifest 契约、job 输入/输出、schema_version/唯一键、content_hash 定义、双重构建确定性 | 无 | schema 正/反实例校验、幂等、无变化静默、双重构建确定性、迁移空库/旧库、CJK 搜索夹具+fallback | **先冻结契约** |
 | **C. ingestion（cron+manual 双 seam）** | `tools/ingest/**` | B 的 schema/PR 接口、错误 enum、allowlisted hostname+source_id | B | 来源 allowlist、去重、错误 enum、bounded-root 文件写入（traversal/symlink/atomic）、cron 只跑 `automated_fetch=true` 已验证 adapter（false 走 manual-import；无允许来源/无变化静默） | B 后 |
 | **D. i18n/editorial** | `content/**/content.<lang>.md`、`tools/editorial/**` | B schema + A 渲染契约；AI 只消费人工笔记；状态转移写入者 | B+C | 三语不撒谎、T 分级、stale、retract 原子、AI 输入边界、独立 reviewer 审计 | B+C 后 |

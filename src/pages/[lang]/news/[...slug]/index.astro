@@ -23,6 +23,7 @@ const { lang, slug } = Astro.params as { lang: Locale; slug: string | undefined 
 const slugPath = slug ?? "";
 const item = loadNews().find((i) => i.slug === slugPath);
 const retracted = item ? isRetracted(item) : false;
+if (!item || retracted) return Astro.rewrite("/404");
 const t = ml(lang);
 const catalog = loadVisualCatalog();
 const locale = item && !retracted ? resolveLocale(item, lang) : undefined;
@@ -58,7 +59,7 @@ const contentAlternates = item
   {...(item ? { xDefaultHref: `https://momoko.pro/${sourceLang}/news/${item.slug}/` } : {})}
 >
   <DemoNotice lang={effectiveLang} catalog={catalog} />
-  {item && !retracted && locale ? (
+  {locale ? (
     <>
       <p class="mb-6"><a href={`/${lang}/news/`}>{t.newsBackToList()}</a></p>
       <article class="detail-layout">

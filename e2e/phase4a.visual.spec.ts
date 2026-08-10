@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createServer, type Server } from "node:http";
+import { spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,61 +12,22 @@ const VISUAL_OUTPUT = "dist-visual-e2e";
 const VISUAL_ROOT = path.join(REPO_ROOT, VISUAL_OUTPUT);
 const AXE_SCRIPT = require.resolve("axe-core/axe.min.js");
 const DEMO_DETAIL = "/news/2026/S99-visual-demo-archive-001/";
+const VISUAL_PORT = 4322;
 
-let visualServer: Server | undefined;
+let visualWorker: ChildProcess | undefined;
 let visualBaseUrl = "";
 
-function contentType(filePath: string): string {
-  const extension = path.extname(filePath).toLowerCase();
-  return (
-    {
-      ".css": "text/css; charset=utf-8",
-      ".html": "text/html; charset=utf-8",
-      ".js": "text/javascript; charset=utf-8",
-      ".json": "application/json; charset=utf-8",
-      ".svg": "image/svg+xml",
-      ".txt": "text/plain; charset=utf-8",
-    }[extension] ?? "application/octet-stream"
-  );
-}
-
-function startStaticServer(root: string): Promise<{ server: Server; url: string }> {
-  const absoluteRoot = path.resolve(root);
-  const server = createServer((request, response) => {
-    let pathname: string;
+async function waitForVisualWorker(url: string): Promise<void> {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
-      pathname = decodeURIComponent(new URL(request.url ?? "/", "http://127.0.0.1").pathname);
+      const response = await fetch(`${url}/manifest.json`);
+      if (response.ok) return;
     } catch {
-      response.writeHead(400).end();
-      return;
+      // Wrangler is still starting.
     }
-    const relative = pathname.endsWith("/") ? `${pathname.slice(1)}index.html` : pathname.slice(1);
-    const candidate = path.resolve(absoluteRoot, relative || "index.html");
-    if (candidate !== absoluteRoot && !candidate.startsWith(`${absoluteRoot}${path.sep}`)) {
-      response.writeHead(403).end();
-      return;
-    }
-    const filePath = fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()
-      ? path.join(candidate, "index.html")
-      : candidate;
-    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-      response.writeHead(404).end();
-      return;
-    }
-    response.writeHead(200, { "content-type": contentType(filePath) });
-    fs.createReadStream(filePath).pipe(response);
-  });
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("visual test server did not expose an address"));
-        return;
-      }
-      resolve({ server, url: `http://127.0.0.1:${address.port}` });
-    });
-  });
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error("visual Cloudflare worker did not become ready");
 }
 
 function demoUrl(route: string): string {
@@ -97,26 +58,59 @@ async function axeViolations(page: Page): Promise<Array<{ id: string; impact: st
   });
 }
 
-test.beforeAll(async () => {
+test.beforeAll("build visual worker", async () => {
+  test.setTimeout(120_000);
   fs.rmSync(VISUAL_ROOT, { recursive: true, force: true });
   const env = { ...process.env };
   delete env.PUBLIC_BUILD;
   delete env.MOMOKO_CONTENT_PACKAGE_PREVIEW;
   env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
   env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/visual-demo";
+  env.MOMOKO_REPO_ROOT = REPO_ROOT;
   execFileSync("pnpm", ["exec", "astro", "build", "--outDir", VISUAL_OUTPUT], {
     cwd: REPO_ROOT,
     env,
     stdio: "pipe",
   });
-  const started = await startStaticServer(VISUAL_ROOT);
-  visualServer = started.server;
-  visualBaseUrl = started.url;
+  execFileSync("node", ["--experimental-strip-types", "tools/schema/postbuild.ts"], {
+    cwd: REPO_ROOT,
+    env: { ...env, MOMOKO_BUILD_OUT_DIR: VISUAL_OUTPUT },
+    stdio: "pipe",
+  });
+  visualBaseUrl = `http://127.0.0.1:${VISUAL_PORT}`;
+  visualWorker = spawn(
+    "pnpm",
+    [
+      "exec",
+      "wrangler",
+      "dev",
+      `${VISUAL_OUTPUT}/_worker.js`,
+      "--assets",
+      VISUAL_OUTPUT,
+      "--local",
+      "--ip",
+      "127.0.0.1",
+      "--port",
+      String(VISUAL_PORT),
+      "--compatibility-date",
+      "2026-08-08",
+      "--compatibility-flags",
+      "nodejs_compat",
+      "--var",
+      `MOMOKO_REPO_ROOT:${REPO_ROOT}`,
+      "--var",
+      "MOMOKO_CONTENT_PACKAGE_MODE:test",
+      "--var",
+      "MOMOKO_CONTENT_PACKAGE_ROOT:tests/fixtures/content-package/visual-demo",
+    ],
+    { cwd: REPO_ROOT, env, stdio: "ignore" },
+  );
+  await waitForVisualWorker(visualBaseUrl);
 });
 
-test.afterAll(async () => {
-  if (visualServer) {
-    await new Promise<void>((resolve) => visualServer?.close(() => resolve()));
+test.afterAll("clean visual worker", async () => {
+  if (visualWorker && !visualWorker.killed) {
+    visualWorker.kill("SIGTERM");
   }
   fs.rmSync(VISUAL_ROOT, { recursive: true, force: true });
 });
@@ -179,6 +173,53 @@ test("representative pages have no console errors, external requests, or horizon
   expect(externalRequests).toEqual([]);
 });
 
+test("home canvas fills the same bounded frame across the required viewport matrix", async ({ page }) => {
+  const widths = [320, 375, 768, 1024, 1280, 1440, 1600, 1920, 2048];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(demoUrl("/zh/"), { waitUntil: "networkidle" });
+    const metrics = await page.evaluate(() => {
+      const viewport = document.documentElement.clientWidth;
+      const home = document.querySelector<HTMLElement>("[data-home-v05]");
+      const layout = document.querySelector<HTMLElement>(".folio-layout");
+      const chapter = document.querySelector<HTMLElement>(".folio-chapter");
+      const header = document.querySelector<HTMLElement>("[data-site-header]");
+      const footer = document.querySelector<HTMLElement>(".home-site-footer");
+      const homeBox = home?.getBoundingClientRect();
+      const layoutBox = layout?.getBoundingClientRect();
+      const chapterBox = chapter?.getBoundingClientRect();
+      const headerBox = header?.getBoundingClientRect();
+      const footerBox = footer?.getBoundingClientRect();
+      return {
+        viewport,
+        scrollWidth: document.documentElement.scrollWidth,
+        home: homeBox ? { left: homeBox.left, right: homeBox.right, width: homeBox.width } : null,
+        layout: layoutBox ? { left: layoutBox.left, right: layoutBox.right, width: layoutBox.width } : null,
+        chapter: chapterBox ? { left: chapterBox.left, right: chapterBox.right, width: chapterBox.width } : null,
+        header: headerBox ? { left: headerBox.left, right: headerBox.right, width: headerBox.width } : null,
+        footer: footerBox ? { left: footerBox.left, right: footerBox.right, width: footerBox.width } : null,
+        chapterText: chapter?.textContent?.trim() ?? "",
+      };
+    });
+    expect(metrics.scrollWidth, `${width}px document overflow`).toBeLessThanOrEqual(metrics.viewport + 1);
+    expect(metrics.home, `${width}px home frame`).not.toBeNull();
+    expect(metrics.layout, `${width}px folio frame`).not.toBeNull();
+    expect(metrics.chapter, `${width}px right column`).not.toBeNull();
+    expect(metrics.header, `${width}px header shell`).not.toBeNull();
+    expect(metrics.footer, `${width}px footer shell`).not.toBeNull();
+    expect(metrics.home!.left, `${width}px home left`).toBeGreaterThanOrEqual(-1);
+    expect(metrics.home!.right, `${width}px home right`).toBeLessThanOrEqual(metrics.viewport + 1);
+    expect(metrics.layout!.left, `${width}px folio left`).toBeGreaterThanOrEqual(-1);
+    expect(metrics.layout!.right, `${width}px folio right`).toBeLessThanOrEqual(metrics.viewport + 1);
+    expect(metrics.chapter!.width, `${width}px right column width`).toBeGreaterThan(0);
+    expect(metrics.chapterText, `${width}px right column content`).not.toBe("");
+    expect(Math.abs(metrics.header!.left - metrics.home!.left), `${width}px header/home left`).toBeLessThanOrEqual(1);
+    expect(Math.abs(metrics.header!.right - metrics.home!.right), `${width}px header/home right`).toBeLessThanOrEqual(1);
+    expect(Math.abs(metrics.footer!.left - metrics.home!.left), `${width}px footer/home left`).toBeLessThanOrEqual(1);
+    expect(Math.abs(metrics.footer!.right - metrics.home!.right), `${width}px footer/home right`).toBeLessThanOrEqual(1);
+  }
+});
+
 test("200% zoom, forced colors, and reduced motion keep the shell usable", async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 900 });
   await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" });
@@ -192,7 +233,7 @@ test("200% zoom, forced colors, and reduced motion keep the shell usable", async
   const mediaState = await page.evaluate(() => ({
     borderWidth: getComputedStyle(document.querySelector("[data-menu-summary]") as Element).borderWidth,
     scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
-    transitionDuration: getComputedStyle(document.querySelector(".nav-link") as Element).transitionDuration,
+    transitionDuration: getComputedStyle(document.querySelector(".chapter-index-link, a") as Element).transitionDuration,
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
     overflowNodes: [...document.querySelectorAll<HTMLElement>("body *")]
@@ -253,6 +294,32 @@ test("visual baselines cover the v0.5 home and trilingual long titles", async ({
       );
       expect(factsLayout.items.every((item) => item.scrollWidth <= item.clientWidth)).toBe(true);
       expect(factsLayout.items.map((item) => item.valueLines)).toEqual([1, 1, 1]);
+    }
+    await expect(page).toHaveScreenshot(item.name, {
+      animations: "disabled",
+      caret: "hide",
+      fullPage: true,
+      maxDiffPixelRatio: 0.002,
+      scale: "css",
+    });
+  }
+
+  // Human review checkpoints for the homepage contract: the selected
+  // grey-blue wordmark and the chapter-only desktop masthead must remain
+  // legible at the requested wide, tablet, and desktop widths.
+  for (const item of [
+    { width: 768, name: "phase4a-checkpoint-home-768.png" },
+    { width: 1024, name: "phase4a-checkpoint-home-1024.png" },
+    { width: 2048, name: "phase4a-checkpoint-home-2048.png" },
+  ]) {
+    await page.setViewportSize({ width: item.width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "none" });
+    await page.goto(demoUrl("/en/"), { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page.locator("img.masthead-logo")).toBeVisible();
+    await expect(page.locator("nav[data-nav-landmark='home-chapters']")).toBeVisible();
+    if (item.width >= 1024) {
+      await expect(page.locator("header nav[aria-label='Main navigation']")).toHaveCount(0);
     }
     await expect(page).toHaveScreenshot(item.name, {
       animations: "disabled",

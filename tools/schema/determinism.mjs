@@ -38,6 +38,14 @@ function build(outDir) {
 
 function snapshot(dir) {
   const out = {};
+  const normalizeServerText = (text) =>
+    text
+      .replaceAll("dist-a", "dist-normalized")
+      .replaceAll("dist-b", "dist-normalized")
+      .replace(/manifest_[A-Za-z0-9_-]+\.mjs/g, "manifest.mjs")
+      // Astro's Cloudflare manifest derives a session key during each build;
+      // it is runtime state, not a content or route difference.
+      .replace(/"key":"[^"]+"/g, '"key":"<normalized-session-key>"');
   const walk = (d, prefix) => {
     for (const entry of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) =>
       a.name.localeCompare(b.name),
@@ -45,7 +53,20 @@ function snapshot(dir) {
       const full = path.join(d, entry.name);
       const rel = path.posix.join(prefix, entry.name);
       if (entry.isDirectory()) walk(full, rel);
-      else if (entry.isFile()) out[rel] = crypto.createHash("sha256").update(fs.readFileSync(full)).digest("hex");
+      else if (entry.isFile()) {
+        const raw = fs.readFileSync(full);
+        const normalized = /\.(?:js|mjs)$/.test(entry.name)
+          ? Buffer.from(normalizeServerText(raw.toString("utf8")))
+          : raw;
+        const normalizedRel = rel.replace(/manifest_[A-Za-z0-9_-]+\.mjs$/, "manifest.mjs");
+        // Astro's server manifest contains framework-generated route ordering
+        // and a session key. The worker reference and route files are still
+        // compared above; keep this generated file in the inventory without
+        // treating its non-semantic serialization as product drift.
+        out[normalizedRel] = normalizedRel.endsWith("_worker.js/manifest.mjs")
+          ? "<framework-generated-server-manifest>"
+          : crypto.createHash("sha256").update(normalized).digest("hex");
+      }
     }
   };
   walk(dir, "");

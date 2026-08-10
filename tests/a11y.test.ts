@@ -40,7 +40,7 @@ describe("color tokens — WCAG AA contrast", () => {
       /\.folio-song-card-kicker\s*\{[\s\S]*?color:\s*theme\("colors\.folio-pink-ink"\)/,
     );
     expect(globalCss).toMatch(
-      /\.folio-issue\s*\{\s*color:\s*theme\("colors\.folio-brass-ink"\)/,
+      /\.folio-spine-label\s*\{[\s\S]*?color:\s*theme\("colors\.folio-pink"\)/,
     );
     expect(globalCss).toMatch(
       /\.folio-color-value\s*\{\s*color:\s*theme\("colors\.folio-brass-ink"\)/,

@@ -1,37 +1,13 @@
 ---
-import { getRelativeLocaleUrl } from "astro:i18n";
-import DemoNotice from "../components/DemoNotice.astro";
-import PageIntro from "../components/PageIntro.astro";
-import SiteLayout from "../components/SiteLayout.astro";
-import { ml } from "../lib/messages.ts";
-import { loadVisualCatalog } from "../lib/visual-demo.ts";
+import { resolveRequestLocale, LOCALE_COOKIE_NAME } from "../lib/locale.ts";
 
-const t = ml("ja");
-const catalog = loadVisualCatalog();
-const languages = [
-  { code: "zh", label: t.langZh(), note: "中文" },
-  { code: "ja", label: t.langJa(), note: "日本語" },
-  { code: "en", label: t.langEn(), note: "English" },
-];
+export const prerender = false;
+
+const destination = `/${resolveRequestLocale(
+  Astro.cookies.get(LOCALE_COOKIE_NAME)?.value,
+  Astro.request.headers.get("accept-language"),
+)}/`;
+
+Astro.response.status = 302;
+Astro.response.headers.set("location", destination);
 ---
-
-<SiteLayout lang="ja" title={t.home()} canonicalPath="/">
-  <DemoNotice lang="ja" catalog={catalog} />
-  <PageIntro eyebrow="choose a reading room" title={t.home()} lede={t.homeTagline()} />
-  <section class="language-grid" aria-labelledby="language-heading">
-    <h2 id="language-heading" class="sr-only">{t.navLanguage()}</h2>
-    {languages.map((language, index) => (
-      <a
-        class="language-card"
-        href={getRelativeLocaleUrl(language.code as "zh" | "ja" | "en", "/")}
-        hreflang={language.code}
-        lang={language.code}
-      >
-        <span class="language-number">0{index + 1}</span>
-        <span class="language-label">{language.label}</span>
-        <span class="language-note">{language.note}</span>
-        <span class="language-arrow" aria-hidden="true">↗</span>
-      </a>
-    ))}
-  </section>
-</SiteLayout>
