@@ -1,15 +1,141 @@
 /* Self-hosted locale font stacks (task #25).
-   Each locale binds to a distinct glyph source; SC/JP are never mixed. */
+   Each locale binds to a distinct glyph source; SC/JP are never mixed.
+   The @font-face blocks below are kept in sync with the deterministic
+   FontTools subset output (tools/fonts/subset.py); unicode-ranges mirror the
+   pinned @fontsource shards that each file was carved from. */
+
+/* zh -> Noto Sans SC (primary CJK shard + arrow/punct supplementary) */
+@font-face {
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/noto-sans-sc-chinese-simplified-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-10FFFF;
+}
 
 @font-face {
   font-family: "Noto Sans SC";
   font-style: normal;
   font-display: swap;
   font-weight: 400;
-  src: url("/fonts/noto-sans-sc-latin-400-normal.woff2") format("woff2");
+  src: url("/fonts/noto-sans-sc-105-400-normal.woff2") format("woff2");
+  unicode-range: U+5e, U+2190, U+250a, U+25bc, U+25cf, U+4e56, U+4ea9, U+4f3d,
+    U+4f6c, U+4f88, U+4fa8, U+4fcf, U+5029, U+5188, U+51f9, U+5203, U+524a,
+    U+5256, U+529d, U+5375, U+53db, U+541f, U+5435, U+5457, U+548b, U+54c7,
+    U+54d4, U+54e9, U+556a, U+5589, U+55bb, U+55e8, U+55ef, U+563b, U+566a,
+    U+576a, U+58f9, U+598d, U+599e, U+59a8, U+5a9b, U+5ae3, U+5bb0, U+5bde,
+    U+5c4c, U+5c60, U+5d1b, U+5deb, U+5df7, U+5e18, U+5f26, U+5f64, U+601c,
+    U+6084, U+60e9, U+614c, U+6208, U+621a, U+6233, U+6254, U+62d8, U+62e6,
+    U+62ef, U+6323, U+632a, U+633d, U+6361, U+6405, U+640f, U+6614, U+6642,
+    U+6657, U+67a3, U+6808, U+683d, U+6850, U+6897, U+68b3, U+68b5, U+68d5,
+    U+6a58, U+6b47, U+6b6a, U+6c28, U+6c90, U+6ca7, U+6cf5, U+6d51, U+6da9,
+    U+6dc7, U+6dd1, U+6e0a, U+6e5b, U+6e9c, U+6f47, U+6f6d, U+70ad, U+70f9,
+    U+710a, U+7130, U+71ac, U+745f, U+7476, U+7490, U+7529, U+7538, U+75d2,
+    U+7696, U+76b1, U+76fc, U+777f, U+77dc, U+789f, U+795b, U+79bd, U+79c9,
+    U+7a3b, U+7a46, U+7aa5, U+7ad6, U+7ca5, U+7cb9, U+7cdf, U+7d6e, U+7f06,
+    U+7f38, U+7fa1, U+7fc1, U+8015, U+803b, U+80a2, U+80aa, U+8116, U+813e,
+    U+82bd, U+8305, U+8328, U+8346, U+846c, U+8549, U+859b, U+8611, U+8680,
+    U+87f9, U+884d, U+8877, U+888d, U+88d4, U+898b, U+8a79, U+8a93, U+8c05,
+    U+8c0d, U+8c26, U+8d1e, U+8d31, U+8d81, U+8e22, U+8e81, U+8f90, U+8f96,
+    U+90ca, U+916c, U+917f, U+9187, U+918b, U+9499, U+94a9, U+9524, U+9540,
+    U+958b, U+9600, U+9640, U+96b6, U+96c7, U+96ef, U+98d9, U+9976, U+997f,
+    U+9a74, U+9a84, U+9c8d, U+9e26, U+9e9f, U+ad6d, U+c5b4, U+d55c, U+ff0f;
+}
+
+/* ja -> Noto Sans JP (primary CJK shard + supplementary slices) */
+@font-face {
+  font-family: "Noto Sans JP";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/noto-sans-jp-japanese-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-10FFFF;
+}
+
+@font-face {
+  font-family: "Noto Sans JP";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/noto-sans-jp-44-400-normal.woff2") format("woff2");
+  unicode-range: U+57b3, U+57b8, U+57bd, U+57c0, U+57c3, U+57c6-57c8, U+57cc,
+    U+57cf, U+57d2-57d7, U+57dc-57de, U+57e0-57e1, U+57e3-57e4, U+57e6-57e7,
+    U+57e9, U+57ed, U+57f0, U+57f4-57f6, U+57f8, U+57fb, U+57fd-57ff,
+    U+5803-5804, U+5808-580d, U+5819, U+581b, U+581d-5821, U+5826-5827, U+582d,
+    U+582f-5830, U+5832, U+5835, U+5839, U+583d, U+583f-5840, U+5849,
+    U+584b-584d, U+584f-5852, U+5855, U+5858-5859, U+585f, U+5861-5862, U+5864,
+    U+5867-5868, U+586d, U+5870, U+5872, U+5878-5879, U+587c, U+587f-5881,
+    U+5885, U+5887-588d, U+588f-5890, U+5894, U+5896, U+5898, U+589d-589e,
+    U+58a0-58a2, U+58a6, U+58a9-58ab, U+58ae, U+58b1-58b3, U+58b8-58bc, U+58be,
+    U+58c2-58c5, U+58c8, U+58cd-58ce, U+58d0-58da, U+58dc-58e2, U+58e4-58e5,
+    U+58e9, U+58ec, U+58ef, U+58f3-58f4, U+58f7, U+58f9, U+58fb-58fd, U+5902,
+    U+5905-5906, U+590a-590d, U+5910, U+5912-5914, U+5918-5919, U+591b, U+591d,
+    U+591f, U+5921, U+5923-5925, U+5928, U+592c-592d, U+592f-5930, U+5932-5933,
+    U+5935-5936, U+5938-5939, U+593d-593f, U+5943, U+5946, U+594e, U+5950,
+    U+5952-5953, U+5955, U+5957-595b, U+595d-5961, U+5963, U+5967, U+5969,
+    U+596b-596d, U+596f, U+5972, U+5975-5976, U+5978-5979, U+597b-597c, U+5981;
+}
+
+@font-face {
+  font-family: "Noto Sans JP";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/noto-sans-jp-9-400-normal.woff2") format("woff2");
+  unicode-range: U+971d, U+9721-9724, U+9728, U+972a, U+9730-9731, U+9733,
+    U+9736, U+9738-9739, U+973b, U+973d-973e, U+9741-9744, U+9746-974a,
+    U+974d-974f, U+9751, U+9755, U+9757-9758, U+975a-975c, U+9760-9761,
+    U+9763-9764, U+9766-9768, U+976a-976b, U+976e, U+9771, U+9773, U+9776-977d,
+    U+977f-9781, U+9785-9786, U+9789, U+978b, U+978f-9790, U+9795-9797,
+    U+9799-979a, U+979c, U+979e-97a0, U+97a2-97a3, U+97a6, U+97a8, U+97ab-97ac,
+    U+97ae, U+97b1-97b6, U+97b8-97ba, U+97bc, U+97be-97bf, U+97c1, U+97c3-97ce,
+    U+97d0-97d1, U+97d4, U+97d7-97d9, U+97db-97de, U+97e0-97e1, U+97e4, U+97e6,
+    U+97ed-97ef, U+97f1-97f2, U+97f4-97f8, U+97fa, U+9804, U+9807, U+980a,
+    U+980c-980f, U+9814, U+9816-9817, U+9819-981a, U+981c, U+981e, U+9820-9821,
+    U+9823-9826, U+982b, U+982e-9830, U+9832-9835, U+9837, U+9839, U+983d-983e,
+    U+9844, U+9846-9847, U+984a-984b, U+984f, U+9851-9853, U+9856-9857,
+    U+9859-985b, U+9862-9863, U+9865-9866, U+986a-986c, U+986f-9871, U+9873-9875,
+    U+98aa-98ab, U+98ad-98ae, U+98b0-98b1, U+98b4, U+98b6-98b8, U+98ba-98bc,
+    U+98bf, U+98c2-98c8, U+98cb-98cc, U+98ce, U+98dc, U+98de, U+98e0-98e1,
+    U+98e3, U+98e5-98e7, U+98e9-98ea;
+}
+
+@font-face {
+  font-family: "Noto Sans JP";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/noto-sans-jp-94-400-normal.woff2") format("woff2");
+  unicode-range: U+2015, U+2190, U+4e43, U+5019, U+5247, U+52e7, U+5438,
+    U+54b2, U+55ab, U+57f7, U+5bd2, U+5e8a, U+5ef6, U+6016, U+60b2, U+6162,
+    U+6319, U+6551, U+6607, U+66b4, U+675f, U+67d4, U+6b20, U+6b53, U+6ce3,
+    U+719f, U+75b2, U+770b, U+7720, U+77ac, U+79d2, U+7af9, U+7d05, U+7dca,
+    U+8056, U+80f8, U+81f3, U+8352, U+885d, U+8a70, U+8aa4, U+8cbc, U+900f,
+    U+9084, U+91e3, U+9451, U+96c4, U+99c6, U+9ad4, U+ff70;
+}
+
+/* en -> Inter (latin primary + latin-ext supplementary) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/inter-latin-400-normal.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
     U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
     U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("/fonts/inter-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 :root {
