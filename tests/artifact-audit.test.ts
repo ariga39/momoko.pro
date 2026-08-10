@@ -138,7 +138,8 @@ describe("production artifact boundary", () => {
       const text = fs.readFileSync(file, "utf8");
       expect(text).not.toMatch(/synthetic|合成夹具|demo news|fake news/i);
       expect(text).not.toMatch(/<script[^>]+src=["']https?:\/\//i);
-      expect(text).not.toMatch(/fonts\.googleapis|fonts\.gstatic|@font-face|https?:\/\/[^\s"']+\.(?:woff2?|ttf|otf)\b/i);
+      // Allow self-hosted /fonts/ woff2 (task #25); forbid remote CDN fonts.
+      expect(text).not.toMatch(/fonts\.googleapis|fonts\.gstatic|https?:\/\/[^\s"']+\.(?:woff2?|ttf|otf)\b/i);
       if (file.endsWith(".svg")) {
         expect(path.relative(PUBLIC, file)).toBe("momoko-logo.svg");
       } else {
