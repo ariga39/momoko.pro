@@ -4,12 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Deployment environment"
+        description: "Deployment environment (preview only)"
         required: true
         default: "preview"
         type: choice
         options:
           - preview
+      confirm_dry_run_only:
+        description: 'Confirm this run is DRY-RUN ONLY (must type "dry-run-only")'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -19,11 +23,19 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview
     # This job is a DRY-RUN audit only: it builds the project and produces a
-    # local `wrangler deploy --dry-run` bundle. No CF token, no account write,
-    # no domain write. A real production deploy job is intentionally NOT
-    # created until the human authorizes it; missing secrets then must fail
-    # closed rather than claim success.
+    # local `wrangler versions upload --env preview --dry-run` bundle. No CF
+    # token, no account write, no version upload, no domain write. A real
+    # production deploy job is intentionally NOT created until the human
+    # authorizes it; missing secrets then must fail closed.
     steps:
+      - name: Confirm dry-run-only input
+        run: |
+          if [[ "${{ github.event.inputs.confirm_dry_run_only }}" != "dry-run-only" ]]; then
+            echo "Confirmation mismatch; refusing to run a non-dry-run action." >&2
+            exit 1
+          fi
+          echo "Confirmed dry-run only."
+
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
@@ -44,8 +56,11 @@ jobs:
 
       - name: Assert no deploy credentials present (dry-run only)
         run: |
-          if [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-            echo "A Cloudflare deploy token is configured; this workflow must NOT deploy." >&2
+          if [[ -n "${CLOUDFLARE_API_TOKEN:-}" || -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+            echo "Cloudflare deploy credentials are configured; this workflow must NOT upload/deploy." >&2
             exit 1
           fi
-          echo "No deploy token present; confirmed dry-run only (zero external write)."
+          echo "No deploy credentials present; confirmed dry-run only (zero external write)."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

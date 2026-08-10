@@ -18,10 +18,20 @@ describe("deploy dry-run audit (task #26)", () => {
   });
 
   it("fails closed when the worker bundle exceeds the size limit", () => {
-    const audit = { entries: ["_worker.js/index.js"], total: MAX_WORKER_SIZE_BYTES + 1 };
+    const audit = { entries: ["_worker.js/index.js", "assets/app.css"], total: MAX_WORKER_SIZE_BYTES + 1 };
     const out = evaluateBundle(audit);
     expect(out.ok).toBe(false);
     expect(out.code).toBe("worker_size_over_limit");
+  });
+
+  it("fails closed when source maps are present", () => {
+    const audit = {
+      entries: ["_worker.js/index.js", "_worker.js/index.js.map", "assets/app.css"],
+      total: 1024,
+    };
+    const out = evaluateBundle(audit);
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("source_map_present");
   });
 
   it("passes when a valid _worker.js entry is within the size limit", () => {
