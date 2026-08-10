@@ -9,6 +9,8 @@ export default [
       ".astro/**",
       ".venv-fonts/**",
       "dist/**",
+      "dist-public/**",
+      "dist-visual-e2e/**",
       "node_modules/**",
       "playwright-report/**",
       "public/fonts/**",
