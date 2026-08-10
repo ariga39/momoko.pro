@@ -14,6 +14,7 @@ function makeDist(extraFiles = {}) {
     "_worker.js/index.js": "worker",
     "_assets/app.css": "css",
     ".assetsignore": "_worker.js",
+    "_routes.json": "{}",
     "index.html": "<html></html>",
     ...extraFiles,
   };
@@ -39,11 +40,37 @@ describe("deploy dry-run audit (task #26)", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("fails closed when .assetsignore is missing", () => {
+    const dir = makeDist();
+    fs.rmSync(path.join(dir, ".assetsignore"));
+    const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("missing_assets_ignore");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("fails closed when _routes.json manifest is missing", () => {
+    const dir = makeDist();
+    fs.rmSync(path.join(dir, "_routes.json"));
+    const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("missing_routes_manifest");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("fails closed when source maps appear in static assets", () => {
     const dir = makeDist({ "app.css.map": "{}" });
     const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
     expect(out.ok).toBe(false);
     expect(out.code).toBe("source_map_present");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("fails closed when static content contains secret-shaped markers", () => {
+    const dir = makeDist({ "_assets/leak.js": "const t = 'sk_live_abcdef0123456789abcdef';" });
+    const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("secret_shaped_content");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -54,6 +81,7 @@ describe("deploy dry-run audit (task #26)", () => {
     expect(out.code).toBe("dry_run_success");
     expect(out.has_worker_entry).toBe(true);
     expect(out.has_assets_ignore).toBe(true);
+    expect(out.has_routes_manifest).toBe(true);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -62,6 +90,14 @@ describe("deploy dry-run audit (task #26)", () => {
     const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
     expect(out.ok).toBe(false);
     expect(out.code).toBe("assets_over_limit");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("fails closed when the worker bundle exceeds the size limit", () => {
+    const dir = makeDist({ "_worker.js/index.js": "w".repeat(MAX_WORKER_SIZE_BYTES + 1) });
+    const out = evaluateDeployRoot(auditDir(dir), { distDir: dir });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("worker_over_limit");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -88,6 +124,15 @@ describe("deploy dry-run audit (task #26)", () => {
 });
 
 describe("preview-upload workflow contract (task #26)", () => {
+  it("fails closed on confirmation/environment mismatch (no job-level skip)", () => {
+    const yml = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/deploy-preview.yml"), "utf8");
+    // No job-level `if` that would skip on mismatch; the gate step is always
+    // reachable and must exit 1.
+    expect(yml).not.toMatch(/^    if: /m);
+    expect(yml).toContain('"upload-preview-version"');
+    expect(yml).toContain("exit 1");
+  });
+
   it("contains the real gated versions upload (not dry-run) and no production deploy", () => {
     const yml = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/deploy-preview.yml"), "utf8");
     expect(yml).toContain("wrangler versions upload --env preview");
@@ -99,5 +144,10 @@ describe("preview-upload workflow contract (task #26)", () => {
     expect(yml).not.toMatch(/domain/);
     expect(yml).toContain("CLOUDFLARE_API_TOKEN");
     expect(yml).toContain("CLOUDFLARE_ACCOUNT_ID");
+  });
+
+  it("wires the offline dry-run audit into CI", () => {
+    const ci = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/ci.yml"), "utf8");
+    expect(ci).toContain("scripts/deploy-dryrun.mjs");
   });
 });
