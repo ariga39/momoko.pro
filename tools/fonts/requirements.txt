@@ -1,3 +1,7 @@
 # Pinned build-only font tooling for deterministic glyph subsetting (task #25).
-# Installed into a dedicated venv; never part of the runtime dependencies.
+# Installed into a dedicated venv via `pnpm fonts:install`; never part of the
+# runtime dependencies. All direct and transitive versions are pinned so the
+# subset build is byte-identical and offline after the one-time install.
 fonttools[woff]==4.63.0
+brotli==1.2.0
+zopfli==0.4.3

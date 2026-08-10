@@ -2,8 +2,10 @@
 """Deterministic glyph-level font subsetting for momoko.pro (task #25).
 
 Consumes the per-locale required codepoint set produced by pipeline.ts and
-emits self-hosted WOFF2 files in public/fonts plus a manifest with per-file
-byte counts, sha256, source, and version/license pins.
+emits self-hosted WOFF2 files in public/fonts, a manifest with per-file byte
+counts/sha256/source/version/license and input shard hashes, and a generated
+src/styles/fonts.css whose @font-face rules are derived from each emitted
+font's *actual* cmap (so manifest <-> CSS is always closed and ranges exact).
 
 Approach (offline, byte-identical across runs):
   - For each locale, gather the pinned @fontsource WOFF2 shards declared by the
@@ -67,6 +69,7 @@ SUBSET_FLAGS = [
     "--name-IDs=0,1,2,3,4,6",
 ]
 
+
 def collect_slices(fontroot: Path, pkg: str, css_files: list[str]) -> list[Path]:
     """Return every WOFF2 shard referenced by the given family CSS files."""
     out: list[Path] = []
@@ -81,26 +84,38 @@ def collect_slices(fontroot: Path, pkg: str, css_files: list[str]) -> list[Path]
     return sorted(set(out))
 
 
-def slice_unicode_ranges(fontroot: Path, pkg: str, css_files: list[str]) -> dict[str, str]:
-    """Map shard filename -> its declared unicode-range from the family CSS."""
-    ranges: dict[str, str] = {}
-    for css in css_files:
-        css_path = fontroot / pkg / css
-        if not css_path.exists():
-            continue
-        for block in css_path.read_text(encoding="utf-8").split("@font-face"):
-            m = re.search(r"url\(\./files/([^)]+\.woff2)\)", block)
-            r = re.search(r"unicode-range:\s*([^;]+);", block)
-            if m and r:
-                ranges[m.group(1)] = r.group(1).strip()
-    return ranges
-
-
 def cmap_of(path: Path) -> set[int]:
     try:
         return set(TTFont(path).getBestCmap().keys())
     except Exception:
         return set()
+
+
+def codepoints_to_ranges(codepoints: set[int]) -> list[tuple[int, int]]:
+    """Collapse sorted codepoints into [start, end] ranges."""
+    if not codepoints:
+        return []
+    cps = sorted(codepoints)
+    ranges: list[tuple[int, int]] = []
+    start = prev = cps[0]
+    for cp in cps[1:]:
+        if cp == prev + 1:
+            prev = cp
+        else:
+            ranges.append((start, prev))
+            start = prev = cp
+    ranges.append((start, prev))
+    return ranges
+
+
+def ranges_to_css(ranges: list[tuple[int, int]]) -> str:
+    parts = []
+    for a, b in ranges:
+        if a == b:
+            parts.append(f"U+{a:X}")
+        else:
+            parts.append(f"U+{a:X}-{b:X}")
+    return ",".join(parts)
 
 
 def run_pyftsubset(pyftsubset: str, src: Path, codepoints: set[int], out: Path) -> None:
@@ -123,6 +138,59 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def find_ofl_text(fontroot: Path, pkg: str) -> str:
+    """Read the package LICENSE (OFL) text, normalized to a stable form."""
+    license_path = fontroot / pkg / "LICENSE"
+    text = license_path.read_text(encoding="utf-8")
+    # Trim trailing blank lines for determinism.
+    return text.rstrip() + "\n"
+
+
+def write_fonts_css(out_dir: Path, manifest: dict[str, object], css_target: Path) -> None:
+    """Generate src/styles/fonts.css with @font-face rules derived from the
+    emitted fonts' actual cmaps, plus the locale-scoped font stack variables."""
+    lines = [
+        "/* Self-hosted locale font stacks (task #25).",
+        "   Generated deterministically by tools/fonts/subset.py from the emitted",
+        "   WOFF2 cmaps; do not edit by hand. SC/JP are never mixed. */",
+    ]
+    for locale in ("zh", "ja", "en"):
+        entry = manifest["locales"][locale]
+        family = str(entry["family"])
+        weight = entry["weight"]
+        for f in entry["files"]:
+            font_path = out_dir / f["file"]
+            cmap = cmap_of(font_path)
+            ranges = ranges_to_css(codepoints_to_ranges(cmap))
+            lines.append("")
+            lines.append("@font-face {")
+            lines.append(f'  font-family: "{family}";')
+            lines.append("  font-style: normal;")
+            lines.append("  font-display: swap;")
+            lines.append(f"  font-weight: {weight};")
+            lines.append(f'  src: url("/fonts/{f["file"]}") format("woff2");')
+            lines.append(f"  unicode-range: {ranges};")
+            lines.append("}")
+    lines.append("")
+    lines.append(":root {")
+    lines.append('  --font-display: "Noto Sans SC", "Iowan Old Style", "Baskerville", serif;')
+    lines.append('  --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans", sans-serif;')
+    lines.append("}")
+    lines.append("")
+    lines.append('html[lang="ja"] {')
+    lines.append('  --font-display: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;')
+    lines.append('  --font-body: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;')
+    lines.append("}")
+    lines.append("")
+    lines.append('html[lang="en"] {')
+    lines.append('  --font-display: "Inter", "Iowan Old Style", "Baskerville", serif;')
+    lines.append('  --font-body: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;')
+    lines.append("}")
+    lines.append("")
+    css_target.parent.mkdir(parents=True, exist_ok=True)
+    css_target.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--corpus", required=True, help="path to per-locale codepoint JSON")
@@ -130,6 +198,7 @@ def main() -> int:
     parser.add_argument("--pyftsubset", required=True, help="path to pinned pyftsubset")
     parser.add_argument("--fontroot", required=True, help="node_modules/@fontsource root")
     parser.add_argument("--manifest", required=True, help="output manifest path")
+    parser.add_argument("--css", required=True, help="output src/styles/fonts.css path")
     args = parser.parse_args()
 
     corpus = json.loads(Path(args.corpus).read_text(encoding="utf-8"))
@@ -137,7 +206,14 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     fontroot = Path(args.fontroot)
 
-    manifest: dict[str, object] = {"locales": {}, "budget_bytes": BUDGET_BYTES}
+    manifest: dict[str, object] = {
+        "locales": {},
+        "budget_bytes": BUDGET_BYTES,
+        "tool": {
+            "fonttools": "4.63.0",
+            "flags": SUBSET_FLAGS,
+        },
+    }
     total_bytes = 0
     all_files: list[str] = []
 
@@ -145,7 +221,6 @@ def main() -> int:
         required = set(corpus.get(locale, []))
         pkg = str(spec["package"])
         slices = collect_slices(fontroot, pkg, [str(c) for c in spec["css"]])
-        ranges = slice_unicode_ranges(fontroot, pkg, [str(c) for c in spec["css"]])
 
         # Family cmap = union of every declared shard.
         family_cmap: set[int] = set()
@@ -195,12 +270,16 @@ def main() -> int:
         for p in produced:
             size = p.stat().st_size
             total_bytes += size
+            # unicode-range derives from the emitted font's ACTUAL cmap.
+            range_str = ranges_to_css(codepoints_to_ranges(cmap_of(p)))
             entries.append(
                 {
                     "file": p.name,
                     "bytes": size,
                     "sha256": sha256_file(p),
-                    "unicode_range": ranges.get(source_of[p.name], "U+0000-10FFFF"),
+                    "unicode_range": range_str,
+                    "source_shard": source_of[p.name],
+                    "source_shard_sha256": sha256_file(fontroot / pkg / "files" / source_of[p.name]),
                 }
             )
             all_files.append(p.name)
@@ -209,6 +288,7 @@ def main() -> int:
             "family": spec["family"],
             "weight": spec["weight"],
             "license": spec["license"],
+            "license_text": find_ofl_text(fontroot, pkg),
             "version": spec["version"],
             "source_package": pkg,
             "files": entries,
@@ -226,6 +306,9 @@ def main() -> int:
     manifest["total_bytes"] = total_bytes
     Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
     Path(args.manifest).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    # Regenerate the CSS from emitted cmaps so manifest <-> @font-face is closed.
+    write_fonts_css(out_dir, manifest, Path(args.css))
 
     if total_bytes >= BUDGET_BYTES:
         print(f"[fonts] FAIL: shipped webfont {total_bytes}B exceeds budget {BUDGET_BYTES}B")

@@ -30,12 +30,6 @@ importers:
       '@eslint/js':
         specifier: 9.39.5
         version: 9.39.5
-      '@fontsource/noto-serif-jp':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource/noto-serif-sc':
-        specifier: ^5.3.0
-        version: 5.3.0
       '@inlang/paraglide-astro':
         specifier: ^0.4.1
         version: 0.4.1(astro@5.18.2(@types/node@22.20.1)(jiti@1.21.7)(rollup@4.62.4)(typescript@5.9.3)(yaml@2.9.0))
@@ -905,12 +899,6 @@ packages:
 
   '@fontsource/noto-sans-sc@5.3.0':
     resolution: {integrity: sha512-HeqIlGm0+ohOKxZLuHj1qW6r6avHH0OWdKERAcSDI0RQ+MXrteuLKA+M+5eOA8rYy0MFvOR5AT0fQo2rUkye0Q==}
-
-  '@fontsource/noto-serif-jp@5.3.0':
-    resolution: {integrity: sha512-7dRFleN7F+uuJdcMW/fJmnl6KLZSn9dHCjAVTaWjTcT4hg5V4ECbi2qgIamI6rS/+yTt16KDLU+9aJi74r6ZxQ==}
-
-  '@fontsource/noto-serif-sc@5.3.0':
-    resolution: {integrity: sha512-0/zaEFkidiWldE62rTeD74x8ygUsQvejiSNtO0LQxQk3qpaHnlMZ3w4C7yH80B4KTIg8VKeFP4oSgwWMchY9+g==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -5062,10 +5050,6 @@ snapshots:
   '@fontsource/noto-sans-jp@5.3.0': {}
 
   '@fontsource/noto-sans-sc@5.3.0': {}
-
-  '@fontsource/noto-serif-jp@5.3.0': {}
-
-  '@fontsource/noto-serif-sc@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

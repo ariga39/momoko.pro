@@ -263,8 +263,17 @@ test("visual baselines cover the v0.5 home and trilingual long titles", async ({
   for (const item of homeCases) {
     await page.setViewportSize({ width: item.width, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "none" });
+    // CLS gate (task #25): capture layout-shift before webfonts settle so the
+    // locale-only preload proves it does not cause layout jump.
     await page.goto(demoUrl(`/${item.lang}/`), { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(100);
+    const cls = await page.evaluate(() =>
+      performance
+        .getEntriesByType("layout-shift")
+        .reduce((sum, entry) => sum + ((entry as PerformanceEntry & { hadRecentInput: boolean; value: number }).value ?? 0), 0),
+    );
+    expect(cls, `${item.width}px CLS must stay below 0.05 after webfont load`).toBeLessThan(0.05);
     if (item.width <= 375) {
       const colorLineCount = await page.locator(".folio-color-value").evaluate((element) => {
         const range = document.createRange();
