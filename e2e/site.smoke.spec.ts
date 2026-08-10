@@ -74,9 +74,12 @@ test("news detail page renders translated body and marks fallback when missing",
 });
 
 test("search page filters the deterministic local index client-side", async ({ page }) => {
-  await page.goto("/search");
+  // negotiation to the localized route is covered in i18n-link-crawl.spec.ts
+  // with explicit headers; here we exercise the localized page itself.
+  await page.goto("/ja/search/");
   const input = page.locator("#q");
   const results = page.locator("#results li");
+  await expect(page.locator("form#site-search")).toHaveAttribute("action", "/ja/search");
   await input.fill("合成");
   // Draft records remain available to the review workflow but do not enter
   // public search/build indexes; only the reviewed fixture has three locale rows.
@@ -112,10 +115,20 @@ test("about and source-policy routes exist for each language", async ({ page }) 
   }
 });
 
-test("unknown route returns the 404 page with navigation", async ({ page }) => {
+test("unknown route returns a real 404 with language from path (prefixed) or negotiation (unprefixed)", async ({ page, request }) => {
+  const zh = await request.get("/zh/nope/", { maxRedirects: 0 });
+  expect(zh.status()).toBe(404);
+  await page.goto("/zh/nope/");
+  await expect(page.locator("h1")).toHaveText("404");
+  await expect(page.locator("nav[aria-label='首页 / Home'] a[href='/zh/']")).toBeVisible();
+
+  // no cookie/header hints -> default ja chrome
+  const ja = await request.get("/definitely-not-a-page/", { maxRedirects: 0 });
+  expect(ja.status()).toBe(404);
+  expect(await ja.text()).toContain("ホーム / Home");
+  // any browser locale still renders a valid localized 404
   await page.goto("/definitely-not-a-page/");
   await expect(page.locator("h1")).toHaveText("404");
-  await expect(page.locator("nav[aria-label='回到首页'] a[href='/zh/']")).toBeVisible();
 });
 
 test("homepage keeps chapter navigation independent while desktop global nav stays on inner pages", async ({ page }) => {
@@ -124,7 +137,7 @@ test("homepage keeps chapter navigation independent while desktop global nav sta
   await expect(page.locator("img.masthead-logo")).toHaveAttribute("src", "/momoko-logo.svg");
   await expect(page.locator("header nav[aria-label='主导航']")).toHaveCount(0);
   await expect(page.locator("nav[data-nav-landmark='home-chapters']")).toBeVisible();
-  await expect(page.locator("nav[data-nav-landmark='home-chapters'] a")).toHaveCount(3);
+  await expect(page.locator("nav[data-nav-landmark='home-chapters'] a")).toHaveCount(6);
 
   await page.setViewportSize({ width: 375, height: 900 });
   await page.goto("/zh/");

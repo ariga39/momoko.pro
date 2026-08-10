@@ -1,29 +1,33 @@
 ---
-import DemoNotice from "../components/DemoNotice.astro";
-import PageIntro from "../components/PageIntro.astro";
-import SiteLayout from "../components/SiteLayout.astro";
-import { loadPublishedNews } from "../lib/content.ts";
-import { ml } from "../lib/messages.ts";
-import { buildSearchIndex } from "../lib/search.ts";
-import { loadVisualCatalog } from "../lib/visual-demo.ts";
+import DemoNotice from "../../../components/DemoNotice.astro";
+import PageIntro from "../../../components/PageIntro.astro";
+import SiteLayout from "../../../components/SiteLayout.astro";
+import { loadPublishedNews } from "../../../lib/content.ts";
+import { isLocale } from "../../../lib/locale.ts";
+import { ml, type Locale } from "../../../lib/messages.ts";
+import { buildSearchIndex } from "../../../lib/search.ts";
+import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
 
-const t = ml("ja");
+const rawLang = Astro.params.lang;
+if (!isLocale(rawLang)) return Astro.rewrite("/404");
+const lang = rawLang as Locale;
+const t = ml(lang);
 export const prerender = false;
-Astro.response.status = 200;
+const searchPath = `/${lang}/search`;
 const catalog = loadVisualCatalog();
 const items = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
 const index = buildSearchIndex(items);
 ---
 
 <SiteLayout
-  lang="ja"
+  lang={lang}
   title={`${t.searchHeading()} · ${t.home()}`}
-  canonicalPath="/search"
+  canonicalPath={`/${lang}/search/`}
   noindex
 >
-  <DemoNotice lang="ja" catalog={catalog} />
+  <DemoNotice lang={lang} catalog={catalog} />
   <PageIntro eyebrow="06 / index search" title={t.searchHeading()} lede={t.visualArchiveLede()} />
-  <form class="filter-bar" id="site-search" method="get" action="/search">
+  <form class="filter-bar" id="site-search" method="get" action={searchPath}>
     <label class="filter-field grow" for="q">
       {t.searchQuery()}
       <input class="search-input w-full" id="q" type="search" name="q" autocomplete="off" />

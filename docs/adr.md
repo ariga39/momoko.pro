@@ -62,7 +62,7 @@
 
 ## ADR-12 i18n 分层（ADR-I18N）
 - 决策：Astro 原生 i18n routing 负责 `/ja|zh|en` 路由、locale 校验与 URL helper；Paraglide JS 只负责导航、按钮、状态提示等 UI message catalog。server worker 编译同一 typed catalog，不引入运行时语言服务；其 SSG 指南仅作为 catalog 编译与 locale 对账参考。
-- 路由：三种语言全部带前缀；Astro locale 集合负责校验/helper，`routing: "manual"` 由 server route 处理 `/` 的有效 locale cookie → `Accept-Language` → `ja` 302（避免原生 middleware 把 `/search`、`/locale-switch` 等 utility route 转成 404）。URL 仍是 locale 真相源；显式 localized URL 不自动改写。
+- 路由：三种语言全部带前缀（含默认语言 ja，`routing: { prefixDefaultLocale: true, redirectToDefaultLocale: false }`，Astro 官方 i18n 配置）；`/` 入口协商（有效 locale cookie → `Accept-Language` → `ja` 302）与旧无前缀 `/search` 协商 303 到 `/{lang}/search/` 都由 server middleware 用 `context.redirect` 显式负责（`redirectToDefaultLocale: false` 保留自定义协商，避免原生中间件把入口协商覆盖为固定 `/ja/`；prefix-always 原生中间件会把非 locale 路由转 404，故 seam 放 middleware 而非页面）。`/locale-switch` 是 endpoint（非 page），原生中间件不处理，保持可达。URL 仍是 locale 真相源；显式 localized URL 不自动改写。
 - 首页视觉导航：桌面首页 masthead 只保留本地灰蓝 wordmark、语言切换和必要 utility；01/02/03 章节链接组成独立且三语命名的主导航 landmark。inner pages 保留完整 global nav，移动端首页保留 compact global menu。wordmark 的 outlined paths 使用本地 `public/momoko-logo.svg`，并随附 Libre Baskerville/Nunito OFL-1.1 attribution；不加载远程字体或官方图像。
 - 内容边界：编辑内容仍以 `content.<lang>.md`、`source_content_hash` 与 `review_status` 为唯一真相；Paraglide/Astro fallback 不得改变或推断审核状态。缺失或 stale 内容只能显式回退源语言并显示提示。
 - SEO：真实翻译必须 body 非空、`reviewed`、绑定当前源 hash 且未 retracted；真实翻译页 self-canonical。fallback 页使用源语言 `lang`/metadata、canonical 到源页并 `noindex,follow`，请求 locale 不进入 alternate。每个内容身份的 hreflang 集合使用全限定 URL、包含自身并在全部成员上双向一致；详情 `x-default` 指向源页，站点根选择页只服务入口/列表层。

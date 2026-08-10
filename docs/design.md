@@ -49,7 +49,7 @@
 
 - `/zh/...`, `/ja/...`, `/en/...`。`/` 由服务端按有效 `momoko_locale` cookie → `Accept-Language` → `ja` 返回 302；无匹配或无 JavaScript 时直接得到 `/ja/`，不显示语言选择门页。
 - canonical/alternate 按**页面内容身份 + 已审核版本**生成，而不是按“路由存在”生成；具体 SEO 规则见下。
-- 路由由 Astro 的 `locales=["ja","zh","en"]` 集合与 `astro:i18n` helper 统一校验和生成链接；入口协商由 server middleware/route 显式负责（Astro `routing: "manual"`），因为 `/search`、`/locale-switch` 等非本地化 utility route 必须保持可达。`/` 只按 `momoko_locale` cookie → `Accept-Language` → `ja` 返回 302；显式 localized URL 不被入口协商重写。
+- 路由由 Astro 的 `locales=["ja","zh","en"]` 集合与 `astro:i18n` helper 统一校验和生成链接；`routing: { prefixDefaultLocale: true, redirectToDefaultLocale: false }` 让默认语言 ja 也带 `/ja/` 前缀（修复 `getRelativeLocaleUrl` 生成无前缀链接导致 404 的问题）。`/` 的入口协商（cookie → `Accept-Language` → `ja` 302）与旧无前缀 `/search` 协商 303 到 `/{lang}/search/` 都由 server middleware 用 `context.redirect` 显式负责（prefix-always 原生中间件会把非 locale 路由转 404，故 seam 放 middleware）；`/locale-switch` 是 endpoint，原生中间件不处理，保持可达。显式 localized URL 不被入口协商重写。
 - **界面文案与内容译文分层**：导航、按钮、状态提示等 UI chrome 使用 Paraglide JS 的类型安全 message catalog；新闻/百科等编辑内容继续使用 `content.<lang>.md` + review state schema。i18n runtime 不得覆盖 `draft/reviewed/stale/retracted`，也不得把缺译自动伪装成已审核译文。
 - 不启用 Astro/Paraglide 的内容级静默 rewrite fallback。缺失或 stale 的编辑内容继续由现有 renderer 回退到源语言，并显示 `LocaleNotice`；它不是请求 locale 的翻译版本。
 - **真实翻译页**：只有 locale 文件 body 非空、`review_status=reviewed`、`source_content_hash` 等于当前源版本且未 retracted，才是可发布语言版本；该页 `<html lang>`、title/OG 与正文语言一致并 self-canonical。
