@@ -31,14 +31,15 @@ Status: task #33 (Astro i18n 导航 / 根协商 / 全站链接爬测) — author
 ```text
 task / owner / peer: task #33 / @momoko 监督 / peer 待 @momoko 路由
 base SHA: 461ab12ee420e8c33c04e22712bd984756bc5489
-exact head SHA / PR: de67a83829b88b8256cfebe46f27a46d0be0bc9a / PR #19 (Draft)
-hosted CI run + terminal result: <filled after terminal state>
+exact head SHA / PR: see PR #19 body — live GitHub value only (not tracked
+  here to avoid self-referential commits; per supervisor convention)
+hosted CI run + terminal result: see PR #19 checks (live)
 changed scope: astro.config.mjs; src/middleware.ts; src/pages/404.astro,
   src/pages/[lang].astro, src/pages/[lang]/search/index.astro (moved),
   src/pages/index.astro (deleted), src/pages/search.astro (deleted);
   src/components/SiteLayout.astro; docs/adr.md, docs/design.md;
   e2e/i18n-link-crawl.spec.ts (new, 12 tests), e2e/site.smoke.spec.ts;
-  visual baselines (10 linux, regenerated in Linux container)
+  visual baselines (10 linux, regenerated in runner-matching container)
 submitted tests: 12 crawl + updated smoke; unit 168; lint/typecheck clean
 privacy/secret scan: wrapper ls-remote only; no credential output
 external-write statement: none (no deploy, no Cloudflare write, no live GET)
