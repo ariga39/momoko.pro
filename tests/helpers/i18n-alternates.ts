@@ -98,6 +98,9 @@ export function assertIdentityClosure(
   if (!allowedOrigins.has(canonical.origin)) {
     throw new Error(`${ownerPath}: canonical leaves allowed origins -> ${canonical.origin}`);
   }
+  if (localeOf(canonical.pathname) === undefined) {
+    throw new Error(`${ownerPath}: canonical locale not in zh/ja/en -> ${canonicalUrl}`);
+  }
   const identity = newsIdentitySuffix(ownerPath);
   if (newsIdentitySuffix(canonical.pathname) !== identity) {
     throw new Error(`${ownerPath}: canonical identity mismatch ${canonicalUrl}`);
