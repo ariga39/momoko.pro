@@ -224,6 +224,14 @@ test("visual baselines cover the v0.5 home and trilingual long titles", async ({
     await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "none" });
     await page.goto(demoUrl(`/${item.lang}/`), { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
+    if (item.width <= 375) {
+      const colorLineCount = await page.locator(".folio-color-value").evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getClientRects().length;
+      });
+      expect(colorLineCount, `${item.width}px folio color must stay on one line`).toBe(1);
+    }
     await expect(page).toHaveScreenshot(item.name, {
       animations: "disabled",
       caret: "hide",

@@ -1,6 +1,6 @@
 # Phase 4A visual experience handoff
 
-Status: task #19 final successor after the exact-head visual/UX peer found two WCAG AA and handoff-truthfulness gaps, followed by an approved structure checkpoint. The successor keeps the accepted v0.5 direction and adds only the agreed structure correction (single canvas, exact desktop proportions, no home dynamic stream, responsive order), text-contrast tokens/usages, class-level regression coverage, and this handoff. The reviewed predecessor was `c733be97bf8dc451fb7ebd81c5cd02d436272757`; the successor commit containing this handoff is the current review object, with its full SHA recorded in the task-thread delivery message.
+Status: task #19 final successor after the exact-head visual/UX peer found two WCAG AA and handoff-truthfulness gaps, followed by an approved structure checkpoint. The successor keeps the accepted v0.5 direction and adds only the agreed structure correction (single canvas, exact desktop proportions, no home dynamic stream, responsive order), text-contrast tokens/usages, class-level regression coverage, final screenshot refinements (non-breaking folio color value and continuous paper right column), and this handoff. The reviewed predecessor was `c733be97bf8dc451fb7ebd81c5cd02d436272757`; the successor commit containing this handoff is the current review object, with its full SHA recorded in the task-thread delivery message.
 
 Implementation branch: `feat/task19-v05-mirai`. Successor parent: `d5dbac56089f0c27314dfc9044b9d02263c8c607`. The branch is the sole head of Draft PR #14, based on `main` (observed base `406af4c5ce71fbeaf536d5c7f64a96dc4f0b56cc`). No deployment or production write is authorized.
 
@@ -45,7 +45,7 @@ Stable site facts and the Momoko introduction are real, maintainable static cont
 
 The native `<details>` mobile menu is the no-JavaScript truth. JavaScript only focuses the first link on open, returns focus to the summary on close/Escape, and never uses dialog semantics. Search and URL filters preserve static no-JS content. Browser tests cover keyboard order, focus return, URL truth, console/page errors, external-request absence, overflow at 320/375/1440, 200% zoom, forced colors, reduced motion, and axe-core representative routes.
 
-The successor's a11y test checks both the token contrast ratios and the actual selectors for `.masthead-kicker`, `.folio-chapter-label`, `.folio-song-card-kicker`, `.folio-issue`, `.folio-color-value`, `.chapter-index-code`, and `.chapter-index-arrow`. The original bright folio colors are not used as small semantic text on light surfaces.
+The successor's a11y test checks both the token contrast ratios and the actual selectors for `.masthead-kicker`, `.folio-chapter-label`, `.folio-song-card-kicker`, `.folio-issue`, `.folio-color-value`, `.chapter-index-code`, and `.chapter-index-arrow`. The original bright folio colors are not used as small semantic text on light surfaces. Browser visual coverage also asserts that the small folio color value stays on one line at 320px and 375px, while the opening-note column remains the same paper surface and is separated by the fine pink rule.
 
 ## Artifact and data boundary
 
