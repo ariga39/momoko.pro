@@ -28,7 +28,6 @@ const nav = [
   { href: getRelativeLocaleUrl(lang, "/songs-live/"), label: t.navSongsLive() },
   { href: getRelativeLocaleUrl(lang, "/anniversary/"), label: t.navAnniversary() },
   { href: getRelativeLocaleUrl(lang, "/about/"), label: t.navAbout() },
-  { href: getRelativeLocaleUrl(lang, "/source-policy/"), label: t.navSourcePolicy() },
   { href: "/search", label: t.navSearch() },
 ];
 const canonical = canonicalPath ?? getRelativeLocaleUrl(lang, "/");
@@ -115,7 +114,9 @@ const homeUrl = getRelativeLocaleUrl(lang, "/");
           <p class="footer-label">momoko.pro / editorial desk</p>
           <p class="mt-2 max-w-prose text-sm text-text-secondary">{t.footerNotice()}</p>
         </div>
-        <p class="text-sm text-text-secondary sm:text-right" lang={lang}>{t.footerDocs()}</p>
+        <p class="text-sm sm:text-right" lang={lang}>
+          <a href={getRelativeLocaleUrl(lang, "/source-policy/")}>{t.footerDocs()}</a>
+        </p>
       </div>
     </footer>
     <script is:inline>

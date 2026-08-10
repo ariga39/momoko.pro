@@ -23,45 +23,41 @@ const catalog = loadVisualCatalog();
 const news = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
 const langNames = { zh: t.langZh(), ja: t.langJa(), en: t.langEn() };
 const featured = news.slice(0, 3);
-const statItems = [
-  { label: t.visualLatest(), value: news.length },
-  { label: t.visualEncyclopedia(), value: catalog.encyclopedia.length },
-  { label: t.visualSongsLive(), value: catalog.songsLive.length },
+const profile = [
+  [t.profileAge(), t.profileAgeValue()],
+  [t.profileBirthday(), t.profileBirthdayValue()],
+  [t.profileBloodType(), t.profileBloodTypeValue()],
+  [t.profileHeight(), t.profileHeightValue()],
+  [t.profileOrigin(), t.profileOriginValue()],
+  [t.profileHobby(), t.profileHobbyValue()],
+  [t.profileVoice(), t.profileVoiceValue()],
 ];
 ---
 
 <SiteLayout lang={lang} title={`${langNames[lang]} · ${t.home()}`} canonicalPath={`/${lang}/`}>
-  <DemoNotice lang={lang} catalog={catalog} />
-  <PageIntro eyebrow={t.visualArchiveEyebrow()} title={`${langNames[lang]} — ${t.visualArchiveTitle()}`} lede={t.visualArchiveLede()} />
+  <PageIntro eyebrow={t.profileEyebrow()} title="周防桃子" lede={t.homeTagline()} />
 
-  <section class="hero-grid" aria-labelledby="home-hero-title">
-    <div class="hero-copy">
-      <p class="eyebrow">{langNames[lang]} / {t.home()}</p>
-      <h2 id="home-hero-title" class="hero-title">{t.homeTagline()}</h2>
-      <p class="max-w-prose text-lg text-text-secondary">{t.visualEmptyBody()}</p>
-      <div class="hero-actions">
-        <a class="button-primary" href={getRelativeLocaleUrl(lang, "/news/")} lang={lang}>{t.visualArchive()} <span aria-hidden="true">→</span></a>
-        <a class="button-secondary" href={getRelativeLocaleUrl(lang, "/about/")} lang={lang}>{t.visualAbout()}</a>
-      </div>
+  <section class="profile-section" aria-labelledby="momoko-profile-title">
+    <div class="profile-copy">
+      <h2 id="momoko-profile-title" class="section-title">{t.profileTitle()}</h2>
+      <p>{t.profileIntro()}</p>
+      <a
+        href="https://millionlive-anime.idolmaster-official.jp/character/momoko/"
+        rel="external noreferrer"
+      >{t.profileSource()} <span aria-hidden="true">↗</span></a>
     </div>
-    <div class="hero-stamp" aria-label={t.visualFictional()}>
-      <span class="hero-stamp-top">folio / 001</span>
-      <span class="hero-stamp-mark" aria-hidden="true">✦</span>
-      <strong>{catalog.mode === "demo" ? "DEMO" : "OPEN"}</strong>
-      <span class="hero-stamp-bottom">{catalog.mode === "demo" ? "架空 / fictional" : "review desk"}</span>
-    </div>
-  </section>
-
-  <section class="stat-strip" aria-label={t.visualResults()}>
-    {statItems.map((stat) => (
-      <div class="stat-cell">
-        <strong>{stat.value}</strong>
-        <span>{stat.label}</span>
-      </div>
-    ))}
+    <dl class="profile-facts">
+      {profile.map(([term, value]) => (
+        <div>
+          <dt>{term}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
   </section>
 
   <section class="mt-12" aria-labelledby="latest-heading">
+    <DemoNotice lang={lang} catalog={catalog} />
     <SectionHeading
       eyebrow="01 / desk notes"
       title={t.visualLatest()}
@@ -94,7 +90,7 @@ const statItems = [
   </section>
 
   <section class="mt-12" aria-labelledby="index-heading">
-    <SectionHeading eyebrow="02 / index tabs" title={t.visualEncyclopedia()} />
+    <SectionHeading eyebrow="02 / index" title={t.visualEncyclopedia()} />
     <div class="quick-links-grid" id="index-heading">
       <a class="quick-link" href={getRelativeLocaleUrl(lang, "/encyclopedia/")}>
         <span class="quick-link-index">A</span>
