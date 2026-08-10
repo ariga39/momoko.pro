@@ -95,6 +95,13 @@ describe("assertIdentityClosure — year/slug identity contract", () => {
       /canonical leaves allowed origins -> https:\/\/evil\.example/,
     );
   });
+
+  it("NEGATIVE: same-origin canonical with an unsupported locale prefix must fail closed", () => {
+    const deCanonical = "https://momoko.pro/de/news/2026/S1-synth-2026-08-08-001/";
+    expect(() => assertIdentityClosure(detailPaths("zh"), deCanonical, alternatesFor(["zh", "ja", "en"]), SITE_ORIGINS)).toThrow(
+      /canonical locale not in zh\/ja\/en/,
+    );
+  });
 });
 
 describe("assertReciprocal — reciprocal set contract", () => {
