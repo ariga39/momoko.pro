@@ -40,14 +40,29 @@ describe("versioned content package boundary", () => {
     expect(loadPublishedNews()).toHaveLength(1);
   });
 
-  it("production package stays public-safe: draft S6 content is filtered from published output", () => {
+  it("production package publishes the reviewed S6 trilingual bundle on all three public routes", () => {
     delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
     delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
-    // The checked-in production package now carries the first real content item
-    // (S6, draft). It must not leak into public loaders: loadNews filters
-    // current-reviewed only for production, so the draft is excluded.
-    expect(loadNews()).toEqual([]);
-    expect(loadPublishedNews()).toEqual([]);
+    // The checked-in production package carries the first real content item
+    // (S6). Once reviewed, it must appear in public loaders on exactly the
+    // ja/zh/en news routes; synthetic fixture items and still-draft records
+    // must stay excluded.
+    const published = loadPublishedNews();
+    expect(published).toHaveLength(1);
+    const s6 = published[0]!;
+    expect(s6.slug).toBe("2026/S6-01_18661");
+    expect(s6.canonical.sourceId).toBe("S6");
+    expect(s6.canonical.sourceItemId).toBe("01_18661");
+    expect(s6.canonical.reviewStatus).toBe("reviewed");
+    for (const lang of ["ja", "zh", "en"] as const) {
+      expect(s6.canonical.lang === lang || s6.locales[lang]?.meta.reviewStatus === "reviewed").toBe(true);
+      expect(`/${lang}/news/${s6.slug}/`).toBe(`/${lang}/news/2026/S6-01_18661/`);
+    }
+    // Public manifest/build sees no synthetic or still-draft items.
+    const allSlugs = loadPublishedNews().map((item) => item.slug);
+    expect(allSlugs).not.toContain("2026/S1-synth-2026-08-08-001");
+    expect(allSlugs).not.toContain("2026/S1-synth-2026-08-08-002");
+    expect(allSlugs).not.toContain("2026/S1-synth-2026-08-08-003");
   });
 
   it("rejects an override without explicit mode", () => {

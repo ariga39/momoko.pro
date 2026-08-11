@@ -109,14 +109,21 @@ describe("production artifact boundary", () => {
     for (const dir of [PUBLIC, DEFAULT, FIXTURE, VISUAL_FIXTURE]) fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("default production package is a truthful empty site", () => {
+  it("default production package publishes exactly the reviewed S6 trilingual bundle", () => {
     const manifest = asRecord(readJson(PUBLIC, "manifest.json"));
-    expect(asArray(manifest.entries)).toHaveLength(0);
-    expect(asArray(readJson(PUBLIC, "search.json"))).toHaveLength(0);
+    const entries = asArray(manifest.entries);
+    expect(entries).toHaveLength(1);
+    const entry = asRecord(entries[0]);
+    expect(entry.source_id).toBe("S6");
+    expect(entry.source_item_id).toBe("01_18661");
+    expect(entry.review_status).toBe("published");
+    expect(asRecord(entry.locales).ja).toBeTruthy();
+    expect(asRecord(entry.locales).zh).toBeTruthy();
+    expect(asRecord(entry.locales).en).toBeTruthy();
+    const search = asArray(readJson(PUBLIC, "search.json"));
+    expect(search).toHaveLength(3); // ja/zh/en rows for the single S6 item
     expectServerArtifact(PUBLIC);
     expectServerArtifact(DEFAULT);
-    expect(fs.existsSync(path.join(PUBLIC, "zh", "news", "2026"))).toBe(false);
-    expect(fs.existsSync(path.join(DEFAULT, "zh", "news", "2026"))).toBe(false);
   });
 
   it("production output contains no synthetic/demo markers or external scripts", () => {
@@ -182,10 +189,13 @@ describe("production artifact boundary", () => {
     expect(fixtureText).not.toContain("S1-synth-2026-08-08-003");
   });
 
-  it("keeps the explicit visual DEMO artifact separate from production empty output", () => {
+  it("keeps the explicit visual DEMO artifact separate from production first-content output", () => {
     const publicManifest = asRecord(readJson(PUBLIC, "manifest.json"));
     const visualManifest = asRecord(readJson(VISUAL_FIXTURE, "manifest.json"));
-    expect(asArray(publicManifest.entries)).toHaveLength(0);
+    // Production now carries the real reviewed S6 item; the visual DEMO fixture
+    // stays in its own artifact and never leaks into production.
+    expect(asArray(publicManifest.entries)).toHaveLength(1);
+    expect(asRecord(asArray(publicManifest.entries)[0]).source_id).toBe("S6");
     expect(asArray(visualManifest.entries)).toHaveLength(1);
     expect(asRecord(asArray(visualManifest.entries)[0]).source_id).toBe("S99");
 
@@ -200,7 +210,7 @@ describe("production artifact boundary", () => {
     expect(publicText).not.toMatch(/S1-synth-2026-08-08-00[123]/i);
   });
 
-  it("keeps security headers in the empty public artifact", () => {
+  it("keeps security headers in the public artifact", () => {
     const h = fs.readFileSync(path.join(PUBLIC, "_headers"), "utf-8");
     expect(h).toMatch(/Content-Security-Policy/);
     expect(h).toMatch(/X-Content-Type-Options: nosniff/);

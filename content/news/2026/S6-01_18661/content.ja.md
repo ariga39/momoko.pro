@@ -7,9 +7,9 @@ lang: ja
 model_version: null
 original_title: null
 published_at: '2026-05-25T21:00:00+09:00'
-review_status: draft
-reviewed_at: null
-reviewed_by: null
+review_status: reviewed
+reviewed_at: '2026-08-12T04:28:04Z'
+reviewed_by: '@tsundere'
 risk_tier: T1
 schema_version: '1'
 source_id: S6

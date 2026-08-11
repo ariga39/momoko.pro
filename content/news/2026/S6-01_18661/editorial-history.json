@@ -48,6 +48,51 @@
       "model_version": "opencode-go/deepseek-v4-flash",
       "sequence": 3,
       "event_id": "019d4812-5c0a-46e8-a3ed-05dedc76800b"
+    },
+    {
+      "operation_id": "review:S6:canonical",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": "draft",
+      "to": "reviewed",
+      "actor": "@tsundere",
+      "actor_kind": "human",
+      "at": "2026-08-12T04:28:04Z",
+      "reason": "task #43 owner+human approved first production content; authorization msg e83a303d",
+      "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "sequence": 4,
+      "event_id": "bfeb83e8-d873-4c6b-a0a4-e78b1c768dcc"
+    },
+    {
+      "operation_id": "review:S6:zh",
+      "scope": "locale",
+      "lang": "zh",
+      "from": "draft",
+      "to": "reviewed",
+      "actor": "@tsundere",
+      "actor_kind": "human",
+      "at": "2026-08-12T04:28:04Z",
+      "reason": "task #43 owner+human approved first production content; authorization msg e83a303d",
+      "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "content_hash": "sha256:d0c7de150f564715a413cc28a3f8aed4a18bf2b18559a5669cb162fd9b81bed6",
+      "sequence": 5,
+      "event_id": "61e18366-b3ac-42a8-890a-a6b940728041"
+    },
+    {
+      "operation_id": "review:S6:en",
+      "scope": "locale",
+      "lang": "en",
+      "from": "draft",
+      "to": "reviewed",
+      "actor": "@tsundere",
+      "actor_kind": "human",
+      "at": "2026-08-12T04:28:04Z",
+      "reason": "task #43 owner+human approved first production content; authorization msg e83a303d",
+      "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
+      "content_hash": "sha256:ed1b009d9fd1f16d66d1fc9cc0db3db44d4bdb994de5c2d45d8f32102a432a7b",
+      "sequence": 6,
+      "event_id": "2b6cb337-7525-43f4-82cf-54c90b3067aa"
     }
   ]
 }
