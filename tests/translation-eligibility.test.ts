@@ -141,7 +141,7 @@ describe("translation eligibility — fail-closed", () => {
     // so we can prove zero mutation.
     const syntheticTreeBefore = snapshotTreeBytes(SYNTHETIC_PKG);
 
-    const contentPath = `content/news/${item1.slug}/index.md`;
+    const contentPath = `content/news/${item1.slug}/content.${item1.canonical.lang}.md`;
     const { ownedTmp } = isolatedProbeRun({ content_path: contentPath }, (pkg) => {
       const reloaded = loadNews().find((i) => i.slug.includes("001"))!;
       expect(isRealTranslation(reloaded, "zh")).toBe(false);
@@ -170,7 +170,7 @@ describe("translation eligibility — fail-closed", () => {
     // the owned pkg path from the callback argument before throwing.
     let ownedSeen: string | undefined;
     expect(() =>
-      isolatedProbeRun({ content_path: "content/news/2026/S1-synth-2026-08-08-001/index.md" }, (pkg) => {
+      isolatedProbeRun({ content_path: "content/news/2026/S1-synth-2026-08-08-001/content.ja.md" }, (pkg) => {
         ownedSeen = path.dirname(pkg);
         expect(getContentRoot()).toContain(TEMP_PREFIX);
         throw new Error("synthetic callback failure");
@@ -198,7 +198,7 @@ describe("translation eligibility — fail-closed", () => {
     }) as typeof fs.cpSync);
     try {
       expect(() =>
-        isolatedProbeRun({ content_path: "content/news/x/index.md" }, () => {
+        isolatedProbeRun({ content_path: "content/news/x/content.ja.md" }, () => {
           throw new Error("unreachable");
         }),
       ).toThrow("synthetic copy failure");
