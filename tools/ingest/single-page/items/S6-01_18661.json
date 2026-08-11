@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "source_id": "S6",
+  "page_url": "https://idolmaster-official.jp/news/01_18661.html",
+  "source_lang": "ja",
+  "extracted": {
+    "path": "01_18661",
+    "url": "https://idolmaster-official.jp/news/01_18661.html",
+    "title": "【ミリオンライブ】『究極Cuteな9周年直前ミリシタ生配信！』お知らせまとめ",
+    "dspdate": "2026/05/25 21:00",
+    "lng": "ja",
+    "publish_status": "publish"
+  },
+  "fact_note": "公式ポータルは、ミリオンライブ！14th LIVE の詳細発表生配信を2026年6月13日19:00（予定）にYouTubeで実施すると案内した。",
+  "locale_drafts": [
+    {
+      "lang": "zh",
+      "body": "官方门户通知，将于2026年6月13日19:00（预定）在YouTube播出《ミリオンライブ！14th LIVE》详情公布直播。",
+      "reason": "AI draft translation of the frozen human fact note (task #31)"
+    },
+    {
+      "lang": "en",
+      "body": "The official portal announced that a livestream revealing the details of MILLION LIVE! 14th LIVE will be held on YouTube at 19:00 (scheduled) on June 13, 2026.",
+      "reason": "AI draft translation of the frozen human fact note (task #31)"
+    }
+  ],
+  "provenance": {
+    "fetched_at": "2026-08-10T12:53:00Z",
+    "http_status": 200,
+    "bytes": 230857,
+    "content_type": "text/html; charset=utf-8"
+  },
+  "model": {
+    "model_version": "opencode-go/deepseek-v4-flash"
+  }
+}

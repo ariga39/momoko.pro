@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": { "const": "1" },
     "id": { "type": "string", "minLength": 1 },
-    "content_path": { "type": "string", "pattern": "^content/.*/index\\.md$" },
+    "content_path": { "type": "string", "pattern": "^content/.*/content\\.(ja|zh|en)\\.md$" },
     "status": { "enum": ["requested", "active", "resolved"] },
     "reason": { "type": "string", "minLength": 1 },
     "requested_at": { "type": "string", "format": "date-time" },

@@ -9,6 +9,7 @@ risk_tier: T1
 ai_generated: false
 model_version: null
 lang: ja
+is_canonical: true
 title: "（合成夹具）夏フェス開催のお知らせ"
 source_url: "https://millionlive-theaterdays.idolmaster-official.jp/news/synth-001"
 original_title: null

@@ -26,11 +26,15 @@ export const EDITORIAL_HISTORY_VERSION = "1" as const;
 export const EDITORIAL_LOCALES = ["ja", "zh", "en"] as const;
 
 export type EditorialLocale = (typeof EDITORIAL_LOCALES)[number];
-export type TranslationLocale = Exclude<EditorialLocale, "ja">;
 export type CanonicalStatus = "draft" | "reviewed" | "stale" | "retracted";
 export type DerivedStatus = CanonicalStatus | "published";
 export type ActorKind = "human" | "ai" | "system";
 export type HistoryScope = "canonical" | "locale";
+
+/** Translation languages for a given canonical/source language (all others). */
+export function translationLangs(canonicalLang: EditorialLocale): EditorialLocale[] {
+  return EDITORIAL_LOCALES.filter((lang) => lang !== canonicalLang);
+}
 
 export type EditorialErrorCode =
   | "invalid_input"
@@ -66,7 +70,8 @@ export interface CanonicalContentRecord {
   risk_tier: "T0" | "T1" | "T2";
   ai_generated: boolean;
   model_version: string | null;
-  lang: "ja";
+  lang: EditorialLocale;
+  is_canonical: true;
   title: string;
   source_url: string;
   original_title: null;
@@ -79,7 +84,8 @@ export interface CanonicalContentRecord {
 export interface LocaleContentRecord {
   schema_version: "1";
   content_path: string;
-  lang: TranslationLocale;
+  lang: EditorialLocale;
+  is_canonical: false;
   source_content_hash: string;
   content_hash: string;
   review_status: CanonicalStatus;
@@ -125,13 +131,13 @@ export interface EditorialBundle {
   identity: string;
   content_path: string;
   canonical: CanonicalContentRecord;
-  locales: Partial<Record<TranslationLocale, LocaleContentRecord>>;
+  locales: Partial<Record<EditorialLocale, LocaleContentRecord>>;
   history: EditorialHistory;
   retraction?: RetractionRecord;
 }
 
 export interface TranslationDraftInput {
-  lang: TranslationLocale;
+  lang: EditorialLocale;
   body: string;
   actor: string;
   actor_kind: ActorKind;
@@ -203,7 +209,7 @@ export interface PublicationProjection {
     indexable: boolean;
     content_hash: string;
   };
-  locales: Record<TranslationLocale, PublicationLocale>;
+  locales: Partial<Record<EditorialLocale, PublicationLocale>>;
 }
 
 function error(
@@ -241,7 +247,7 @@ export function editorialContentHash(item: DiscoveryItem): string {
 
 export function translationContentHash(
   sourceContentHash: string,
-  lang: TranslationLocale,
+  lang: EditorialLocale,
   body: string,
 ): string {
   return prefixedHash(sha256(JSON.stringify({ lang, source_content_hash: sourceContentHash, body })));
@@ -319,10 +325,10 @@ function validateHistory(bundle: EditorialBundle): EditorialError | null {
   for (const event of bundle.history.events) {
     latest.set(`${event.scope}:${event.lang ?? ""}`, event.to);
   }
-  if (latest.get("canonical:ja") !== bundle.canonical.review_status) {
+  if (latest.get(`canonical:${bundle.canonical.lang}`) !== bundle.canonical.review_status) {
     return { code: "history_invalid", message: "canonical status is not represented by the latest history event" };
   }
-  for (const lang of ["zh", "en"] as const) {
+  for (const lang of translationLangs(bundle.canonical.lang)) {
     const locale = bundle.locales[lang];
     if (locale && latest.get(`locale:${lang}`) !== locale.review_status) {
       return { code: "history_invalid", message: `${lang} status is not represented by the latest history event` };
@@ -335,16 +341,23 @@ function ensureCurrent(bundle: EditorialBundle): EditorialError | null {
   return validateHistory(bundle);
 }
 
+/** Canonical file path for a bundle: content.<lang>.md (symmetric with locales). */
+function canonicalFileRelPath(contentPath: string, lang: string): string {
+  return `${contentPath}/content.${lang}.md`;
+}
+
 function emptyLocale(
   contentPath: string,
   sourceContentHash: string,
-  lang: TranslationLocale,
+  lang: EditorialLocale,
+  canonicalLang: EditorialLocale,
   body = "",
 ): LocaleContentRecord {
   return {
     schema_version: "1",
-    content_path: `${contentPath}/index.md`,
+    content_path: canonicalFileRelPath(contentPath, canonicalLang),
     lang,
+    is_canonical: false,
     source_content_hash: sourceContentHash,
     content_hash: translationContentHash(sourceContentHash, lang, body),
     review_status: "draft",
@@ -359,8 +372,8 @@ export function createDraftFromDiscovery(
   item: DiscoveryItem,
   options: DraftOptions = {},
 ): EditorialResult<EditorialBundle> {
-  if (item.lang !== "ja") {
-    return error("unsupported_source_locale", "canonical editorial content must be Japanese", {
+  if (item.lang !== "ja" && item.lang !== "zh" && item.lang !== "en") {
+    return error("unsupported_source_locale", "canonical editorial content must be ja/zh/en", {
       lang: item.lang,
     });
   }
@@ -388,7 +401,8 @@ export function createDraftFromDiscovery(
     risk_tier: options.risk_tier ?? "T1",
     ai_generated: false,
     model_version: null,
-    lang: "ja",
+    lang: item.lang,
+    is_canonical: true,
     title: item.title,
     source_url: item.source_url,
     original_title: null,
@@ -411,7 +425,7 @@ export function createDraftFromDiscovery(
   let next = appendEvent(bundle, {
     operation_id: `draft:${sourceHash}`,
     scope: "canonical",
-    lang: "ja",
+    lang: item.lang,
     from: null,
     to: "draft",
     actor,
@@ -421,9 +435,10 @@ export function createDraftFromDiscovery(
     source_content_hash: sourceHash,
     content_hash: sourceHash,
   });
-  for (const lang of ["zh", "en"] as const) {
+  for (const lang of EDITORIAL_LOCALES) {
+    if (lang === item.lang) continue;
     const draft = options.translation_drafts?.find((candidate) => candidate.lang === lang);
-    const locale = emptyLocale(contentPath, sourceHash, lang, draft?.body ?? "");
+    const locale = emptyLocale(contentPath, sourceHash, lang, canonical.lang, draft?.body ?? "");
     next = {
       ...next,
       locales: { ...next.locales, [lang]: locale },
@@ -466,7 +481,7 @@ export function addTranslationDraft(
   if (prior?.review_status === "reviewed" && prior.source_content_hash === bundle.canonical.content_hash) {
     return error("identity_conflict", "a current reviewed translation cannot be overwritten without a new source revision");
   }
-  const locale = emptyLocale(bundle.content_path, bundle.canonical.content_hash, input.lang, input.body);
+  const locale = emptyLocale(bundle.content_path, bundle.canonical.content_hash, input.lang, bundle.canonical.lang, input.body);
   const operationId = `translation-draft:${bundle.canonical.content_hash}:${input.lang}:${locale.content_hash}`;
   const replay = sameOperationReplay(bundle, operationId, "draft");
   if (replay) return replay;
@@ -516,13 +531,13 @@ export function issueReviewToken(
   if (input.actor_kind !== "human") {
     return error("ai_review_forbidden", "only a human actor can issue a review token");
   }
-  const lang = input.scope === "canonical" ? "ja" : input.lang;
-  if (input.scope === "locale" && (lang !== "zh" && lang !== "en")) {
-    return error("invalid_input", "locale review token requires zh or en");
+  const lang = input.scope === "canonical" ? bundle.canonical.lang : input.lang;
+  if (input.scope === "locale" && (lang === null || !translationLangs(bundle.canonical.lang).includes(lang as EditorialLocale))) {
+    return error("invalid_input", "locale review token requires a translation language for this bundle");
   }
   const contentHash = input.scope === "canonical"
     ? bundle.canonical.content_hash
-    : bundle.locales[lang as TranslationLocale]?.content_hash;
+    : bundle.locales[lang as EditorialLocale]?.content_hash;
   if (!contentHash) return error("invalid_input", "cannot issue a token for a missing locale draft");
   const tokenBase: Omit<ReviewToken, "token_hash"> = {
     token_version: "1",
@@ -565,15 +580,15 @@ function validateReviewToken(bundle: EditorialBundle, request: ReviewRequest): E
   }
   const currentHash = token.scope === "canonical"
     ? bundle.canonical.content_hash
-    : bundle.locales[token.lang as TranslationLocale]?.content_hash;
+    : bundle.locales[token.lang as EditorialLocale]?.content_hash;
   if (!currentHash || currentHash !== token.content_hash) {
     return { code: "translation_hash_drift", message: "content changed after review token was issued" };
   }
-  if (token.scope === "canonical" && token.lang !== "ja") {
-    return { code: "token_invalid", message: "canonical token must be bound to ja" };
+  if (token.scope === "canonical" && token.lang !== bundle.canonical.lang) {
+    return { code: "token_invalid", message: "canonical token must be bound to the source language" };
   }
-  if (token.scope === "locale" && (token.lang !== "zh" && token.lang !== "en")) {
-    return { code: "token_invalid", message: "locale token must be bound to zh or en" };
+  if (token.scope === "locale" && (token.lang === null || !translationLangs(bundle.canonical.lang).includes(token.lang as EditorialLocale))) {
+    return { code: "token_invalid", message: "locale token must be bound to a translation language" };
   }
   return null;
 }
@@ -610,7 +625,7 @@ export function reviewDraft(
     return ok(appendEvent(next, {
       operation_id: request.operation_id,
       scope: "canonical",
-      lang: "ja",
+      lang: bundle.canonical.lang,
       from: bundle.canonical.review_status,
       to: target,
       actor: request.actor,
@@ -621,7 +636,7 @@ export function reviewDraft(
       content_hash: bundle.canonical.content_hash,
     }));
   }
-  const lang = request.token.lang as TranslationLocale;
+  const lang = request.token.lang as EditorialLocale;
   const locale = bundle.locales[lang];
   if (!locale) return error("invalid_input", "locale draft is missing");
   if (locale.review_status === "retracted") return error("already_retracted", "retracted locale cannot be reviewed");
@@ -679,6 +694,7 @@ export function updateSourceRevision(
       ...bundle.canonical,
       published_at: item.published_at,
       content_hash: nextHash,
+      lang: item.lang,
       title: item.title,
       source_url: item.source_url,
       review_status: "draft",
@@ -690,7 +706,7 @@ export function updateSourceRevision(
   next = appendEvent(next, {
     operation_id: request.operation_id,
     scope: "canonical",
-    lang: "ja",
+    lang: item.lang,
     from: bundle.canonical.review_status,
     to: "draft",
     actor: request.actor ?? "editorial-system",
@@ -700,7 +716,7 @@ export function updateSourceRevision(
     source_content_hash: nextHash,
     content_hash: nextHash,
   });
-  for (const lang of ["zh", "en"] as const) {
+  for (const lang of translationLangs(bundle.canonical.lang)) {
     const prior = bundle.locales[lang];
     if (!prior) continue;
     const stale: LocaleContentRecord = {
@@ -742,7 +758,7 @@ export function retractEditorial(
   if (bundle.canonical.review_status === "retracted") {
     return error("already_retracted", "content is already retracted", { identity: bundle.identity });
   }
-  const nextPath = `${bundle.content_path}/index.md`;
+  const nextPath = canonicalFileRelPath(bundle.content_path, bundle.canonical.lang);
   let next: EditorialBundle = {
     ...bundle,
     canonical: {
@@ -764,7 +780,7 @@ export function retractEditorial(
   next = appendEvent(next, {
     operation_id: request.operation_id,
     scope: "canonical",
-    lang: "ja",
+    lang: bundle.canonical.lang,
     from: bundle.canonical.review_status,
     to: "retracted",
     actor: request.actor,
@@ -774,7 +790,7 @@ export function retractEditorial(
     source_content_hash: bundle.canonical.content_hash,
     content_hash: bundle.canonical.content_hash,
   });
-  for (const lang of ["zh", "en"] as const) {
+  for (const lang of translationLangs(bundle.canonical.lang)) {
     const prior = bundle.locales[lang];
     if (!prior) continue;
     next = {
@@ -801,7 +817,7 @@ export function retractEditorial(
   return ok(next);
 }
 
-function localeProjection(bundle: EditorialBundle, lang: TranslationLocale): PublicationLocale {
+function localeProjection(bundle: EditorialBundle, lang: EditorialLocale): PublicationLocale {
   const locale = bundle.locales[lang];
   if (!locale) {
     return {
@@ -842,8 +858,9 @@ export function derivePublication(bundle: EditorialBundle): PublicationProjectio
       content_hash: bundle.canonical.content_hash,
     },
     locales: {
-      zh: localeProjection(bundle, "zh"),
-      en: localeProjection(bundle, "en"),
+      ...Object.fromEntries(
+        translationLangs(bundle.canonical.lang).map((lang) => [lang, localeProjection(bundle, lang)]),
+      ),
     },
   };
 }
@@ -904,8 +921,11 @@ function assertSafeComponents(root: string, target: string): void {
 
 function stageBundleFiles(bundle: EditorialBundle, stageDir: string): void {
   fs.mkdirSync(stageDir, { recursive: true });
-  atomicFileWrite(path.join(stageDir, "index.md"), serializeMarkdown(canonicalData(bundle.canonical), bundle.canonical.body));
-  for (const lang of ["zh", "en"] as const) {
+  atomicFileWrite(
+    path.join(stageDir, `content.${bundle.canonical.lang}.md`),
+    serializeMarkdown(canonicalData(bundle.canonical), bundle.canonical.body),
+  );
+  for (const lang of translationLangs(bundle.canonical.lang)) {
     const locale = bundle.locales[lang];
     if (!locale) continue;
     atomicFileWrite(path.join(stageDir, `content.${lang}.md`), serializeMarkdown(localeData(locale), locale.body));
@@ -1015,9 +1035,23 @@ function parseCanonical(file: string): CanonicalContentRecord {
   return { ...(parsed.data as CanonicalContentRecord), body: parsed.content.trim() };
 }
 
-function parseLocale(file: string, lang: TranslationLocale): LocaleContentRecord {
+function parseLocale(file: string, lang: EditorialLocale): LocaleContentRecord {
   const parsed = matter(fs.readFileSync(file, "utf8"));
   return { ...(parsed.data as LocaleContentRecord), lang, body: parsed.content.trim() };
+}
+
+/** Locate the canonical content.<lang>.md in a bundle directory (exactly one). */
+function findCanonicalFile(dir: string): string {
+  const names = fs.readdirSync(dir);
+  const candidates = names.filter((n) => /^content\.(ja|zh|en)\.md$/.test(n));
+  const canonical = candidates.filter((n) => {
+    const parsed = matter(fs.readFileSync(path.join(dir, n), "utf8"));
+    return (parsed.data as Record<string, unknown>).is_canonical === true;
+  });
+  if (canonical.length !== 1) {
+    throw new Error(`editorial bundle must contain exactly one canonical content.<lang>.md: ${dir}`);
+  }
+  return path.join(dir, canonical[0]!);
 }
 
 export function readEditorialBundle(
@@ -1026,10 +1060,10 @@ export function readEditorialBundle(
 ): EditorialResult<EditorialBundle> {
   const dir = path.join(root, contentPath);
   try {
-    const canonical = parseCanonical(path.join(dir, "index.md"));
+    const canonical = parseCanonical(findCanonicalFile(dir));
     const history = JSON.parse(fs.readFileSync(path.join(dir, "editorial-history.json"), "utf8")) as EditorialHistory;
-    const locales: Partial<Record<TranslationLocale, LocaleContentRecord>> = {};
-    for (const lang of ["zh", "en"] as const) {
+    const locales: Partial<Record<EditorialLocale, LocaleContentRecord>> = {};
+    for (const lang of translationLangs(canonical.lang)) {
       const file = path.join(dir, `content.${lang}.md`);
       if (fs.existsSync(file)) locales[lang] = parseLocale(file, lang);
     }
@@ -1063,8 +1097,10 @@ export function materializeDiscovery(
     try { return contentRelativePath(item); } catch { return ""; }
   })();
   if (!contentPath) return error("invalid_input", "invalid discovery content path");
-  const existingFile = path.join(root, contentPath, "index.md");
-  if (!fs.existsSync(existingFile)) {
+  const dir = path.join(root, contentPath);
+  const existingBundle = fs.existsSync(dir)
+    && fs.readdirSync(dir).some((n) => /^content\.(ja|zh|en)\.md$/.test(n));
+  if (!existingBundle) {
     const draft = createDraftFromDiscovery(item, options);
     if (!draft.ok) return draft;
     const written = persistEditorialBundle(draft.value, root);

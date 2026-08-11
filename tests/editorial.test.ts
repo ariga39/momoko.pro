@@ -172,9 +172,9 @@ describe("Phase 2C editorial lifecycle", () => {
     const projection = derivePublication(bundle);
     expect(projection.status).toBe("published");
     expect(projection.indexable).toBe(true);
-    expect(projection.locales.zh.status).toBe("published");
-    expect(projection.locales.en.status).toBe("published");
-    expect(projection.locales.zh.indexable).toBe(true);
+    expect(projection.locales.zh!.status).toBe("published");
+    expect(projection.locales.en!.status).toBe("published");
+    expect(projection.locales.zh!.indexable).toBe(true);
     expect(bundle.canonical.review_status).toBe("reviewed");
     expect(bundle.history.events.filter((event) => event.to === "reviewed")).toHaveLength(3);
   });
@@ -210,7 +210,7 @@ describe("Phase 2C editorial lifecycle", () => {
     expect(changed.value.locales.zh?.review_status).toBe("stale");
     expect(changed.value.locales.en?.review_status).toBe("stale");
     expect(derivePublication(changed.value).indexable).toBe(false);
-    expect(derivePublication(changed.value).locales.zh.indexable).toBe(false);
+    expect(derivePublication(changed.value).locales.zh!.indexable).toBe(false);
     const root = tempRoot();
     expect(persistEditorialBundle(draft.value, root).ok).toBe(true);
     expect(persistEditorialBundle(changed.value, root).ok).toBe(true);
@@ -279,8 +279,8 @@ describe("Phase 2C editorial lifecycle", () => {
     const projection = derivePublication(retracted.value);
     expect(projection.status).toBe("retracted");
     expect(projection.indexable).toBe(false);
-    expect(projection.locales.zh.status).toBe("retracted");
-    expect(projection.locales.en.status).toBe("retracted");
+    expect(projection.locales.zh!.status).toBe("retracted");
+    expect(projection.locales.en!.status).toBe("retracted");
     expect(retracted.value.history.events.filter((event) => event.to === "retracted")).toHaveLength(3);
     const root = tempRoot();
     const written = persistEditorialBundle(retracted.value, root);

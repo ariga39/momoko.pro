@@ -9,6 +9,7 @@ risk_tier: T1
 ai_generated: false
 model_version: null
 lang: ja
+is_canonical: true
 title: "（合成夹具）撤回测试项"
 source_url: "https://example.com/synthetic/phase2c-003"
 original_title: null

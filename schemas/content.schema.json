@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema_version", "kind", "source_id", "source_item_id", "published_at",
-    "content_hash", "risk_tier", "lang", "title", "source_url", "body",
+    "content_hash", "risk_tier", "lang", "is_canonical", "title", "source_url", "body",
     "review_status"
   ],
   "properties": {
@@ -20,6 +20,7 @@
     "ai_generated": { "type": "boolean" },
     "model_version": { "type": ["string", "null"] },
     "lang": { "enum": ["ja", "zh", "en"] },
+    "is_canonical": { "const": true },
     "title": { "type": "string", "minLength": 1 },
     "source_url": { "type": "string", "format": "uri" },
     "original_title": { "type": ["string", "null"] },

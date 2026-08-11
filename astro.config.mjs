@@ -61,7 +61,10 @@ function selectedContentPackage() {
     if (topLevel === "retractions" && !relativePath.endsWith(".json")) {
       throw new Error("unsupported retraction entry");
     }
-    if (topLevel === "news" && !/\/index\.md$|\/content\.(ja|zh|en)\.md$|\/editorial-history\.json$/.test(relativePath)) {
+    if (topLevel === "news" && !/\/content\.(ja|zh|en)\.md$|\/editorial-history\.json$/.test(relativePath)) {
+      if (relativePath.endsWith("/index.md")) {
+        throw new Error(`legacy index.md is not allowed (use content.<lang>.md): ${relativePath}`);
+      }
       throw new Error("unsupported news entry");
     }
   }
@@ -87,11 +90,17 @@ function selectedContentPackage() {
   }
   const reviewedDirectories = new Set();
   for (const [relativePath, text] of Object.entries(allFiles)) {
-    if (!relativePath.startsWith("news/") || !relativePath.endsWith("/index.md")) continue;
+    if (!relativePath.startsWith("news/")) continue;
+    if (relativePath.endsWith("/index.md")) {
+      throw new Error(`legacy index.md is not allowed (use content.<lang>.md): ${relativePath}`);
+    }
+    const base = relativePath.slice(relativePath.lastIndexOf("/") + 1);
+    if (!/^content\.(ja|zh|en)\.md$/.test(base)) continue;
     const frontmatter = text.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)?.[1] ?? "";
     const reviewStatus = frontmatter.match(/^review_status:\s*([^\n#]+)/m)?.[1]?.trim().replace(/^['"]|['"]$/g, "");
+    const isCanonical = frontmatter.match(/^is_canonical:\s*([^\n#]+)/m)?.[1]?.trim().replace(/^['"]|['"]$/g, "");
     const contentPath = `content/${relativePath}`;
-    if (reviewStatus === "reviewed" && !activeRetractions.has(contentPath)) {
+    if (reviewStatus === "reviewed" && isCanonical === "true" && !activeRetractions.has(contentPath)) {
       reviewedDirectories.add(path.posix.dirname(relativePath));
     }
   }

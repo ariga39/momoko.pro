@@ -1,0 +1,29 @@
+{
+  "schema_version": "1",
+  "profiles": [
+    {
+      "schema_version": "1",
+      "source_id": "S6",
+      "canonical_url": "https://idolmaster-official.jp/news/01_18661.html",
+      "origin": "https://idolmaster-official.jp",
+      "automated_fetch": false,
+      "limits": {
+        "max_bytes": 1048576,
+        "deadline_ms": 30000,
+        "max_redirects": 3,
+        "allowed_content_types": ["text/html", "application/xhtml+xml"]
+      },
+      "selector": {
+        "root_path": ["props", "pageProps", "data"],
+        "fields": {
+          "path": { "type": "string", "map_to": "source_item_id", "const": "01_18661" },
+          "url": { "type": "string", "map_to": "source_url", "const": "https://idolmaster-official.jp/news/01_18661.html" },
+          "title": { "type": "string", "map_to": "title", "min_length": 1 },
+          "dspdate": { "type": "string", "map_to": "published_at", "value_format": "dspdate_iso_jst" },
+          "lng": { "type": "string", "map_to": "lang", "const": "ja" },
+          "publish_status": { "type": "string", "const": "publish" }
+        }
+      }
+    }
+  ]
+}
