@@ -408,8 +408,14 @@ function normalizeContentMeta(d: Record<string, unknown>): ContentMeta {
  * Any legacy index.md, unknown content.xx.md, 0/2 canonical, cross-bundle
  * reference, or path escape fails closed.
  */
-function loadBundleItem(contentRoot: string, dir: string, readFile: (rel: string) => string): NewsItem {
-  const names = listBundleFileNames(dir);
+function loadBundleItem(
+  contentRoot: string,
+  dir: string,
+  readFile: (rel: string) => string,
+  listNames: (dir: string) => string[],
+  bundleRel: string,
+): NewsItem {
+  const names = listNames(dir);
   const legacy = names.find((n) => n === "index.md");
   if (legacy) {
     throw new ContentPackageError(
@@ -434,8 +440,6 @@ function loadBundleItem(contentRoot: string, dir: string, readFile: (rel: string
     );
   }
 
-  const bundleRel = path.relative(contentRoot, dir).split(path.sep).join("/");
-  // content_path in frontmatter is repo-canonical: content/<bundleRel>/content.<lang>.md
   const canonicalRepoPrefix = `content/${bundleRel}`;
   let canonical: { meta: ContentMeta; body: string } | null = null;
   const locales: Partial<Record<LocaleLang, LocaleFile>> = {};
@@ -513,9 +517,14 @@ function loadBundleItem(contentRoot: string, dir: string, readFile: (rel: string
     }
   }
 
-  const rel = path.relative(path.join(contentRoot, "news"), dir);
+  // Slug is the bundle path relative to the news root (e.g. 2026/S1-...).
+  // bundleRel is already content-relative (news/2026/...); strip the prefix.
+  const newsPrefix = "news/";
+  const slug = bundleRel.startsWith(newsPrefix)
+    ? bundleRel.slice(newsPrefix.length)
+    : bundleRel;
   return {
-    slug: rel,
+    slug,
     canonical: canonical.meta,
     canonicalBody: canonical.body,
     locales,
@@ -535,13 +544,29 @@ function listBundleFileNames(dir: string): string[] {
 
 function loadNewsItem(contentRoot: string, dir: string): NewsItem {
   const readFile = (rel: string) => fs.readFileSync(path.join(contentRoot, rel), "utf8");
-  return loadBundleItem(contentRoot, dir, readFile);
+  const bundleRel = path.relative(contentRoot, dir).split(path.sep).join("/");
+  return loadBundleItem(contentRoot, dir, readFile, listBundleFileNames, bundleRel);
 }
 
 function loadEmbeddedNewsItem(dir: string): NewsItem {
   const contentRoot = "content";
   const readFile = (rel: string) => embeddedFile(rel.replaceAll("\\", "/"));
-  return loadBundleItem(contentRoot, dir, readFile);
+  // dir is already content-relative (e.g. news/2026/...).
+  const bundleRel = dir.replace(/\\/g, "/");
+  // List names from the embedded package files map, never the filesystem.
+  const listNames = (bundleDir: string): string[] => {
+    const prefix = `${bundleDir.replace(/\\/g, "/")}/`;
+    const names = new Set<string>();
+    for (const file of Object.keys(embeddedPackage.files)) {
+      const normalized = file.replace(/\\/g, "/");
+      if (!normalized.startsWith(prefix)) continue;
+      const rest = normalized.slice(prefix.length);
+      if (rest.includes("/")) continue;
+      names.add(rest);
+    }
+    return [...names];
+  };
+  return loadBundleItem(contentRoot, dir, readFile, listNames, bundleRel);
 }
 
 /** Scan content/news/** and load every canonical item. */
