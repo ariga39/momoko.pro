@@ -58,6 +58,7 @@
 | S3 | 品牌官方 X | https://x.com/imasml_765PRO | `not_applicable` + `not_evaluated`（不 embed/API） | 同 S2 |
 | S4 | Live 情报 | https://idolmaster-official.jp/live_event | **unavailable + allow**, `checked_path=/`, 2026-08-08 | portal 域内无公开条款页 → 仅人工录入 |
 | S5 | 声優渡部恵子动态 | https://mdawn.co.jp/keiko_watanabe.html | **rules_available + allow**, `checked_path=/`, 2026-08-08 | 仅 privacy 页、无 terms → 仅人工录入 |
+| S6 | アイドルマスター公式ポータル NEWS（单页） | https://idolmaster-official.jp/news/01_18661.html | **unavailable + allow**, `checked_path=/`, 2026-08-10（同 S4 域实测） | portal 域内无公开条款页 → 仅一次人工定向单页结构化字段 + 唯一人工事实笔记 |
 
 ### 3.1 Robots result 与授权的区别
 
@@ -77,4 +78,4 @@ AI agent 的一次人工指令单页读取、无人值守的批量/递归 crawle
 - ① **X embed**：已记录官方并存事实摘录（URL + 检索日期），不裁定法律冲突；产品决策=人工 permalink 卡片（不复制内容）。已清零。
 - ② **ミリシタ官方站 robots/terms**：robots.txt 404（`unavailable + allow`，只绑定 `/`，不是全站许可）、无域内公开条款页，且项目 `automated_fetch=false` → 仅人工发现/录入。已清零。
 - ③ **Live / 声优来源**：Live 走 portal（robots 404 → `unavailable + allow`，只绑定 `/`）→ 仅人工录入；声优走 mdawn 官方资料页（robots 200 → `rules_available + allow`，只绑定 `/`，但无公开利用条款）→ 仅人工录入；官方 X 走人工 permalink 卡片。已清零。
-- **总则**：当前 S1–S5 全 false，cron 静默；未来 crawler 必须同时具备 `automated_fetch=true`、非空 `fetch_paths` 与每个请求路径的 robots decision。**缺失结果/路径证据绝不当作允许**。人类明确指令的单页读取、无人值守 crawler、reuse/republication 分别由 pure access seam 判定；X API 为付费，MVP 不使用。
+- **总则**：当前 S1–S6 全 false，cron 静默；未来 crawler 必须同时具备 `automated_fetch=true`、非空 `fetch_paths` 与每个请求路径的 robots decision。**缺失结果/路径证据绝不当作允许**。人类明确指令的单页读取、无人值守 crawler、reuse/republication 分别由 pure access seam 判定；X API 为付费，MVP 不使用。S6 为 task #31 人工定向单页样本：唯一 live GET、流式 1 MiB/端到端 30s、严格 origin/content-type/单一路径类型校验，正文 untrusted，只保留 allowlisted 字段与唯一人工事实笔记。
