@@ -40,13 +40,14 @@ describe("versioned content package boundary", () => {
     expect(loadPublishedNews()).toHaveLength(1);
   });
 
-  it("production package publishes the reviewed S6 trilingual bundle on all three public routes", () => {
+  it("production package publishes the reviewed S6 trilingual bundle via the public loader seam", () => {
     delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
     delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
     // The checked-in production package carries the first real content item
-    // (S6). Once reviewed, it must appear in public loaders on exactly the
-    // ja/zh/en news routes; synthetic fixture items and still-draft records
-    // must stay excluded.
+    // (S6). Once reviewed, the public loader must return exactly that single
+    // item with ja/zh/en all reviewed; synthetic fixture items and still-draft
+    // records must stay excluded. Real trilingual routes are verified by the
+    // post-deploy HTTP seam, not synthesized here.
     const published = loadPublishedNews();
     expect(published).toHaveLength(1);
     const s6 = published[0]!;
@@ -54,12 +55,11 @@ describe("versioned content package boundary", () => {
     expect(s6.canonical.sourceId).toBe("S6");
     expect(s6.canonical.sourceItemId).toBe("01_18661");
     expect(s6.canonical.reviewStatus).toBe("reviewed");
-    for (const lang of ["ja", "zh", "en"] as const) {
-      expect(s6.canonical.lang === lang || s6.locales[lang]?.meta.reviewStatus === "reviewed").toBe(true);
-      expect(`/${lang}/news/${s6.slug}/`).toBe(`/${lang}/news/2026/S6-01_18661/`);
-    }
+    expect(s6.canonical.lang).toBe("ja");
+    expect(s6.locales.zh?.meta.reviewStatus).toBe("reviewed");
+    expect(s6.locales.en?.meta.reviewStatus).toBe("reviewed");
     // Public manifest/build sees no synthetic or still-draft items.
-    const allSlugs = loadPublishedNews().map((item) => item.slug);
+    const allSlugs = published.map((item) => item.slug);
     expect(allSlugs).not.toContain("2026/S1-synth-2026-08-08-001");
     expect(allSlugs).not.toContain("2026/S1-synth-2026-08-08-002");
     expect(allSlugs).not.toContain("2026/S1-synth-2026-08-08-003");

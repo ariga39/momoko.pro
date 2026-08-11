@@ -8,7 +8,7 @@ model_version: null
 original_title: null
 published_at: '2026-05-25T21:00:00+09:00'
 review_status: reviewed
-reviewed_at: '2026-08-12T04:28:04Z'
+reviewed_at: '2026-08-11T20:28:04Z'
 reviewed_by: '@tsundere'
 risk_tier: T1
 schema_version: '1'

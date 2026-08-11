@@ -57,12 +57,12 @@
       "to": "reviewed",
       "actor": "@tsundere",
       "actor_kind": "human",
-      "at": "2026-08-12T04:28:04Z",
+      "at": "2026-08-11T20:28:04Z",
       "reason": "task #43 owner+human approved first production content; authorization msg e83a303d",
       "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
       "content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
       "sequence": 4,
-      "event_id": "bfeb83e8-d873-4c6b-a0a4-e78b1c768dcc"
+      "event_id": "c63a4419-dfb3-40ea-89b8-f03f31608539"
     },
     {
       "operation_id": "review:S6:zh",
@@ -72,12 +72,12 @@
       "to": "reviewed",
       "actor": "@tsundere",
       "actor_kind": "human",
-      "at": "2026-08-12T04:28:04Z",
+      "at": "2026-08-11T20:28:04Z",
       "reason": "task #43 owner+human approved first production content; authorization msg e83a303d",
       "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
       "content_hash": "sha256:d0c7de150f564715a413cc28a3f8aed4a18bf2b18559a5669cb162fd9b81bed6",
       "sequence": 5,
-      "event_id": "61e18366-b3ac-42a8-890a-a6b940728041"
+      "event_id": "5490dc80-6121-477f-bbcb-9b6268c9458c"
     },
     {
       "operation_id": "review:S6:en",
@@ -87,12 +87,12 @@
       "to": "reviewed",
       "actor": "@tsundere",
       "actor_kind": "human",
-      "at": "2026-08-12T04:28:04Z",
+      "at": "2026-08-11T20:28:04Z",
       "reason": "task #43 owner+human approved first production content; authorization msg e83a303d",
       "source_content_hash": "sha256:444974f6a3f869ab813992961ba39b7d2f71ec2692ffff6c3c0af2a914096741",
       "content_hash": "sha256:ed1b009d9fd1f16d66d1fc9cc0db3db44d4bdb994de5c2d45d8f32102a432a7b",
       "sequence": 6,
-      "event_id": "2b6cb337-7525-43f4-82cf-54c90b3067aa"
+      "event_id": "7fe4e15a-1096-4017-83c3-56bb5d2633b3"
     }
   ]
 }
