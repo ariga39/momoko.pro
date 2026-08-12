@@ -4,7 +4,7 @@ kind: wiki
 source_id: S7
 source_item_id: retracted-profile
 retrieved_at: '2026-08-12'
-content_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444
+content_hash: sha256:eb0f7d405aec48539cd247a4fe3d69966f4e49090d54bf2a58a55e6d7f16fcb2
 risk_tier: T1
 lang: ja
 is_canonical: true

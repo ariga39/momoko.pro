@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import matter from "gray-matter";
 
 import { ContentPackageError, getActiveRetractionPaths, getContentRoot, readEmbeddedPackageFile } from "./content.ts";
@@ -65,6 +66,78 @@ export interface ProfileItem {
 
 const CONTENT_FILE_RE = /^content\.(ja|zh|en)\.md$/;
 const ENCYCLOPEDIA_DIR = "encyclopedia";
+
+/**
+ * Deterministic semantic content_hash for a canonical encyclopedia profile.
+ * The frozen normalized payload is an ordered UTF-8 JSON array of the exact
+ * frontmatter values + trimmed body, in the locked field order below.
+ * Returns "sha256:<64 hex>".
+ */
+export function profileCanonicalContentHash(d: Record<string, unknown>, body: string): string {
+  const payload = JSON.stringify([
+    d.source_id,
+    d.source_item_id,
+    d.lang,
+    d.source_url,
+    d.retrieved_at,
+    d.title,
+    d.tagline,
+    d.name_ja,
+    d.name_roman,
+    d.cv,
+    d.affiliation,
+    d.type,
+    d.age,
+    d.birthday,
+    d.blood_type,
+    d.constellation,
+    d.handedness,
+    d.height,
+    d.weight,
+    d.three_sizes,
+    d.birthplace,
+    d.hobby,
+    d.specialty,
+    d.likes,
+    body,
+  ]);
+  return `sha256:${createHash("sha256").update(payload, "utf8").digest("hex")}`;
+}
+
+/**
+ * Deterministic semantic content_hash for a locale encyclopedia profile.
+ * The frozen normalized payload is the ordered UTF-8 JSON array binding the
+ * locale's source_content_hash (== canonical content_hash) to its own values
+ * and trimmed body, in the locked field order below.
+ * Returns "sha256:<64 hex>".
+ */
+export function profileLocaleContentHash(d: Record<string, unknown>, body: string): string {
+  const payload = JSON.stringify([
+    d.lang,
+    d.source_content_hash,
+    d.title,
+    d.tagline,
+    d.name,
+    d.name_roman,
+    d.cv,
+    d.affiliation,
+    d.type,
+    d.age,
+    d.birthday,
+    d.blood_type,
+    d.constellation,
+    d.handedness,
+    d.height,
+    d.weight,
+    d.three_sizes,
+    d.birthplace,
+    d.hobby,
+    d.specialty,
+    d.likes,
+    body,
+  ]);
+  return `sha256:${createHash("sha256").update(payload, "utf8").digest("hex")}`;
+}
 
 function normalizeFacts(d: Record<string, unknown>): ProfileFacts {
   return {
@@ -150,6 +223,13 @@ function loadBundleItem(
           `${rel} failed encyclopedia profile schema validation: ${checked.errors ?? "invalid"}`,
         );
       }
+      const expectedHash = profileCanonicalContentHash(d, content.trim());
+      if (String(d.content_hash ?? "") !== expectedHash) {
+        throw new ContentPackageError(
+          "content_package_canonical_hash_mismatch",
+          `${rel} content_hash ${String(d.content_hash ?? "")} does not match its normalized semantic payload (expected ${expectedHash})`,
+        );
+      }
       canonical = {
         title: String(d.title ?? ""),
         facts: normalizeFacts(d),
@@ -165,6 +245,13 @@ function loadBundleItem(
         throw new ContentPackageError(
           "content_package_locale_invalid",
           `${rel} failed encyclopedia profile locale schema validation: ${checked.errors ?? "invalid"}`,
+        );
+      }
+      const expectedHash = profileLocaleContentHash(d, content.trim());
+      if (String(d.content_hash ?? "") !== expectedHash) {
+        throw new ContentPackageError(
+          "content_package_locale_hash_mismatch",
+          `${rel} content_hash ${String(d.content_hash ?? "")} does not match its normalized semantic payload (expected ${expectedHash})`,
         );
       }
       locales[lang as "zh" | "en"] = {
