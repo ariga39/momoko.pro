@@ -35,7 +35,7 @@ describe("production encyclopedia loader eligibility", () => {
     expect(momoko.canonical.facts.birthday).toBe("11月6日");
     expect(momoko.canonical.facts.height).toBe("140cm");
     expect(momoko.canonical.facts.cv).toBe("渡部恵子");
-    expect(momoko.canonical.facts.nameJa).toBe("周防桃子");
+    expect(momoko.canonical.facts.name).toBe("周防桃子");
     // Draft profile must not appear in the public surface.
     expect(published.map((p) => p.slug)).not.toContain("draft-profile");
   });

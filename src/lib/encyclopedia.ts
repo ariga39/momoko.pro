@@ -5,9 +5,9 @@ import matter from "gray-matter";
 import { ContentPackageError, getContentRoot } from "./content.ts";
 import { validateFile } from "../../tools/schema/validate.ts";
 
-/** Facts locked by the frozen task #50 inventory (schema-required, additionalProperties=false). */
+/** Facts locked by the frozen task #50 inventory (18 semantic fields). */
 export interface ProfileFacts {
-  nameJa: string;
+  name: string;
   nameRoman: string;
   cv: string;
   affiliation: string;
@@ -33,10 +33,33 @@ export interface ProfileCanonical {
   body: string;
   sourceUrl: string;
   reviewStatus: "draft" | "reviewed" | "stale" | "retracted";
+  contentHash: string;
   lang: "ja";
-}export interface ProfileItem {
+}
+
+export interface ProfileLocale {
+  lang: "zh" | "en";
+  title: string;
+  facts: ProfileFacts;
+  body: string;
+  reviewStatus: "draft" | "reviewed" | "stale" | "retracted";
+  contentPath: string;
+  sourceContentHash: string;
+  contentHash: string;
+}
+
+export interface ProfileResolvedLocale {
+  lang: "ja" | "zh" | "en";
+  title: string;
+  facts: ProfileFacts;
+  body: string;
+  translated: boolean;
+}
+
+export interface ProfileItem {
   slug: string;
   canonical: ProfileCanonical;
+  locales: Partial<Record<"zh" | "en", ProfileLocale>>;
 }
 
 const CONTENT_FILE_RE = /^content\.(ja|zh|en)\.md$/;
@@ -44,7 +67,7 @@ const ENCYCLOPEDIA_DIR = "encyclopedia";
 
 function normalizeFacts(d: Record<string, unknown>): ProfileFacts {
   return {
-    nameJa: String(d.name_ja ?? ""),
+    name: String(d.name ?? d.name_ja ?? ""),
     nameRoman: String(d.name_roman ?? ""),
     cv: String(d.cv ?? ""),
     affiliation: String(d.affiliation ?? ""),
@@ -98,6 +121,8 @@ function loadBundleItem(
   }
 
   let canonical: ProfileCanonical | null = null;
+  const locales: Partial<Record<"zh" | "en", ProfileLocale>> = {};
+
   for (const name of contentFiles) {
     const lang = name.match(/^content\.(ja|zh|en)\.md$/)![1] as "ja" | "zh" | "en";
     const rel = path.posix.join(bundleRel, name);
@@ -130,9 +155,28 @@ function loadBundleItem(
         body: content.trim(),
         sourceUrl: String(d.source_url ?? ""),
         reviewStatus: d.review_status as ProfileCanonical["reviewStatus"],
+        contentHash: String(d.content_hash ?? ""),
         lang: lang as "ja",
       };
-    } else if (d.is_canonical !== false) {
+    } else if (d.is_canonical === false) {
+      const checked = validateFile("encyclopedia-profile-locale.schema.json", record);
+      if (!checked.valid) {
+        throw new ContentPackageError(
+          "content_package_locale_invalid",
+          `${rel} failed encyclopedia profile locale schema validation: ${checked.errors ?? "invalid"}`,
+        );
+      }
+      locales[lang as "zh" | "en"] = {
+        lang: lang as "zh" | "en",
+        title: String(d.title ?? ""),
+        facts: normalizeFacts(d),
+        body: content.trim(),
+        reviewStatus: d.review_status as ProfileLocale["reviewStatus"],
+        contentPath: String(d.content_path ?? ""),
+        sourceContentHash: String(d.source_content_hash ?? ""),
+        contentHash: String(d.content_hash ?? ""),
+      };
+    } else {
       throw new ContentPackageError(
         "content_package_canonical_invalid",
         `${rel} is_canonical must be true or false`,
@@ -147,11 +191,24 @@ function loadBundleItem(
     );
   }
 
+  // Exact cross-bundle content_path binding: every locale content_path must
+  // exactly point to this bundle's canonical file.
+  const canonicalRel = `content/${bundleRel}/content.${canonical.lang}.md`;
+  for (const lang of Object.keys(locales) as ("zh" | "en")[]) {
+    const loc = locales[lang]!;
+    if (loc.contentPath !== canonicalRel) {
+      throw new ContentPackageError(
+        "content_package_locale_path_mismatch",
+        `${lang} content_path must exactly point to the bundle canonical (${canonicalRel}), got ${loc.contentPath}`,
+      );
+    }
+  }
+
   const prefix = `${ENCYCLOPEDIA_DIR}/`;
   const slug = bundleRel.startsWith(prefix)
     ? bundleRel.slice(prefix.length)
     : bundleRel;
-  return { slug, canonical };
+  return { slug, canonical, locales };
 }
 
 function listBundleFileNames(dir: string): string[] {
@@ -212,4 +269,48 @@ export function loadProfiles(): ProfileItem[] {
 /** Profiles eligible for the public encyclopedia surface (reviewed only). */
 export function loadPublishedProfiles(): ProfileItem[] {
   return loadProfiles().filter((p) => p.canonical.reviewStatus === "reviewed");
+}
+
+/**
+ * Resolve the effective locale for a profile at a requested lang.
+ * Returns a real translation only when the canonical is reviewed, the locale is
+ * reviewed, the body is nonempty, and the locale source_content_hash exactly
+ * equals the canonical content_hash. Otherwise returns the canonical fallback
+ * with translated:false (never null).
+ */
+export function resolveProfileLocale(item: ProfileItem, lang: "ja" | "zh" | "en"): ProfileResolvedLocale {
+  const canonicalOk =
+    item.canonical.reviewStatus === "reviewed" && item.canonical.body.length > 0;
+  if (lang === "ja") {
+    return {
+      lang: "ja",
+      title: item.canonical.title,
+      facts: item.canonical.facts,
+      body: item.canonical.body,
+      translated: canonicalOk,
+    };
+  }
+  const loc = item.locales[lang as "zh" | "en"];
+  const real =
+    canonicalOk &&
+    loc !== undefined &&
+    loc.reviewStatus === "reviewed" &&
+    loc.body.length > 0 &&
+    loc.sourceContentHash === item.canonical.contentHash;
+  if (real) {
+    return {
+      lang: loc!.lang,
+      title: loc!.title,
+      facts: loc!.facts,
+      body: loc!.body,
+      translated: true,
+    };
+  }
+  return {
+    lang: item.canonical.lang,
+    title: item.canonical.title,
+    facts: item.canonical.facts,
+    body: item.canonical.body,
+    translated: false,
+  };
 }

@@ -10,6 +10,7 @@ import contentPackageSchema from "../../schemas/content-package.schema.json" wit
 import contentSchema from "../../schemas/content.schema.json" with { type: "json" };
 import discoveryRecordSchema from "../../schemas/discovery-record.schema.json" with { type: "json" };
 import encyclopediaProfileSchema from "../../schemas/encyclopedia-profile.schema.json" with { type: "json" };
+import encyclopediaProfileLocaleSchema from "../../schemas/encyclopedia-profile-locale.schema.json" with { type: "json" };
 import localeSchema from "../../schemas/locale.schema.json" with { type: "json" };
 import manifestSchema from "../../schemas/manifest.schema.json" with { type: "json" };
 import retractionSchema from "../../schemas/retraction.schema.json" with { type: "json" };
@@ -37,6 +38,7 @@ const schemaDocs = new Map<string, Record<string, unknown>>([
   ["content.schema.json", contentSchema as Record<string, unknown>],
   ["discovery-record.schema.json", discoveryRecordSchema as Record<string, unknown>],
   ["encyclopedia-profile.schema.json", encyclopediaProfileSchema as Record<string, unknown>],
+  ["encyclopedia-profile-locale.schema.json", encyclopediaProfileLocaleSchema as Record<string, unknown>],
   ["locale.schema.json", localeSchema as Record<string, unknown>],
   ["manifest.schema.json", manifestSchema as Record<string, unknown>],
   ["retraction.schema.json", retractionSchema as Record<string, unknown>],
