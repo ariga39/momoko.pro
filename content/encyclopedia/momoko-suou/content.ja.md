@@ -10,9 +10,9 @@ lang: ja
 is_canonical: true
 title: 周防桃子
 source_url: https://millionlive-theaterdays.idolmaster-official.jp/idol/momoko/
-review_status: draft
-reviewed_by: null
-reviewed_at: null
+review_status: reviewed
+reviewed_by: '@tsundere'
+reviewed_at: '2026-08-12T19:31:07Z'
 name_ja: 周防桃子
 name_roman: MOMOKO SUOU
 cv: 渡部恵子
