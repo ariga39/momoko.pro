@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectContentFiles,
   REPO_ROOT,
+  schemaForContentFile,
   validateContentFile,
   validateFile,
   validateSources,
@@ -158,6 +159,57 @@ describe("schemas/source.schema.json — cron seam 机器契约", () => {
       robots_result: "rules_available",
       robots_path_decision: "allow",
     });
+  });
+});
+
+describe("schemaForContentFile — encyclopedia vs news routing", () => {
+  const canonicalDoc = (over: Record<string, unknown> = {}) => ({
+    path: "content/encyclopedia/momoko-suou/content.ja.md",
+    data: {
+      schema_version: "1",
+      kind: "wiki",
+      is_canonical: true,
+      source_id: "S7",
+      source_item_id: "momoko-suou",
+      title: "周防桃子",
+      ...over,
+    },
+  });
+  const localeDoc = (over: Record<string, unknown> = {}) => ({
+    path: "content/encyclopedia/momoko-suou/content.zh.md",
+    data: {
+      schema_version: "1",
+      kind: "wiki",
+      is_canonical: false,
+      content_path: "content/encyclopedia/momoko-suou/content.ja.md",
+      source_id: "S7",
+      title: "周防桃子",
+      ...over,
+    },
+  });
+  const newsDoc = (over: Record<string, unknown> = {}) => ({
+    path: "content/news/2026/S6-01_18661/content.ja.md",
+    data: {
+      schema_version: "1",
+      kind: "news",
+      is_canonical: true,
+      source_id: "S6",
+      source_item_id: "01_18661",
+      title: "t",
+      ...over,
+    },
+  });
+
+  it("routes encyclopedia canonical and locale files to their dedicated schemas", () => {
+    expect(schemaForContentFile(canonicalDoc())).toBe("encyclopedia-profile.schema.json");
+    expect(schemaForContentFile(localeDoc())).toBe("encyclopedia-profile-locale.schema.json");
+  });
+
+  it("keeps generic news routing on the content/locale schemas", () => {
+    expect(schemaForContentFile(newsDoc())).toBe("content.schema.json");
+    expect(schemaForContentFile(newsDoc({ is_canonical: false }))).toBe("locale.schema.json");
+    // encyclopedia files must not fall back onto the generic news schema
+    expect(schemaForContentFile(canonicalDoc())).not.toBe("content.schema.json");
   });
 });
 
