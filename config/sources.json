@@ -146,6 +146,35 @@
         "allowed": false,
         "evidence": "仅 privacy 页；无 terms 页（/terms.html → 404）。隐私页不授予内容抓取"
       }
+    },
+    {
+      "source_id": "S7",
+      "name_zh": "Idolmaster 官方角色页（周防桃子）",
+      "canonical_url": "https://millionlive-theaterdays.idolmaster-official.jp/idol/momoko/",
+      "robots_txt_url": "https://millionlive-theaterdays.idolmaster-official.jp/robots.txt",
+      "robots_http": "404",
+      "robots_result": "unavailable",
+      "robots_path_decision": "allow",
+      "checked_path": "/",
+      "retrieved_at": "2026-08-08",
+      "evidence": "同域 S1 冻结证据（2026-08-08 实测 HTTP 404）：https://millionlive-theaterdays.idolmaster-official.jp/robots.txt 不存在；RFC 9309 unavailable result + path allow；非站主/项目授权",
+      "robots_note": "S1 同域 2026-08-08 冻结证据：robots.txt HTTP 404（unavailable + path allow）；域内无公开条款页，游戏条款仅在应用内",
+      "terms_url": null,
+      "terms_note": "同域 S1 冻结证据：域内无公开条款页（/terms/、/terms.html、/privacy/、/agreement/、/legal/、/sitemap.xml 均 404）；BNE 官网利用規約与ゲーム実況ポリシー不授予本域抓取",
+      "access_control": "public",
+      "terms_status": "not_evaluated",
+      "automated_fetch": false,
+      "fetch_frequency": "manual",
+      "cache_boundary": "仅存人工录入的结构化字段（facts/tagline），不存抓取原文快照",
+      "stop_condition": "官方要求下架 / robots·terms 变更 / 域名失效",
+      "robots_approved": {
+        "allowed": false,
+        "evidence": "S1 同域 2026-08-08 冻结证据：robots.txt HTTP 404；RFC 9309 unavailable；域内无公开条款页，游戏条款仅在应用内"
+      },
+      "terms_approved": {
+        "allowed": false,
+        "evidence": "S1 同域 2026-08-08 冻结证据：域内无公开条款页；BNE 官网利用規約与ゲーム実況ポリシー不授予本域抓取"
+      }
     }
   ]
 }

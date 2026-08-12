@@ -1,0 +1,51 @@
+{
+  "history_version": "1",
+  "identity": "S7|momoko-suou",
+  "events": [
+    {
+      "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": null,
+      "to": "draft",
+      "actor": "anna-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-08-12T18:47:42Z",
+      "reason": "official Theater Days character page; frozen task #50 inventory; human-directed structured entry (no fetch)",
+      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "sequence": 1,
+      "event_id": "bdbec652-9683-42d6-b76e-2f5aae5c4b53"
+    },
+    {
+      "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38:zh",
+      "scope": "locale",
+      "lang": "zh",
+      "from": null,
+      "to": "draft",
+      "actor": "anna-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-08-12T18:47:42Z",
+      "reason": "AI draft localization of the frozen canonical facts/tagline (task #52 successor)",
+      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "content_hash": "sha256:5854c940f6999861308fcacfc209bfa098e040208fff5d6d1a02b0720ffe85dc",
+      "sequence": 2,
+      "event_id": "eecee359-45bd-449a-a280-49cd66ed7a61"
+    },
+    {
+      "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38:en",
+      "scope": "locale",
+      "lang": "en",
+      "from": null,
+      "to": "draft",
+      "actor": "anna-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-08-12T18:47:42Z",
+      "reason": "AI draft localization of the frozen canonical facts/tagline (task #52 successor)",
+      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "content_hash": "sha256:900bc5cac4bf6fa2652f15942e1f687dbd7027f93928310d5a1a5bcf1acf8ebc",
+      "sequence": 3,
+      "event_id": "b7b2b6dd-93df-4b6a-9a1d-a47150646ea0"
+    }
+  ]
+}
