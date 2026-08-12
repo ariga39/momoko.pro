@@ -220,9 +220,17 @@ export function collectContentFiles(contentRoot = path.join(REPO_ROOT, "content"
   return out;
 }
 
-/** is_canonical=true → content.schema.json; is_canonical=false → locale.schema.json. */
+/** Route a content file to its schema by kind + is_canonical (+ encyclopedia content_path). */
 export function schemaForContentFile(file: FrontmatterDoc): string {
   const data = file.data as Record<string, unknown>;
+  const kind = data.kind;
+  const contentPath = String(data.content_path ?? "");
+  const isEncyclopedia = kind === "wiki" || contentPath.startsWith("content/encyclopedia/");
+  if (isEncyclopedia) {
+    if (data.is_canonical === true) return "encyclopedia-profile.schema.json";
+    if (data.is_canonical === false) return "encyclopedia-profile-locale.schema.json";
+    throw new Error(`encyclopedia file must declare is_canonical (true|false): ${file.path}`);
+  }
   if (data.is_canonical === true) return "content.schema.json";
   if (data.is_canonical === false) return "locale.schema.json";
   throw new Error(`content file must declare is_canonical (true|false): ${file.path}`);
