@@ -189,6 +189,19 @@ describe("production artifact boundary", () => {
     expect(fixtureText).not.toContain("S1-synth-2026-08-08-003");
   });
 
+  it("embeds the entire current-reviewed encyclopedia bundle and strips draft or retracted bytes", () => {
+    expectServerArtifact(FIXTURE);
+    const fixtureText = serverArtifactText(FIXTURE);
+    // The reviewed momoko-suou encyclopedia bundle (ja/zh/en + editorial history)
+    // is embedded in full.
+    expect(fixtureText).toContain("生意気？強がり？小さくて意地っぱりな妹系アイドル！");
+    expect(fixtureText).toContain("逞强？小个子又倔强的妹妹系偶像！");
+    expect(fixtureText).toContain("Feisty? A small, stubborn little-sister idol!");
+    // Draft and actively retracted encyclopedia bundles must NOT be present.
+    expect(fixtureText).not.toContain("DRAFT-PROFILE-MARKER");
+    expect(fixtureText).not.toContain("RETRACTED-PROFILE-MARKER");
+  });
+
   it("keeps the explicit visual DEMO artifact separate from production first-content output", () => {
     const publicManifest = asRecord(readJson(PUBLIC, "manifest.json"));
     const visualManifest = asRecord(readJson(VISUAL_FIXTURE, "manifest.json"));
