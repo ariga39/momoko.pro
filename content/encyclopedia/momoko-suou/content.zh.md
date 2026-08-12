@@ -5,9 +5,9 @@ lang: zh
 is_canonical: false
 source_content_hash: sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38
 content_hash: sha256:5854c940f6999861308fcacfc209bfa098e040208fff5d6d1a02b0720ffe85dc
-review_status: draft
-reviewed_by: null
-reviewed_at: null
+review_status: reviewed
+reviewed_by: '@tsundere'
+reviewed_at: '2026-08-12T19:31:07Z'
 title: 周防桃子
 name: 周防桃子
 name_roman: MOMOKO SUOU
