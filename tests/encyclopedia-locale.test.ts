@@ -99,3 +99,19 @@ describe("encyclopedia canonical retraction", () => {
     expect(published).toHaveLength(0);
   });
 });
+
+describe("encyclopedia locale empty-body fallback", () => {
+  it("falls back to canonical when a reviewed locale body is empty", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-locale-emptybody";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    const momoko = loadProfiles().find((p) => p.slug === "momoko-suou")!;
+    const zh = resolveProfileLocale(momoko, "zh");
+    // Reviewed locale with empty body must NOT be a real translation: the
+    // resolver falls back to the canonical profile (translated:false).
+    expect(zh).not.toBeNull();
+    expect(zh.translated).toBe(false);
+    expect(zh.lang).toBe("ja");
+  });
+});
