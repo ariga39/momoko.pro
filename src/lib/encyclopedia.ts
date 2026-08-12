@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 
-import { ContentPackageError, getContentRoot } from "./content.ts";
+import { ContentPackageError, getActiveRetractionPaths, getContentRoot } from "./content.ts";
 import { validateFile } from "../../tools/schema/validate.ts";
 
 /** Facts locked by the frozen task #50 inventory (18 semantic fields). */
@@ -266,9 +266,14 @@ export function loadProfiles(): ProfileItem[] {
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-/** Profiles eligible for the public encyclopedia surface (reviewed only). */
+/** Profiles eligible for the public encyclopedia surface (reviewed + not retracted). */
 export function loadPublishedProfiles(): ProfileItem[] {
-  return loadProfiles().filter((p) => p.canonical.reviewStatus === "reviewed");
+  const retracted = getActiveRetractionPaths();
+  return loadProfiles().filter((p) => {
+    if (p.canonical.reviewStatus !== "reviewed") return false;
+    const canonicalPath = `content/encyclopedia/${p.slug}/content.${p.canonical.lang}.md`;
+    return !retracted.has(canonicalPath);
+  });
 }
 
 /**

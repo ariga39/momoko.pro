@@ -256,6 +256,11 @@ function retractedPaths(): Set<string> {
   return loadRetractions();
 }
 
+/** Exported for kind loaders (e.g. encyclopedia) to reuse the retraction-path semantics. */
+export function getActiveRetractionPaths(): Set<string> {
+  return loadRetractions();
+}
+
 function loadRetractions(contentRoot = getContentRoot()): Set<string> {
   if (embeddedPackage.enabled) return loadEmbeddedRetractions();
   const out = new Set<string>();
