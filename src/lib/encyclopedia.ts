@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 
-import { ContentPackageError, getActiveRetractionPaths, getContentRoot } from "./content.ts";
+import { ContentPackageError, getActiveRetractionPaths, getContentRoot, readEmbeddedPackageFile } from "./content.ts";
+import { embeddedPackage } from "./embedded-package.ts";
 import { validateFile } from "../../tools/schema/validate.ts";
 
 /** Facts locked by the frozen task #50 inventory (18 semantic fields). */
@@ -221,8 +222,45 @@ function listBundleFileNames(dir: string): string[] {
   return files.map((entry) => entry.name);
 }
 
-/** Scan content/encyclopedia/** and load every canonical profile (filesystem). */
+function loadEmbeddedProfileItem(dir: string): ProfileItem {
+  const contentRoot = "content";
+  const readFile = (rel: string) => readEmbeddedPackageFile(rel.replaceAll("\\", "/"));
+  // dir is already content-relative (e.g. encyclopedia/momoko-suou).
+  const bundleRel = dir.replace(/\\/g, "/");
+  const listNames = (bundleDir: string): string[] => {
+    const prefix = `${bundleDir.replace(/\\/g, "/")}/`;
+    const names = new Set<string>();
+    for (const file of Object.keys(embeddedPackage.files)) {
+      const normalized = file.replace(/\\/g, "/");
+      if (!normalized.startsWith(prefix)) continue;
+      const rest = normalized.slice(prefix.length);
+      if (rest.includes("/")) continue;
+      names.add(rest);
+    }
+    return [...names];
+  };
+  return loadBundleItem(contentRoot, dir, readFile, listNames, bundleRel);
+}
+
+/** Scan content/encyclopedia/** and load every canonical profile. */
 export function loadProfiles(): ProfileItem[] {
+  if (embeddedPackage.enabled) {
+    // Embedded path: enumerate encyclopedia bundles from the build file map.
+    const dirs = new Set<string>();
+    for (const file of Object.keys(embeddedPackage.files)) {
+      if (!file.startsWith("encyclopedia/")) continue;
+      if (file.endsWith("/index.md")) {
+        throw new ContentPackageError(
+          "content_package_legacy_index",
+          `legacy index.md is not allowed (use content.<lang>.md): ${file}`,
+        );
+      }
+      if (CONTENT_FILE_RE.test(file.slice(file.lastIndexOf("/") + 1))) {
+        dirs.add(file.slice(0, file.lastIndexOf("/")));
+      }
+    }
+    return [...dirs].sort().map((dir) => loadEmbeddedProfileItem(dir));
+  }
   const contentRoot = getContentRoot();
   const encyclopediaRoot = path.join(contentRoot, ENCYCLOPEDIA_DIR);
   if (!fs.existsSync(encyclopediaRoot)) return [];
