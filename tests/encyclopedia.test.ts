@@ -51,6 +51,18 @@ describe("production encyclopedia loader eligibility", () => {
     expect(() => loadProfiles()).toThrow(ContentPackageError);
   });
 
+  it("rejects a reviewed profile whose editorial history does not close its authorization metadata", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-history-invalid";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    // Frontmatter claims reviewed (with reviewer/time) and a valid content_hash,
+    // but the editorial history only carries a draft event — no human review event
+    // closes the authorization metadata. The loader must fail closed instead of
+    // trusting the frontmatter alone.
+    expect(() => loadProfiles()).toThrow(ContentPackageError);
+  });
+
   it("rejects a non-ja canonical profile instead of relabeling it as ja", () => {
     process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-en";
     process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
