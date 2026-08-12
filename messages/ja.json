@@ -101,5 +101,16 @@
   "visual.fictional": "架空のレイアウト見本",
   "visual.readMore": "ノートを読む",
   "visual.results": "結果",
-  "visual.menuHint": "メニューを開く"
+  "visual.menuHint": "メニューを開く",
+  "profile.name": "名前",
+  "profile.nameRoman": "ローマ字表記",
+  "profile.type": "タイプ",
+  "profile.constellation": "星座",
+  "profile.handedness": "利き手",
+  "profile.weight": "体重",
+  "profile.threeSizes": "スリーサイズ",
+  "profile.affiliation": "所属",
+  "profile.specialty": "特技",
+  "profile.likes": "好きなもの",
+  "profile.tagline": "キャッチコピー"
 }

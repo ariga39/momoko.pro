@@ -101,5 +101,16 @@
   "visual.fictional": "Fictional layout sample",
   "visual.readMore": "Read the note",
   "visual.results": "Results",
-  "visual.menuHint": "Open menu"
+  "visual.menuHint": "Open menu",
+  "profile.name": "Name",
+  "profile.nameRoman": "Romanized name",
+  "profile.type": "Type",
+  "profile.constellation": "Constellation",
+  "profile.handedness": "Handedness",
+  "profile.weight": "Weight",
+  "profile.threeSizes": "Measurements",
+  "profile.affiliation": "Affiliation",
+  "profile.specialty": "Specialty",
+  "profile.likes": "Likes",
+  "profile.tagline": "Tagline"
 }
