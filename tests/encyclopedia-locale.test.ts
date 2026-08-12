@@ -128,3 +128,20 @@ describe("encyclopedia canonical is not a translation", () => {
     expect(ja.translated).toBe(false);
   });
 });
+
+describe("encyclopedia retraction blocks locale resolution", () => {
+  it("does not resolve a real locale for an actively retracted profile", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-locale-retracted";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    // The profile has a valid reviewed zh locale, but its canonical has an
+    // active retraction. resolveProfileLocale must NOT expose the real
+    // translation: it returns the canonical fallback (translated:false).
+    const momoko = loadProfiles().find((p) => p.slug === "momoko-suou")!;
+    const zh = resolveProfileLocale(momoko, "zh");
+    expect(zh).not.toBeNull();
+    expect(zh.translated).toBe(false);
+    expect(zh.lang).toBe("ja");
+  });
+});
