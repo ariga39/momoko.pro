@@ -101,5 +101,16 @@
   "visual.fictional": "架空布局示例",
   "visual.readMore": "阅读笔记",
   "visual.results": "结果",
-  "visual.menuHint": "打开菜单"
+  "visual.menuHint": "打开菜单",
+  "profile.name": "名字",
+  "profile.nameRoman": "罗马字",
+  "profile.type": "类型",
+  "profile.constellation": "星座",
+  "profile.handedness": "惯用手",
+  "profile.weight": "体重",
+  "profile.threeSizes": "三围",
+  "profile.affiliation": "所属",
+  "profile.specialty": "特技",
+  "profile.likes": "喜欢的东西",
+  "profile.tagline": "标语"
 }
