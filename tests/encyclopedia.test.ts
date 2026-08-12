@@ -40,6 +40,17 @@ describe("production encyclopedia loader eligibility", () => {
     expect(published.map((p) => p.slug)).not.toContain("draft-profile");
   });
 
+  it("rejects a profile whose declared content_hash does not match its normalized semantic payload", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-hash-mismatch";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    // The canonical file carries a schema-valid sha256 that does NOT match the
+    // normalized semantic payload. The loader must fail closed on the mismatch
+    // instead of trusting the declared hash.
+    expect(() => loadProfiles()).toThrow(ContentPackageError);
+  });
+
   it("rejects a non-ja canonical profile instead of relabeling it as ja", () => {
     process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-en";
     process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
