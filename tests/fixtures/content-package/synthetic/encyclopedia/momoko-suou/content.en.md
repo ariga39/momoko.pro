@@ -3,8 +3,8 @@ schema_version: '1'
 content_path: content/encyclopedia/momoko-suou/content.ja.md
 lang: en
 is_canonical: false
-source_content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-content_hash: sha256:2222222222222222222222222222222222222222222222222222222222222222
+source_content_hash: sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38
+content_hash: sha256:48b6c65f39443e3676cf7c47889dd5dea0a1be2ac423ba7e9a62284642aa8679
 review_status: reviewed
 reviewed_by: fixture-reviewer
 reviewed_at: '2000-01-01T00:00:00Z'

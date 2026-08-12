@@ -4,7 +4,7 @@ kind: wiki
 source_id: S7
 source_item_id: momoko-suou
 retrieved_at: '2026-08-12'
-content_hash: sha256:18b51c1b1005a6779401735003a43d53e2c6a56f1dba58ec3565ad3f42d7a579
+content_hash: sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38
 risk_tier: T1
 lang: ja
 is_canonical: true

@@ -3,8 +3,8 @@ schema_version: '1'
 content_path: content/encyclopedia/momoko-suou/content.ja.md
 lang: zh
 is_canonical: false
-source_content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-content_hash: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+source_content_hash: sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38
+content_hash: sha256:ea9e8aad5c4ed4a79acc66a9e3f12730043ac434436f4778820dae1bbc3d514e
 review_status: reviewed
 reviewed_by: fixture-reviewer
 reviewed_at: '2000-01-01T00:00:00Z'
@@ -24,7 +24,7 @@ weight: 35kg
 three_sizes: 73/53/74
 birthplace: 东京都
 hobby: 收集可爱贴纸
-specialty: 演技和记台词
+specialty: 表演与记忆对白
 likes: 热香饼
 tagline: 逞强？小个子又倔强的妹妹系偶像！
 ---

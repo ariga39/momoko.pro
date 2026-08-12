@@ -16,7 +16,7 @@ kind: wiki
 source_id: S7
 source_item_id: momoko-suou
 retrieved_at: '2026-08-12'
-content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+content_hash: sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38
 risk_tier: T1
 lang: ja
 is_canonical: true
@@ -52,8 +52,8 @@ schema_version: '1'
 content_path: content/encyclopedia/momoko-suou/content.ja.md
 lang: zh
 is_canonical: false
-source_content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-content_hash: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+source_content_hash: sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38
+content_hash: sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524
 review_status: reviewed
 reviewed_by: fixture-reviewer
 reviewed_at: '2000-01-01T00:00:00Z'
@@ -73,7 +73,7 @@ weight: 35kg
 three_sizes: 73/53/74
 birthplace: 东京都
 hobby: 收集可爱贴纸
-specialty: 演技和记台词
+specialty: 表演与记忆对白
 likes: 热香饼
 tagline: 逞强？小个子又倔强的妹妹系偶像！
 ---
@@ -85,8 +85,8 @@ schema_version: '1'
 content_path: content/encyclopedia/momoko-suou/content.ja.md
 lang: en
 is_canonical: false
-source_content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-content_hash: sha256:2222222222222222222222222222222222222222222222222222222222222222
+source_content_hash: sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38
+content_hash: sha256:48b6c65f39443e3676cf7c47889dd5dea0a1be2ac423ba7e9a62284642aa8679
 review_status: reviewed
 reviewed_by: fixture-reviewer
 reviewed_at: '2000-01-01T00:00:00Z'

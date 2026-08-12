@@ -4,7 +4,7 @@ kind: wiki
 source_id: S7
 source_item_id: draft-profile
 retrieved_at: '2026-08-12'
-content_hash: sha256:73c8b5f1e0295790d1ada589ce185b95c6fcf348e43d4cd51e7997fac797a964
+content_hash: sha256:4eb1dcd8858af0a4c455fce8d6fe93bdea710c22619112801d1df5e76cf57adb
 risk_tier: T1
 lang: ja
 is_canonical: true
