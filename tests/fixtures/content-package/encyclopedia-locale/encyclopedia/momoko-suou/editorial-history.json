@@ -15,7 +15,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "sequence": 1,
-      "event_id": "00000000-0003-4-8-"
+      "event_id": "5f9c4ab0-8cac-4457-a911-1a30e4664920"
     },
     {
       "operation_id": "review:S7|momoko-suou:canonical",
@@ -30,7 +30,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "sequence": 2,
-      "event_id": "00000000-0004-4-8-"
+      "event_id": "670671cd-9740-4156-a26e-507973f2ab83"
     },
     {
       "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38:en",
@@ -45,7 +45,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:48b6c65f39443e3676cf7c47889dd5dea0a1be2ac423ba7e9a62284642aa8679",
       "sequence": 3,
-      "event_id": "00000000-0005-4-8-"
+      "event_id": "59e19706-d51d-49f6-a711-c2653cd7eb12"
     },
     {
       "operation_id": "review:S7|momoko-suou:en",
@@ -60,7 +60,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:48b6c65f39443e3676cf7c47889dd5dea0a1be2ac423ba7e9a62284642aa8679",
       "sequence": 4,
-      "event_id": "00000000-0006-4-8-"
+      "event_id": "35135aaa-6cc2-4891-b40c-b3f378c53a17"
     },
     {
       "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38:zh",
@@ -75,7 +75,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524",
       "sequence": 5,
-      "event_id": "00000000-0007-4-8-"
+      "event_id": "624b60c5-8c9d-4bfb-aff1-886c2fd605d2"
     },
     {
       "operation_id": "review:S7|momoko-suou:zh",
@@ -90,7 +90,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524",
       "sequence": 6,
-      "event_id": "00000000-0008-4-8-"
+      "event_id": "eb1e33e8-a81b-497b-b585-5af6bfcdbcbf"
     }
   ]
 }
