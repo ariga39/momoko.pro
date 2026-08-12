@@ -69,6 +69,29 @@ describe("production encyclopedia loader eligibility", () => {
     expect(() => loadProfiles()).toThrow(ContentPackageError);
   });
 
+  it("publishes the human-approved Momoko profile at authorization msg 7e8513b5", () => {
+    // Production content package (content/) — no test override. The approved
+    // Momoko profile must become the single published encyclopedia entry with
+    // the human authorization metadata bound to msg 7e8513b5.
+    delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
+    delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
+    delete process.env.PUBLIC_BUILD;
+
+    const published = loadPublishedProfiles();
+    expect(published).toHaveLength(1);
+    const momoko = published[0]!;
+    expect(momoko.slug).toBe("momoko-suou");
+    expect(momoko.canonical.reviewStatus).toBe("reviewed");
+    expect(momoko.canonical.reviewedBy).toBe("@tsundere");
+    expect(momoko.canonical.reviewedAt).toBe("2026-08-12T19:31:07Z");
+    expect(momoko.locales.zh?.reviewStatus).toBe("reviewed");
+    expect(momoko.locales.zh?.reviewedBy).toBe("@tsundere");
+    expect(momoko.locales.zh?.reviewedAt).toBe("2026-08-12T19:31:07Z");
+    expect(momoko.locales.en?.reviewStatus).toBe("reviewed");
+    expect(momoko.locales.en?.reviewedBy).toBe("@tsundere");
+    expect(momoko.locales.en?.reviewedAt).toBe("2026-08-12T19:31:07Z");
+  });
+
   it("rejects a non-ja canonical profile instead of relabeling it as ja", () => {
     process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-en";
     process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
