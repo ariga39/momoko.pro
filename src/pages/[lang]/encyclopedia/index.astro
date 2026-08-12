@@ -1,9 +1,10 @@
 ---
-import EditorialCard from "../../../components/EditorialCard.astro";
+import DemoNotice from "../../../components/DemoNotice.astro";
 import PageIntro from "../../../components/PageIntro.astro";
 import SiteLayout from "../../../components/SiteLayout.astro";
-import { loadPublishedProfiles, resolveProfileLocale } from "../../../lib/encyclopedia.ts";
+import VisualCatalogCard from "../../../components/VisualCatalogCard.astro";
 import { ml, type Locale } from "../../../lib/messages.ts";
+import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
 
 export function getStaticPaths() {
   return [
@@ -15,36 +16,16 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = ml(lang);
-const profiles = loadPublishedProfiles().sort((a, b) => a.slug.localeCompare(b.slug));
+const catalog = loadVisualCatalog();
 ---
 
 <SiteLayout lang={lang} title={`${t.navEncyclopedia()} · ${t.home()}`} canonicalPath={`/${lang}/encyclopedia/`}>
+  <DemoNotice lang={lang} catalog={catalog} />
   <PageIntro eyebrow="03 / dossier index" title={t.visualEncyclopedia()} lede={t.visualArchiveLede()} />
-  {profiles.length > 0 ? (
-    <ul class="archive-grid" aria-label={t.visualEncyclopedia()}>
-      {profiles.map((profile) => {
-        const resolved = resolveProfileLocale(profile, lang);
-        const eyebrow = `${profile.canonical.sourceId} · ${resolved.facts.type}`;
-        const meta = [
-          resolved.facts.birthday,
-          resolved.facts.height,
-          resolved.facts.cv,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        return (
-          <li>
-            <EditorialCard
-              eyebrow={eyebrow}
-              title={resolved.title}
-              body={resolved.facts.tagline}
-              meta={meta}
-              lang={lang}
-            />
-          </li>
-        );
-      })}
-    </ul>
+  {catalog.encyclopedia.length > 0 ? (
+    <section class="dossier-grid" aria-label={t.visualEncyclopedia()}>
+      {catalog.encyclopedia.map((item) => <VisualCatalogCard item={item} lang={lang} />)}
+    </section>
   ) : (
     <section class="empty-state" aria-labelledby="encyclopedia-empty-title">
       <h2 id="encyclopedia-empty-title" class="section-title">{t.visualEmptyTitle()}</h2>
