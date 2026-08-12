@@ -292,7 +292,7 @@ export function resolveProfileLocale(item: ProfileItem, lang: "ja" | "zh" | "en"
       title: item.canonical.title,
       facts: item.canonical.facts,
       body: item.canonical.body,
-      translated: canonicalOk,
+      translated: false,
     };
   }
   const loc = item.locales[lang as "zh" | "en"];
