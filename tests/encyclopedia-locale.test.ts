@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ContentPackageError } from "../src/lib/content.ts";
-import { loadProfiles, resolveProfileLocale } from "../src/lib/encyclopedia.ts";
+import { loadProfiles, loadPublishedProfiles, resolveProfileLocale } from "../src/lib/encyclopedia.ts";
 
 const localeRoot = "tests/fixtures/content-package/encyclopedia-locale";
 
@@ -82,5 +82,20 @@ describe("encyclopedia locale draft fallback", () => {
     expect(zh).not.toBeNull();
     expect(zh.translated).toBe(false);
     expect(zh.lang).toBe("ja");
+  });
+});
+
+describe("encyclopedia canonical retraction", () => {
+  it("excludes a reviewed profile with an active retraction from the published surface", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-locale-retracted";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    // The canonical is reviewed, but an active retraction targets its content_path.
+    // loadPublishedProfiles must exclude it (retraction path semantics, not just
+    // reviewStatus). Currently loadPublishedProfiles only checks reviewStatus.
+    const published = loadPublishedProfiles();
+    expect(published.map((p) => p.slug)).not.toContain("momoko-suou");
+    expect(published).toHaveLength(0);
   });
 });
