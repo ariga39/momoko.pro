@@ -1,0 +1,21 @@
+{
+  "history_version": "1",
+  "identity": "S7|momoko-suou",
+  "events": [
+    {
+      "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": null,
+      "to": "draft",
+      "actor": "anna-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-08-12T18:47:42Z",
+      "reason": "synthetic draft",
+      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "sequence": 1,
+      "event_id": "11111111-1111-4111-8111-111111111111"
+    }
+  ]
+}
