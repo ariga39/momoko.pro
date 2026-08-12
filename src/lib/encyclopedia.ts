@@ -278,7 +278,7 @@ function canonicalPathOf(item: ProfileItem): string {
 }
 
 /** True when the canonical is current-reviewed and not under an active retraction. */
-export function isProfileCurrentReviewed(item: ProfileItem, retracted: Set<string>): boolean {
+function isProfileCurrentReviewed(item: ProfileItem, retracted: Set<string>): boolean {
   if (item.canonical.reviewStatus !== "reviewed") return false;
   if (item.canonical.body.length === 0) return false;
   return !retracted.has(canonicalPathOf(item));
@@ -288,13 +288,11 @@ export function isProfileCurrentReviewed(item: ProfileItem, retracted: Set<strin
  * True when lang resolves to a real translation of a current-reviewed profile:
  * canonical current-reviewed (not retracted) + locale reviewed + nonempty body
  * + locale sourceContentHash == canonical contentHash.
+ * Always reads the current active retraction records; callers cannot bypass.
  */
-export function isRealProfileTranslation(
-  item: ProfileItem,
-  lang: "ja" | "zh" | "en",
-  retracted: Set<string> = getActiveRetractionPaths(),
-): boolean {
+export function isRealProfileTranslation(item: ProfileItem, lang: "ja" | "zh" | "en"): boolean {
   if (lang === "ja") return false;
+  const retracted = getActiveRetractionPaths();
   const loc = item.locales[lang as "zh" | "en"];
   return (
     isProfileCurrentReviewed(item, retracted) &&
