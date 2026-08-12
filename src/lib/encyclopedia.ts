@@ -35,6 +35,10 @@ export interface ProfileCanonical {
   body: string;
   sourceUrl: string;
   reviewStatus: "draft" | "reviewed" | "stale" | "retracted";
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  sourceId: string;
+  sourceItemId: string;
   contentHash: string;
   lang: "ja";
 }
@@ -45,6 +49,8 @@ export interface ProfileLocale {
   facts: ProfileFacts;
   body: string;
   reviewStatus: "draft" | "reviewed" | "stale" | "retracted";
+  reviewedBy: string | null;
+  reviewedAt: string | null;
   contentPath: string;
   sourceContentHash: string;
   contentHash: string;
@@ -62,6 +68,28 @@ export interface ProfileItem {
   slug: string;
   canonical: ProfileCanonical;
   locales: Partial<Record<"zh" | "en", ProfileLocale>>;
+}
+
+interface ProfileHistoryEvent {
+  sequence: number;
+  event_id: string;
+  operation_id: string;
+  scope: "canonical" | "locale";
+  lang: "ja" | "zh" | "en" | null;
+  from: string | null;
+  to: "draft" | "reviewed" | "stale" | "retracted" | string;
+  actor: string;
+  actor_kind: string;
+  at: string;
+  reason: string;
+  source_content_hash: string;
+  content_hash: string | null;
+}
+
+interface ProfileHistory {
+  history_version: string;
+  identity: string;
+  events: ProfileHistoryEvent[];
 }
 
 const CONTENT_FILE_RE = /^content\.(ja|zh|en)\.md$/;
@@ -137,6 +165,124 @@ export function profileLocaleContentHash(d: Record<string, unknown>, body: strin
     body,
   ]);
   return `sha256:${createHash("sha256").update(payload, "utf8").digest("hex")}`;
+}
+
+/**
+ * Validate that a reviewed encyclopedia bundle's editorial history closes its
+ * authorization metadata. Fail-closed for any reviewed canonical/locale:
+ * required fields, version/identity, strictly increasing unique
+ * sequence/event_id/operation_id, and a latest human review event per
+ * scope/lang whose actor/at/content_hash/source_content_hash exactly match
+ * the frontmatter and canonical hash linkage.
+ */
+function assertHistoryClosesReview(
+  history: unknown,
+  canonicalFrontmatter: Record<string, unknown>,
+  canonicalContentHash: string,
+  canonicalReview: { reviewedBy: string | null; reviewedAt: string | null },
+  locales: Partial<Record<"zh" | "en", { review: { reviewedBy: string | null; reviewedAt: string | null }; contentHash: string }>>,
+): void {
+  if (history === null || typeof history !== "object") {
+    throw new ContentPackageError(
+      "content_package_history_required",
+      "reviewed profile requires an editorial-history.json",
+    );
+  }
+  const h = history as ProfileHistory;
+  if (h.history_version !== "1") {
+    throw new ContentPackageError(
+      "content_package_history_version",
+      `editorial history must declare history_version "1", got ${String(h.history_version)}`,
+    );
+  }
+  const identity = `${String(canonicalFrontmatter.source_id ?? "")}|${String(canonicalFrontmatter.source_item_id ?? "")}`;
+  if (h.identity !== identity) {
+    throw new ContentPackageError(
+      "content_package_history_identity",
+      `editorial history identity ${JSON.stringify(h.identity)} must equal ${JSON.stringify(identity)}`,
+    );
+  }
+  if (!Array.isArray(h.events)) {
+    throw new ContentPackageError("content_package_history_events", "editorial history must have an events array");
+  }
+  const seqSeen = new Set<number>();
+  const idSeen = new Set<string>();
+  const opSeen = new Set<string>();
+  let prevSeq = -1;
+  for (const ev of h.events) {
+    if (typeof ev?.sequence !== "number" || !Number.isInteger(ev.sequence) || ev.sequence <= prevSeq) {
+      throw new ContentPackageError(
+        "content_package_history_sequence",
+        `editorial history events must have strictly increasing integer sequence (saw ${JSON.stringify(ev?.sequence)})`,
+      );
+    }
+    if (seqSeen.has(ev.sequence) || idSeen.has(ev.event_id) || opSeen.has(ev.operation_id)) {
+      throw new ContentPackageError(
+        "content_package_history_duplicate",
+        `editorial history must have unique sequence/event_id/operation_id (sequence ${ev.sequence})`,
+      );
+    }
+    seqSeen.add(ev.sequence);
+    idSeen.add(ev.event_id);
+    opSeen.add(ev.operation_id);
+    prevSeq = ev.sequence;
+  }
+
+  const expectReviewed = (scope: "canonical" | "locale", lang: string, review: { reviewedBy: string | null; reviewedAt: string | null }, contentHash: string, sourceHash: string, ctx: string): void => {
+    const matching = h.events.filter((e) => e.scope === scope && e.lang === lang);
+    const latest = matching.length === 0 ? undefined : matching[matching.length - 1];
+    if (!latest || latest.to !== "reviewed") {
+      throw new ContentPackageError(
+        "content_package_history_review_missing",
+        `${ctx} is reviewed but history lacks a latest reviewed event for scope=${scope} lang=${lang}`,
+      );
+    }
+    if (latest.actor_kind !== "human") {
+      throw new ContentPackageError(
+        "content_package_history_review_actor_kind",
+        `${ctx} review event must have actor_kind=human, got ${latest.actor_kind}`,
+      );
+    }
+    if (latest.actor !== review.reviewedBy || latest.at !== review.reviewedAt) {
+      throw new ContentPackageError(
+        "content_package_history_review_actor",
+        `${ctx} review event actor/at must exactly match frontmatter reviewed_by/reviewed_at`,
+      );
+    }
+    if (latest.content_hash !== contentHash) {
+      throw new ContentPackageError(
+        "content_package_history_review_hash",
+        `${ctx} review event content_hash must exactly match the frontmatter content_hash`,
+      );
+    }
+    if (latest.source_content_hash !== sourceHash) {
+      throw new ContentPackageError(
+        "content_package_history_review_source_hash",
+        `${ctx} review event source_content_hash must exactly match the canonical content_hash`,
+      );
+    }
+  };
+
+  expectReviewed(
+    "canonical",
+    "ja",
+    canonicalReview,
+    canonicalContentHash,
+    canonicalContentHash,
+    "canonical",
+  );
+  for (const lang of ["zh", "en"] as const) {
+    const loc = locales[lang];
+    if (!loc) continue;
+    expectReviewed(
+      "locale",
+      lang,
+      loc.review,
+      loc.contentHash,
+      canonicalContentHash,
+      `locale ${lang}`,
+    );
+  }
 }
 
 function normalizeFacts(d: Record<string, unknown>): ProfileFacts {
@@ -236,6 +382,10 @@ function loadBundleItem(
         body: content.trim(),
         sourceUrl: String(d.source_url ?? ""),
         reviewStatus: d.review_status as ProfileCanonical["reviewStatus"],
+        reviewedBy: (d.reviewed_by as string | null | undefined) ?? null,
+        reviewedAt: (d.reviewed_at as string | null | undefined) ?? null,
+        sourceId: String(d.source_id ?? ""),
+        sourceItemId: String(d.source_item_id ?? ""),
         contentHash: String(d.content_hash ?? ""),
         lang: lang as "ja",
       };
@@ -260,6 +410,8 @@ function loadBundleItem(
         facts: normalizeFacts(d),
         body: content.trim(),
         reviewStatus: d.review_status as ProfileLocale["reviewStatus"],
+        reviewedBy: (d.reviewed_by as string | null | undefined) ?? null,
+        reviewedAt: (d.reviewed_at as string | null | undefined) ?? null,
         contentPath: String(d.content_path ?? ""),
         sourceContentHash: String(d.source_content_hash ?? ""),
         contentHash: String(d.content_hash ?? ""),
@@ -290,6 +442,42 @@ function loadBundleItem(
         `${lang} content_path must exactly point to the bundle canonical (${canonicalRel}), got ${loc.contentPath}`,
       );
     }
+  }
+
+  // Reviewed canonical or locale bundles must close their authorization metadata
+  // through the editorial history (fail-closed). Draft bundles need no review
+  // event; a missing history file is only an error once something is reviewed.
+  const anyReviewed =
+    canonical.reviewStatus === "reviewed" ||
+    (["zh", "en"] as const).some((lang) => locales[lang]?.reviewStatus === "reviewed");
+  if (anyReviewed) {
+    const historyRel = path.posix.join(bundleRel, "editorial-history.json");
+    let history: unknown;
+    try {
+      history = JSON.parse(readFile(historyRel));
+    } catch (err) {
+      throw new ContentPackageError(
+        "content_package_history_required",
+        `reviewed profile requires a readable editorial-history.json: ${historyRel} (${(err as Error).message})`,
+      );
+    }
+    const locReviews: Partial<Record<"zh" | "en", { review: { reviewedBy: string | null; reviewedAt: string | null }; contentHash: string }>> = {};
+    for (const lang of ["zh", "en"] as const) {
+      const loc = locales[lang];
+      if (!loc) continue;
+      if (loc.reviewStatus !== "reviewed") continue;
+      locReviews[lang] = {
+        review: { reviewedBy: loc.reviewedBy, reviewedAt: loc.reviewedAt },
+        contentHash: loc.contentHash,
+      };
+    }
+    assertHistoryClosesReview(
+      history,
+      { source_id: canonical.sourceId, source_item_id: canonical.sourceItemId },
+      canonical.contentHash,
+      { reviewedBy: canonical.reviewedBy, reviewedAt: canonical.reviewedAt },
+      locReviews,
+    );
   }
 
   const prefix = `${ENCYCLOPEDIA_DIR}/`;

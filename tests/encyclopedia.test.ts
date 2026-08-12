@@ -36,6 +36,12 @@ describe("production encyclopedia loader eligibility", () => {
     expect(momoko.canonical.facts.height).toBe("140cm");
     expect(momoko.canonical.facts.cv).toBe("渡部恵子");
     expect(momoko.canonical.facts.name).toBe("周防桃子");
+    // Typed loader metadata: reviewedBy/reviewedAt/sourceId/sourceItemId carried
+    // through from the validated editorial history closure.
+    expect(momoko.canonical.reviewedBy).toBe("fixture-reviewer");
+    expect(momoko.canonical.reviewedAt).toBe("2000-01-01T00:00:00Z");
+    expect(momoko.canonical.sourceId).toBe("S7");
+    expect(momoko.canonical.sourceItemId).toBe("momoko-suou");
     // Draft profile must not appear in the public surface.
     expect(published.map((p) => p.slug)).not.toContain("draft-profile");
   });
