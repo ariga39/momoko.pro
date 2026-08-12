@@ -4,15 +4,15 @@ kind: wiki
 source_id: S7
 source_item_id: momoko-suou
 retrieved_at: '2026-08-12'
-content_hash: sha256:7c6071ecacb712096bd03368c2502cf6b20549d5a16dd40b7f60dc2e611c6e4c
+content_hash: sha256:18b51c1b1005a6779401735003a43d53e2c6a56f1dba58ec3565ad3f42d7a579
 risk_tier: T1
 lang: ja
 is_canonical: true
 title: 周防桃子
 source_url: https://millionlive-theaterdays.idolmaster-official.jp/idol/momoko/
 review_status: reviewed
-reviewed_by: '@tsundere'
-reviewed_at: '2026-08-12T00:00:00Z'
+reviewed_by: fixture-reviewer
+reviewed_at: '2000-01-01T00:00:00Z'
 name_ja: 周防桃子
 name_roman: MOMOKO SUOU
 cv: 渡部恵子
@@ -32,4 +32,4 @@ specialty: 演技や台詞の暗記
 likes: ホットケーキ
 tagline: 生意気？強がり？小さくて意地っぱりな妹系アイドル！
 ---
-お兄ちゃんが思ってるほど芸能界は甘くないよ？ 生意気？強がり？小さくて意地っぱりな妹系アイドル！
+生意気？強がり？小さくて意地っぱりな妹系アイドル！

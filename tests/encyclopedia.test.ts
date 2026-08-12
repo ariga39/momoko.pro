@@ -29,7 +29,8 @@ describe("production encyclopedia loader eligibility", () => {
     const momoko = published[0]!;
     expect(momoko.slug).toBe("momoko-suou");
     expect(momoko.canonical.reviewStatus).toBe("reviewed");
-    // Expected literals are the frozen task #50 inventory profile_fact values.
+    // The schema requires all 18 profile facts to be present (additionalProperties=false);
+    // the test independently asserts the four key frozen-inventory literals below.
     expect(momoko.canonical.facts.birthday).toBe("11月6日");
     expect(momoko.canonical.facts.height).toBe("140cm");
     expect(momoko.canonical.facts.cv).toBe("渡部恵子");
