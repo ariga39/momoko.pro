@@ -215,6 +215,21 @@ describe("Phase 4A progressive-enhancement contract", () => {
     expect(layout).not.toMatch(/role=["']dialog["']/);
   });
 
+  it("renders the real published encyclopedia profiles, not the visual demo catalog", () => {
+    const page = fs.readFileSync(
+      path.join(root, "src/pages/[lang]/encyclopedia/index.astro"),
+      "utf8",
+    );
+    // The index page must source its cards from the real reviewed profile loader
+    // and resolve each locale, never from the visual DEMO catalog.
+    expect(page).toContain("loadPublishedProfiles");
+    expect(page).toContain("resolveProfileLocale");
+    expect(page).not.toContain("loadVisualCatalog");
+    expect(page).not.toContain("VisualCatalogCard");
+    expect(page).not.toContain("DemoNotice");
+    expect(page).not.toContain("catalog.encyclopedia");
+  });
+
   it("parses and serializes URL-backed filters deterministically", async () => {
     const { parseFilterQuery, serializeFilterQuery } = await import("../src/lib/url-filter.ts");
     expect(parseFilterQuery("?year=2025&type=live")).toEqual({ year: "2025", type: "live" });
