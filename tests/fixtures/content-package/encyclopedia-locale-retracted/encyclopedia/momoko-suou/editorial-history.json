@@ -15,7 +15,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "sequence": 1,
-      "event_id": "00000000-0018-4-8-"
+      "event_id": "785f3ec7-eb32-430b-90cd-0fcf3657d388"
     },
     {
       "operation_id": "review:S7|momoko-suou:canonical",
@@ -30,7 +30,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "sequence": 2,
-      "event_id": "00000000-0019-4-8-"
+      "event_id": "535fa30d-7e25-4d8a-89f1-536779734ec8"
     },
     {
       "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38:zh",
@@ -45,7 +45,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524",
       "sequence": 3,
-      "event_id": "00000000-001a-4-8-"
+      "event_id": "c2356069-e9d1-479c-a924-378153cfbbfb"
     },
     {
       "operation_id": "review:S7|momoko-suou:zh",
@@ -60,7 +60,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524",
       "sequence": 4,
-      "event_id": "00000000-001b-4-8-"
+      "event_id": "b7a56873-cd77-4f2c-846d-369b649430b6"
     }
   ]
 }

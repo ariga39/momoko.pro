@@ -209,11 +209,82 @@ function assertHistoryClosesReview(
   const idSeen = new Set<string>();
   const opSeen = new Set<string>();
   let prevSeq = -1;
+  const knownActorKinds = new Set(["human", "ai", "system"]);
+  const knownScopes = new Set(["canonical", "locale"]);
+  const knownLangs = new Set(["ja", "zh", "en"]);
+  const knownTos = new Set(["draft", "reviewed", "stale", "retracted"]);
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
   for (const ev of h.events) {
     if (typeof ev?.sequence !== "number" || !Number.isInteger(ev.sequence) || ev.sequence <= prevSeq) {
       throw new ContentPackageError(
         "content_package_history_sequence",
         `editorial history events must have strictly increasing integer sequence (saw ${JSON.stringify(ev?.sequence)})`,
+      );
+    }
+    if (typeof ev.event_id !== "string" || !uuidRe.test(ev.event_id)) {
+      throw new ContentPackageError(
+        "content_package_history_event_id",
+        `editorial history event_id must be an RFC 4122 UUID text (saw ${JSON.stringify(ev.event_id)})`,
+      );
+    }
+    if (typeof ev.operation_id !== "string" || ev.operation_id.length === 0) {
+      throw new ContentPackageError(
+        "content_package_history_operation_id",
+        `editorial history operation_id must be a non-empty string (saw ${JSON.stringify(ev.operation_id)})`,
+      );
+    }
+    if (typeof ev.actor !== "string" || ev.actor.length === 0) {
+      throw new ContentPackageError(
+        "content_package_history_actor",
+        `editorial history actor must be a non-empty string (saw ${JSON.stringify(ev.actor)})`,
+      );
+    }
+    if (typeof ev.reason !== "string" || ev.reason.length === 0) {
+      throw new ContentPackageError(
+        "content_package_history_reason",
+        `editorial history reason must be a non-empty string (saw ${JSON.stringify(ev.reason)})`,
+      );
+    }
+    if (typeof ev.source_content_hash !== "string" || ev.source_content_hash.length === 0) {
+      throw new ContentPackageError(
+        "content_package_history_source_hash",
+        `editorial history source_content_hash must be a non-empty string (saw ${JSON.stringify(ev.source_content_hash)})`,
+      );
+    }
+    if (typeof ev.content_hash !== "string" || ev.content_hash.length === 0) {
+      throw new ContentPackageError(
+        "content_package_history_content_hash",
+        `editorial history content_hash must be a non-empty string (saw ${JSON.stringify(ev.content_hash)})`,
+      );
+    }
+    if (!knownActorKinds.has(ev.actor_kind)) {
+      throw new ContentPackageError(
+        "content_package_history_actor_kind",
+        `editorial history actor_kind must be one of human|ai|system (saw ${JSON.stringify(ev.actor_kind)})`,
+      );
+    }
+    if (!knownScopes.has(ev.scope)) {
+      throw new ContentPackageError(
+        "content_package_history_scope",
+        `editorial history scope must be canonical|locale (saw ${JSON.stringify(ev.scope)})`,
+      );
+    }
+    if (ev.lang !== null && !knownLangs.has(ev.lang)) {
+      throw new ContentPackageError(
+        "content_package_history_lang",
+        `editorial history lang must be ja|zh|en or null (saw ${JSON.stringify(ev.lang)})`,
+      );
+    }
+    if (ev.to === undefined || !knownTos.has(ev.to)) {
+      throw new ContentPackageError(
+        "content_package_history_to",
+        `editorial history to must be draft|reviewed|stale|retracted (saw ${JSON.stringify(ev.to)})`,
+      );
+    }
+    if (typeof ev.at !== "string" || Number.isNaN(Date.parse(ev.at)) || !/T\d{2}:\d{2}/.test(ev.at)) {
+      throw new ContentPackageError(
+        "content_package_history_at",
+        `editorial history at must be a valid date-time (saw ${JSON.stringify(ev.at)})`,
       );
     }
     if (seqSeen.has(ev.sequence) || idSeen.has(ev.event_id) || opSeen.has(ev.operation_id)) {

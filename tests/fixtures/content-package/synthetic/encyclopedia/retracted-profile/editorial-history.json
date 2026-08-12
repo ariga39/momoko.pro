@@ -15,7 +15,7 @@
       "source_content_hash": "sha256:eb0f7d405aec48539cd247a4fe3d69966f4e49090d54bf2a58a55e6d7f16fcb2",
       "content_hash": "sha256:eb0f7d405aec48539cd247a4fe3d69966f4e49090d54bf2a58a55e6d7f16fcb2",
       "sequence": 1,
-      "event_id": "00000000-0022-4-8-"
+      "event_id": "d59eced1-ded0-4f84-8145-592f65bdf854"
     },
     {
       "operation_id": "review:S7|retracted-profile:canonical",
@@ -30,7 +30,7 @@
       "source_content_hash": "sha256:eb0f7d405aec48539cd247a4fe3d69966f4e49090d54bf2a58a55e6d7f16fcb2",
       "content_hash": "sha256:eb0f7d405aec48539cd247a4fe3d69966f4e49090d54bf2a58a55e6d7f16fcb2",
       "sequence": 2,
-      "event_id": "00000000-0023-4-8-"
+      "event_id": "3d914f93-48c9-4c0f-b8a7-9716700b9fcd"
     }
   ]
 }
