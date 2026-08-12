@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { loadPublishedProfiles } from "../src/lib/encyclopedia.ts";
+import { ContentPackageError } from "../src/lib/content.ts";
+import { loadPublishedProfiles, loadProfiles } from "../src/lib/encyclopedia.ts";
 
 const fixtureRelativeRoot = "tests/fixtures/content-package/encyclopedia";
 
@@ -37,5 +38,15 @@ describe("production encyclopedia loader eligibility", () => {
     expect(momoko.canonical.facts.nameJa).toBe("周防桃子");
     // Draft profile must not appear in the public surface.
     expect(published.map((p) => p.slug)).not.toContain("draft-profile");
+  });
+
+  it("rejects a non-ja canonical profile instead of relabeling it as ja", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = fixtureRelativeRoot;
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    // The en-canonical bundle has a canonical content.en.md (lang=en). The loader
+    // must fail closed rather than relabel the canonical as ja.
+    expect(() => loadProfiles()).toThrow(ContentPackageError);
   });
 });
