@@ -138,9 +138,32 @@ describe("production artifact boundary", () => {
     expect(asRecord(entry.locales).zh).toBeTruthy();
     expect(asRecord(entry.locales).en).toBeTruthy();
     const search = asArray(readJson(PUBLIC, "search.json"));
-    expect(search).toHaveLength(3); // ja/zh/en rows for the single S6 item
+    expect(search).toHaveLength(6); // 3 news + 3 profile rows (Cycle S1)
     expectServerArtifact(PUBLIC);
     expectServerArtifact(DEFAULT);
+  });
+
+  it("search.json closes to 6 rows: 3 news + 3 profile, profile rows without internal metadata", () => {
+    const search = asArray(readJson(PUBLIC, "search.json"));
+    expect(search).toHaveLength(6);
+    const profileRows = search.filter((r) => asRecord(r).path === "/ja/encyclopedia/");
+    expect(profileRows).toHaveLength(1);
+    const profile = asRecord(profileRows[0]!);
+    expect(profile.title).toBe("周防桃子");
+    const profileText = JSON.stringify(search);
+    expect(profileText).not.toContain("@tsundere");
+    expect(profileText).not.toContain("review_status");
+    expect(profileText).not.toContain("T1");
+    // Profile rows must not carry source_id/source_item_id at all: the serialized
+    // row omits the fields entirely (undefined + absent from the JSON).
+    const profileJson = JSON.stringify(profileRows);
+    expect(profileJson).not.toContain("sourceId");
+    expect(profileJson).not.toContain("sourceItemId");
+    expect(profileJson).not.toContain("S7");
+    // Deterministic stable sort lang:path:slug.
+    const langs = search.map((r) => asRecord(r).lang);
+    const sorted = [...langs].sort((a, b) => String(a).localeCompare(String(b)));
+    expect(langs).toEqual(sorted);
   });
 
   it("production output contains no synthetic/demo markers or external scripts", () => {
