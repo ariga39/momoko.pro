@@ -96,7 +96,7 @@ function selectedContentPackage() {
   }
   const reviewedDirectories = new Set();
   for (const [relativePath, text] of Object.entries(allFiles)) {
-    if (!relativePath.startsWith("news/")) continue;
+    if (!relativePath.startsWith("news/") && !relativePath.startsWith("encyclopedia/")) continue;
     if (relativePath.endsWith("/index.md")) {
       throw new Error(`legacy index.md is not allowed (use content.<lang>.md): ${relativePath}`);
     }
@@ -111,7 +111,7 @@ function selectedContentPackage() {
     }
   }
   for (const [relativePath, text] of Object.entries(allFiles)) {
-    if (relativePath.startsWith("news/")) {
+    if (relativePath.startsWith("news/") || relativePath.startsWith("encyclopedia/")) {
       const directory = path.posix.dirname(relativePath);
       if (reviewedDirectories.has(directory)) files[relativePath] = text;
     }
