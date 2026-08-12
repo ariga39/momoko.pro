@@ -69,3 +69,18 @@ describe("encyclopedia locale hash-drift fallback", () => {
     expect(zh.title).toBe("周防桃子");
   });
 });
+
+describe("encyclopedia locale draft fallback", () => {
+  it("falls back to the canonical profile when the locale is still draft", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-locale-draft";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    const momoko = loadProfiles().find((p) => p.slug === "momoko-suou")!;
+    const zh = resolveProfileLocale(momoko, "zh");
+    // Locale review_status=draft -> must not be treated as a real translation.
+    expect(zh).not.toBeNull();
+    expect(zh.translated).toBe(false);
+    expect(zh.lang).toBe("ja");
+  });
+});

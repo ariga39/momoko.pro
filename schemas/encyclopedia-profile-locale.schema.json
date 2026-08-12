@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema_version", "content_path", "lang", "is_canonical", "source_content_hash",
-    "content_hash", "review_status", "reviewed_by", "reviewed_at", "title", "body",
+    "content_hash", "review_status", "title", "body",
     "name", "name_roman", "cv", "affiliation", "type",
     "age", "birthday", "blood_type", "constellation", "handedness",
     "height", "weight", "three_sizes", "birthplace", "hobby", "specialty", "likes", "tagline"
