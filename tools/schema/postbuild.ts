@@ -13,7 +13,8 @@ import {
   loadPublishedNews,
   type NewsItem,
 } from "../../src/lib/content.ts";
-import { buildSearchIndex } from "../../src/lib/search.ts";
+import { loadPublishedProfiles } from "../../src/lib/encyclopedia.ts";
+import { buildProfileSearchIndex, buildSearchIndex } from "../../src/lib/search.ts";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const DIST = path.resolve(
@@ -74,7 +75,10 @@ async function main() {
     generated_at: generatedAt,
     entries: buildManifest(items).entries,
   };
-  const searchIndex = buildSearchIndex(loadPublishedNews());
+  const searchIndex = [
+    ...buildSearchIndex(loadPublishedNews()),
+    ...buildProfileSearchIndex(loadPublishedProfiles()),
+  ].sort((a, b) => `${a.lang}:${a.path}:${a.slug}`.localeCompare(`${b.lang}:${b.path}:${b.slug}`));
 
   fs.mkdirSync(DIST, { recursive: true });
   fs.writeFileSync(
