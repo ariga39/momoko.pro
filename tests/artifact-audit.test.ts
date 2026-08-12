@@ -202,6 +202,33 @@ describe("production artifact boundary", () => {
     expect(fixtureText).not.toContain("RETRACTED-PROFILE-MARKER");
   });
 
+  it("renders the published Momoko profile in the prerendered encyclopedia index HTML for ja/zh/en", () => {
+    // The encyclopedia index page is statically prerendered (export const
+    // prerender = true), so the production build emits user-visible HTML at
+    // dist-public/<lang>/encyclopedia/index.html. Each locale must carry the
+    // exact title/tagline/CV/birthday, the official source link, and none of
+    // the internal editorial metadata (source_id/risk/reviewer/DEMO).
+    const expectations: Record<string, string[]> = {
+      ja: ["周防桃子", "生意気？強がり？小さくて意地っぱりな妹系アイドル！", "渡部恵子", "11月6日"],
+      zh: ["周防桃子", "傲气？逞强？娇小又倔强的妹妹系偶像！", "渡部惠子", "11月6日", "765事务所"],
+      en: ["Momoko Suou", "Cheeky? Putting on a brave front? A petite, stubborn little-sister-style idol!", "Keiko Watanabe", "November 6"],
+    };
+    const sourceLink = "https://millionlive-theaterdays.idolmaster-official.jp/idol/momoko/";
+    for (const lang of ["ja", "zh", "en"] as const) {
+      const htmlPath = path.join(PUBLIC, lang, "encyclopedia", "index.html");
+      const html = fs.readFileSync(htmlPath, "utf8");
+      for (const literal of expectations[lang]!) {
+        expect(html, `${lang} encyclopedia index must contain ${literal}`).toContain(literal);
+      }
+      expect(html, `${lang} encyclopedia index must link the official source`).toContain(sourceLink);
+      expect(html, `${lang} encyclopedia index must not leak S7`).not.toContain("S7");
+      expect(html, `${lang} encyclopedia index must not leak risk tier`).not.toContain("T1");
+      expect(html, `${lang} encyclopedia index must not leak reviewer`).not.toContain("@tsundere");
+      expect(html, `${lang} encyclopedia index must not render the DEMO catalog`).not.toContain("DEMO");
+      expect(html).not.toContain("DemoNotice");
+    }
+  });
+
   it("keeps the explicit visual DEMO artifact separate from production first-content output", () => {
     const publicManifest = asRecord(readJson(PUBLIC, "manifest.json"));
     const visualManifest = asRecord(readJson(VISUAL_FIXTURE, "manifest.json"));
