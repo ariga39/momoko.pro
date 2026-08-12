@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ContentPackageError } from "../src/lib/content.ts";
-import { loadPublishedProfiles, loadProfiles } from "../src/lib/encyclopedia.ts";
+import { loadPublishedProfiles, loadProfiles, isRealProfileTranslation } from "../src/lib/encyclopedia.ts";
 
 const fixtureRelativeRoot = "tests/fixtures/content-package/encyclopedia";
 
@@ -90,6 +90,22 @@ describe("production encyclopedia loader eligibility", () => {
     expect(momoko.locales.en?.reviewStatus).toBe("reviewed");
     expect(momoko.locales.en?.reviewedBy).toBe("@tsundere");
     expect(momoko.locales.en?.reviewedAt).toBe("2026-08-12T19:31:07Z");
+    // Coverage-only (already green): both locales resolve as real translations
+    // of the approved canonical profile.
+    expect(isRealProfileTranslation(momoko, "zh")).toBe(true);
+    expect(isRealProfileTranslation(momoko, "en")).toBe(true);
+  });
+
+  it("rejects reviewed history with missing or malformed event identity", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-history-malformed";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    // A reviewed profile whose editorial history event identity is missing or
+    // malformed (event_id absent/empty/non-UUID, operation_id absent/empty)
+    // must be rejected. The package holds one bundle per variant; the loader
+    // walks all of them, so any accepted malformed bundle makes this throw.
+    expect(() => loadProfiles()).toThrow(ContentPackageError);
   });
 
   it("rejects a non-ja canonical profile instead of relabeling it as ja", () => {

@@ -1,0 +1,21 @@
+{
+  "history_version": "1",
+  "identity": "S7|momoko-suou",
+  "events": [
+    {
+      "operation_id": "review:S7|momoko-suou:canonical",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": "draft",
+      "to": "reviewed",
+      "actor": "fixture-reviewer",
+      "actor_kind": "human",
+      "at": "2000-01-01T00:00:00Z",
+      "reason": "synthetic fixture human review",
+      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "sequence": 1,
+      "event_id": ""
+    }
+  ]
+}
