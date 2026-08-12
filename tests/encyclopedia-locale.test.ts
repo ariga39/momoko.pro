@@ -115,3 +115,16 @@ describe("encyclopedia locale empty-body fallback", () => {
     expect(zh.lang).toBe("ja");
   });
 });
+
+describe("encyclopedia canonical is not a translation", () => {
+  it("marks the ja canonical result as not translated", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-locale";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    const momoko = loadProfiles().find((p) => p.slug === "momoko-suou")!;
+    const ja = resolveProfileLocale(momoko, "ja");
+    // The canonical source-language result is never a "translation".
+    expect(ja.translated).toBe(false);
+  });
+});
