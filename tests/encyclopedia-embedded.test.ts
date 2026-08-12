@@ -119,6 +119,107 @@ const MANIFEST = JSON.stringify({
   status: "ready",
 });
 
+const CANON_HASH = "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38";
+const ZH_HASH = "sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524";
+const EN_HASH = "sha256:48b6c65f39443e3676cf7c47889dd5dea0a1be2ac423ba7e9a62284642aa8679";
+const FIXTURE_REVIEW_AT = "2000-01-01T00:00:00Z";
+const FIXTURE_HISTORY = JSON.stringify({
+  history_version: "1",
+  identity: "S7|momoko-suou",
+  events: [
+    {
+      operation_id: `draft:${CANON_HASH}`,
+      scope: "canonical",
+      lang: "ja",
+      from: null,
+      to: "draft",
+      actor: "anna-ai-draft",
+      actor_kind: "ai",
+      at: "2026-08-12T18:47:42Z",
+      reason: "synthetic fixture draft",
+      source_content_hash: CANON_HASH,
+      content_hash: CANON_HASH,
+      sequence: 1,
+      event_id: "11111111-1111-4111-8111-111111111111",
+    },
+    {
+      operation_id: "review:S7|momoko-suou:canonical",
+      scope: "canonical",
+      lang: "ja",
+      from: "draft",
+      to: "reviewed",
+      actor: "fixture-reviewer",
+      actor_kind: "human",
+      at: FIXTURE_REVIEW_AT,
+      reason: "synthetic fixture human review",
+      source_content_hash: CANON_HASH,
+      content_hash: CANON_HASH,
+      sequence: 2,
+      event_id: "22222222-2222-4222-8222-222222222222",
+    },
+    {
+      operation_id: `draft:${CANON_HASH}:zh`,
+      scope: "locale",
+      lang: "zh",
+      from: null,
+      to: "draft",
+      actor: "anna-ai-draft",
+      actor_kind: "ai",
+      at: "2026-08-12T18:47:42Z",
+      reason: "synthetic fixture locale draft",
+      source_content_hash: CANON_HASH,
+      content_hash: ZH_HASH,
+      sequence: 3,
+      event_id: "33333333-3333-4333-8333-333333333333",
+    },
+    {
+      operation_id: "review:S7|momoko-suou:zh",
+      scope: "locale",
+      lang: "zh",
+      from: "draft",
+      to: "reviewed",
+      actor: "fixture-reviewer",
+      actor_kind: "human",
+      at: FIXTURE_REVIEW_AT,
+      reason: "synthetic fixture human review",
+      source_content_hash: CANON_HASH,
+      content_hash: ZH_HASH,
+      sequence: 4,
+      event_id: "44444444-4444-4444-8444-444444444444",
+    },
+    {
+      operation_id: `draft:${CANON_HASH}:en`,
+      scope: "locale",
+      lang: "en",
+      from: null,
+      to: "draft",
+      actor: "anna-ai-draft",
+      actor_kind: "ai",
+      at: "2026-08-12T18:47:42Z",
+      reason: "synthetic fixture locale draft",
+      source_content_hash: CANON_HASH,
+      content_hash: EN_HASH,
+      sequence: 5,
+      event_id: "55555555-5555-4555-8555-555555555555",
+    },
+    {
+      operation_id: "review:S7|momoko-suou:en",
+      scope: "locale",
+      lang: "en",
+      from: "draft",
+      to: "reviewed",
+      actor: "fixture-reviewer",
+      actor_kind: "human",
+      at: FIXTURE_REVIEW_AT,
+      reason: "synthetic fixture human review",
+      source_content_hash: CANON_HASH,
+      content_hash: EN_HASH,
+      sequence: 6,
+      event_id: "66666666-6666-4666-8666-666666666666",
+    },
+  ],
+});
+
 function installEmbedded() {
   delete process.env.MOMOKO_CONTENT_PACKAGE_ROOT;
   delete process.env.MOMOKO_CONTENT_PACKAGE_MODE;
@@ -132,6 +233,7 @@ function installEmbedded() {
     "encyclopedia/momoko-suou/content.ja.md": CANONICAL_JA,
     "encyclopedia/momoko-suou/content.zh.md": LOCALE_ZH,
     "encyclopedia/momoko-suou/content.en.md": LOCALE_EN,
+    "encyclopedia/momoko-suou/editorial-history.json": FIXTURE_HISTORY,
   };
 }
 

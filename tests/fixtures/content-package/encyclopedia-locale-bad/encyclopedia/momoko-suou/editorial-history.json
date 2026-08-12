@@ -15,7 +15,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "sequence": 1,
-      "event_id": "00000000-001c-4-8-"
+      "event_id": "00000000-0009-4-8-"
     },
     {
       "operation_id": "review:S7|momoko-suou:canonical",
@@ -30,37 +30,7 @@
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "sequence": 2,
-      "event_id": "00000000-001d-4-8-"
-    },
-    {
-      "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38:en",
-      "scope": "locale",
-      "lang": "en",
-      "from": null,
-      "to": "draft",
-      "actor": "anna-ai-draft",
-      "actor_kind": "ai",
-      "at": "2026-08-12T18:47:42Z",
-      "reason": "synthetic fixture locale draft",
-      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
-      "content_hash": "sha256:48b6c65f39443e3676cf7c47889dd5dea0a1be2ac423ba7e9a62284642aa8679",
-      "sequence": 3,
-      "event_id": "00000000-001e-4-8-"
-    },
-    {
-      "operation_id": "review:S7|momoko-suou:en",
-      "scope": "locale",
-      "lang": "en",
-      "from": "draft",
-      "to": "reviewed",
-      "actor": "fixture-reviewer",
-      "actor_kind": "human",
-      "at": "2000-01-01T00:00:00Z",
-      "reason": "synthetic fixture human review",
-      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
-      "content_hash": "sha256:48b6c65f39443e3676cf7c47889dd5dea0a1be2ac423ba7e9a62284642aa8679",
-      "sequence": 4,
-      "event_id": "00000000-001f-4-8-"
+      "event_id": "00000000-000a-4-8-"
     },
     {
       "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38:zh",
@@ -74,8 +44,8 @@
       "reason": "synthetic fixture locale draft",
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524",
-      "sequence": 5,
-      "event_id": "00000000-0020-4-8-"
+      "sequence": 3,
+      "event_id": "00000000-000b-4-8-"
     },
     {
       "operation_id": "review:S7|momoko-suou:zh",
@@ -89,8 +59,8 @@
       "reason": "synthetic fixture human review",
       "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
       "content_hash": "sha256:1a98f014695df06ccfe1b9099224e2077a04914c956e5511ad06f517663cd524",
-      "sequence": 6,
-      "event_id": "00000000-0021-4-8-"
+      "sequence": 4,
+      "event_id": "00000000-000c-4-8-"
     }
   ]
 }
