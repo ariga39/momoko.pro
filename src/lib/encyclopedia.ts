@@ -266,48 +266,58 @@ export function loadProfiles(): ProfileItem[] {
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-/** Profiles eligible for the public encyclopedia surface (reviewed + not retracted). */
+/** Profiles eligible for the public encyclopedia surface (current-reviewed + not retracted). */
 export function loadPublishedProfiles(): ProfileItem[] {
   const retracted = getActiveRetractionPaths();
-  return loadProfiles().filter((p) => {
-    if (p.canonical.reviewStatus !== "reviewed") return false;
-    const canonicalPath = `content/encyclopedia/${p.slug}/content.${p.canonical.lang}.md`;
-    return !retracted.has(canonicalPath);
-  });
+  return loadProfiles().filter((p) => isProfileCurrentReviewed(p, retracted));
+}
+
+/** Canonical repo path used by retraction records and cross-bundle binding. */
+function canonicalPathOf(item: ProfileItem): string {
+  return `content/encyclopedia/${item.slug}/content.${item.canonical.lang}.md`;
+}
+
+/** True when the canonical is current-reviewed and not under an active retraction. */
+export function isProfileCurrentReviewed(item: ProfileItem, retracted: Set<string>): boolean {
+  if (item.canonical.reviewStatus !== "reviewed") return false;
+  if (item.canonical.body.length === 0) return false;
+  return !retracted.has(canonicalPathOf(item));
+}
+
+/**
+ * True when lang resolves to a real translation of a current-reviewed profile:
+ * canonical current-reviewed (not retracted) + locale reviewed + nonempty body
+ * + locale sourceContentHash == canonical contentHash.
+ */
+export function isRealProfileTranslation(
+  item: ProfileItem,
+  lang: "ja" | "zh" | "en",
+  retracted: Set<string> = getActiveRetractionPaths(),
+): boolean {
+  if (lang === "ja") return false;
+  const loc = item.locales[lang as "zh" | "en"];
+  return (
+    isProfileCurrentReviewed(item, retracted) &&
+    loc !== undefined &&
+    loc.reviewStatus === "reviewed" &&
+    loc.body.length > 0 &&
+    loc.sourceContentHash === item.canonical.contentHash
+  );
 }
 
 /**
  * Resolve the effective locale for a profile at a requested lang.
- * Returns a real translation only when the canonical is reviewed, the locale is
- * reviewed, the body is nonempty, and the locale source_content_hash exactly
- * equals the canonical content_hash. Otherwise returns the canonical fallback
- * with translated:false (never null).
+ * Returns a real translation only when isRealProfileTranslation holds;
+ * otherwise returns the canonical fallback with translated:false (never null).
  */
 export function resolveProfileLocale(item: ProfileItem, lang: "ja" | "zh" | "en"): ProfileResolvedLocale {
-  const canonicalOk =
-    item.canonical.reviewStatus === "reviewed" && item.canonical.body.length > 0;
-  if (lang === "ja") {
+  if (isRealProfileTranslation(item, lang)) {
+    const loc = item.locales[lang as "zh" | "en"]!;
     return {
-      lang: "ja",
-      title: item.canonical.title,
-      facts: item.canonical.facts,
-      body: item.canonical.body,
-      translated: false,
-    };
-  }
-  const loc = item.locales[lang as "zh" | "en"];
-  const real =
-    canonicalOk &&
-    loc !== undefined &&
-    loc.reviewStatus === "reviewed" &&
-    loc.body.length > 0 &&
-    loc.sourceContentHash === item.canonical.contentHash;
-  if (real) {
-    return {
-      lang: loc!.lang,
-      title: loc!.title,
-      facts: loc!.facts,
-      body: loc!.body,
+      lang: loc.lang,
+      title: loc.title,
+      facts: loc.facts,
+      body: loc.body,
       translated: true,
     };
   }
