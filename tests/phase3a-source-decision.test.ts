@@ -57,10 +57,23 @@ afterEach(() => {
 describe("Phase 3A source-policy no-fetch decision", () => {
   it("blocks every configured source before HTTP or draft/publication writes", async () => {
     const sources = loadSources();
-    expect(sources).toHaveLength(5);
+    expect(sources).toHaveLength(6);
     expect(sources.every((source) => source.fetch_frequency === "manual")).toBe(true);
     expect(sources.every((source) => source.automated_fetch === false)).toBe(true);
     expect(sources.every((source) => sourceAllowedToFetch(source, "/") === false)).toBe(true);
+
+    const s7 = sources.find((source) => source.source_id === "S7");
+    expect(s7).toMatchObject({
+      source_id: "S7",
+      canonical_url: "https://millionlive-theaterdays.idolmaster-official.jp/idol/momoko/",
+      robots_http: "404",
+      robots_result: "unavailable",
+      robots_path_decision: "allow",
+      checked_path: "/",
+      automated_fetch: false,
+      robots_approved: { allowed: false },
+      terms_approved: { allowed: false },
+    });
 
     const s1 = sources.find((source) => source.source_id === "S1");
     expect(s1).toMatchObject({
@@ -91,7 +104,7 @@ describe("Phase 3A source-policy no-fetch decision", () => {
     const result = await runCron();
 
     expect(result).toEqual({ fetched: [], produced: 0, duplicates: 0, errors: {} });
-    expect([...adapterCalls.values()]).toEqual([0, 0, 0, 0, 0]);
+    expect([...adapterCalls.values()]).toEqual([0, 0, 0, 0, 0, 0]);
     expect(http).not.toHaveBeenCalled();
     expect(outputSnapshot()).toEqual(before);
   });
