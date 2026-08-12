@@ -5,6 +5,9 @@ import { isRealProfileTranslation } from "../src/lib/encyclopedia.ts";
 import { embeddedPackage } from "../src/lib/embedded-package.ts";
 
 const originalEnabled = embeddedPackage.enabled;
+const originalExplicit = embeddedPackage.explicit;
+const originalRelativeRoot = embeddedPackage.relativeRoot;
+const originalMode = embeddedPackage.mode;
 const originalFiles = { ...embeddedPackage.files };
 
 const CANONICAL_JA = `---
@@ -134,6 +137,9 @@ function installEmbedded() {
 
 afterEach(() => {
   embeddedPackage.enabled = originalEnabled;
+  embeddedPackage.explicit = originalExplicit;
+  embeddedPackage.relativeRoot = originalRelativeRoot;
+  embeddedPackage.mode = originalMode;
   embeddedPackage.files = { ...originalFiles };
 });
 
