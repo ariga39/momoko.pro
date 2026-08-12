@@ -53,7 +53,7 @@ function selectedContentPackage() {
   if (!packageManifest || typeof packageManifest !== "object") {
     throw new Error("content package package.json is not valid JSON");
   }
-  const allowedTopLevel = new Set(["package.json", "news", "retractions"]);
+  const allowedTopLevel = new Set(["package.json", "news", "retractions", "encyclopedia"]);
   if (packageManifest.visual_catalog === "visual-catalog.json") allowedTopLevel.add("visual-catalog.json");
   for (const relativePath of Object.keys(allFiles)) {
     const [topLevel] = relativePath.split("/");
@@ -66,6 +66,12 @@ function selectedContentPackage() {
         throw new Error(`legacy index.md is not allowed (use content.<lang>.md): ${relativePath}`);
       }
       throw new Error("unsupported news entry");
+    }
+    if (topLevel === "encyclopedia" && !/\/content\.(ja|zh|en)\.md$|\/editorial-history\.json$/.test(relativePath)) {
+      if (relativePath.endsWith("/index.md")) {
+        throw new Error(`legacy index.md is not allowed (use content.<lang>.md): ${relativePath}`);
+      }
+      throw new Error("unsupported encyclopedia entry");
     }
   }
 

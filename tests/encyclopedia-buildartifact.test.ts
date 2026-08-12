@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ContentPackageError, readContentPackageManifest } from "../src/lib/content.ts";
+import { readContentPackageManifest } from "../src/lib/content.ts";
 import { embeddedPackage } from "../src/lib/embedded-package.ts";
 
 const originalEnabled = embeddedPackage.enabled;
