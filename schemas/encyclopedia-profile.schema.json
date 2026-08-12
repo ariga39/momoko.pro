@@ -20,7 +20,7 @@
     "retrieved_at": { "type": "string", "format": "date" },
     "content_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "risk_tier": { "enum": ["T0", "T1", "T2"] },
-    "lang": { "enum": ["ja", "zh", "en"] },
+    "lang": { "const": "ja" },
     "is_canonical": { "const": true },
     "title": { "type": "string", "minLength": 1 },
     "source_url": { "type": "string", "format": "uri" },

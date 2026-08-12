@@ -41,7 +41,7 @@ describe("production encyclopedia loader eligibility", () => {
   });
 
   it("rejects a non-ja canonical profile instead of relabeling it as ja", () => {
-    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = fixtureRelativeRoot;
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-en";
     process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
     delete process.env.PUBLIC_BUILD;
 

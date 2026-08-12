@@ -34,9 +34,7 @@ export interface ProfileCanonical {
   sourceUrl: string;
   reviewStatus: "draft" | "reviewed" | "stale" | "retracted";
   lang: "ja";
-}
-
-export interface ProfileItem {
+}export interface ProfileItem {
   slug: string;
   canonical: ProfileCanonical;
 }
@@ -132,7 +130,7 @@ function loadBundleItem(
         body: content.trim(),
         sourceUrl: String(d.source_url ?? ""),
         reviewStatus: d.review_status as ProfileCanonical["reviewStatus"],
-        lang: "ja",
+        lang: lang as "ja",
       };
     } else if (d.is_canonical !== false) {
       throw new ContentPackageError(
