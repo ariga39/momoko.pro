@@ -52,3 +52,20 @@ describe("encyclopedia locale linkage", () => {
     expect(() => loadProfiles()).toThrow(ContentPackageError);
   });
 });
+
+describe("encyclopedia locale hash-drift fallback", () => {
+  it("falls back to the canonical profile when the locale source_content_hash drifts", () => {
+    process.env.MOMOKO_CONTENT_PACKAGE_ROOT = "tests/fixtures/content-package/encyclopedia-locale-drift";
+    process.env.MOMOKO_CONTENT_PACKAGE_MODE = "test";
+    delete process.env.PUBLIC_BUILD;
+
+    const momoko = loadProfiles().find((p) => p.slug === "momoko-suou")!;
+    const zh = resolveProfileLocale(momoko, "zh");
+    // locale source_content_hash (cccc...) != canonical content_hash (aaaa...)
+    // -> must fall back to canonical with translated:false, never null.
+    expect(zh).not.toBeNull();
+    expect(zh.translated).toBe(false);
+    expect(zh.lang).toBe("ja");
+    expect(zh.title).toBe("周防桃子");
+  });
+});
