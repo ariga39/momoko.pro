@@ -12,6 +12,7 @@ dist-a/
 dist-b/
 .astro/
 test-results/
+test-results-real/
 playwright-report/
 .wrangler/
 
