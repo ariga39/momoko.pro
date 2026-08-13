@@ -53,6 +53,14 @@ const KIND_ENCYCLOPEDIA: Record<Locale, string> = {
   en: "Encyclopedia",
 };
 
+// Official source URL + per-locale source label (profile.source message).
+const PROFILE_SOURCE_URL = "https://millionlive-theaterdays.idolmaster-official.jp/idol/momoko/";
+const PROFILE_SOURCE_LABEL: Record<Locale, string> = {
+  ja: "公式キャラクタープロフィール",
+  zh: "官方角色资料",
+  en: "Official character profile",
+};
+
 // Internal editorial representations that must never reach the visible page.
 // The news route slug S6-01_18661 is a legitimate content path, not a leak.
 const FORBIDDEN = ["DEMO", "S7", "sourceId", "sourceItemId", "@tsundere", "T1", "review_status"];
@@ -73,6 +81,11 @@ test("real production encyclopedia and search pages are locale-aware with a loca
     await expect(page.locator("body")).toContainText(PROFILE_CV[locale]);
     await expect(page.locator("body")).toContainText(PROFILE_BIRTHDAY[locale]);
     await expect(page.locator("body")).toContainText(KIND_ENCYCLOPEDIA[locale]);
+    // Official source link: exactly one anchor with the exact official URL and
+    // the localized source label as its text (not merely any body text).
+    const sourceLink = page.locator(`a[href="${PROFILE_SOURCE_URL}"]`);
+    await expect(sourceLink).toHaveCount(1);
+    await expect(sourceLink).toHaveText(PROFILE_SOURCE_LABEL[locale]);
     await expectNoInternalLeaks(page);
 
     // --- Real search page: exactly the current-locale rows ---
@@ -86,6 +99,17 @@ test("real production encyclopedia and search pages are locale-aware with a loca
     await expect(profileLink).toContainText(PROFILE_TAGLINE[locale]);
     await expect(profileLink).toContainText(KIND_ENCYCLOPEDIA[locale]);
     await expect(newsLink).toContainText(KIND_NEWS[locale]);
+    // Search payload (data-search-text attribute) must carry no internal
+    // metadata on any row — the visible-text check alone cannot prove this.
+    const searchPayloads = await page.locator("#results li[data-search-item]").evaluateAll((items) =>
+      items.map((item) => item.getAttribute("data-search-text") ?? ""),
+    );
+    expect(searchPayloads).toHaveLength(2);
+    for (const payload of searchPayloads) {
+      for (const token of FORBIDDEN) {
+        expect(payload, `${locale} search payload must not contain ${token}`).not.toContain(token);
+      }
+    }
     await expectNoInternalLeaks(page);
 
     // --- Result-count status: initial 2-item, filtered 1-item, cleared 2-item ---
