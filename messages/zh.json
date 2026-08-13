@@ -41,6 +41,8 @@
   "search.heading": "搜索 / Search",
   "search.query": "关键词：",
   "search.noResults": "无结果 / No results.",
+  "search.resultCountOne": "{count} 条结果",
+  "search.resultCountOther": "{count} 条结果",
   "about.title": "关于 momoko.pro",
   "about.body": "momoko.pro 是《偶像大师 百万现场！剧场时光》角色周防桃子的非官方粉丝站。稳定的角色资料与需要审核的动态内容分开维护，并明确链接到来源。",
   "profile.eyebrow": "周防桃子 / 角色资料",

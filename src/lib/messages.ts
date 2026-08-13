@@ -56,6 +56,8 @@ export function ml(lang: Locale) {
     searchHeading: () => m["search.heading"]({}, options),
     searchQuery: () => m["search.query"]({}, options),
     searchNoResults: () => m["search.noResults"]({}, options),
+    searchResultCountOne: (p: { count: string }) => m["search.resultCountOne"](p, options),
+    searchResultCountOther: (p: { count: string }) => m["search.resultCountOther"](p, options),
     aboutTitle: () => m["about.title"]({}, options),
     aboutBody: () => m["about.body"]({}, options),
     profileEyebrow: () => m["profile.eyebrow"]({}, options),
