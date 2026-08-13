@@ -1,10 +1,11 @@
 ---
-import DemoNotice from "../../../components/DemoNotice.astro";
 import PageIntro from "../../../components/PageIntro.astro";
+import ProfileCard from "../../../components/ProfileCard.astro";
 import SiteLayout from "../../../components/SiteLayout.astro";
-import VisualCatalogCard from "../../../components/VisualCatalogCard.astro";
+import { loadPublishedProfiles, resolveProfileLocale } from "../../../lib/encyclopedia.ts";
 import { ml, type Locale } from "../../../lib/messages.ts";
-import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
+
+export const prerender = true;
 
 export function getStaticPaths() {
   return [
@@ -16,15 +17,23 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = ml(lang);
-const catalog = loadVisualCatalog();
+const profiles = loadPublishedProfiles().sort((a, b) => a.slug.localeCompare(b.slug));
 ---
 
 <SiteLayout lang={lang} title={`${t.navEncyclopedia()} · ${t.home()}`} canonicalPath={`/${lang}/encyclopedia/`}>
-  <DemoNotice lang={lang} catalog={catalog} />
   <PageIntro eyebrow="03 / dossier index" title={t.visualEncyclopedia()} lede={t.visualArchiveLede()} />
-  {catalog.encyclopedia.length > 0 ? (
+  {profiles.length > 0 ? (
     <section class="dossier-grid" aria-label={t.visualEncyclopedia()}>
-      {catalog.encyclopedia.map((item) => <VisualCatalogCard item={item} lang={lang} />)}
+      {profiles.map((profile) => {
+        const resolved = resolveProfileLocale(profile, lang);
+        return (
+          <ProfileCard
+            profile={resolved}
+            sourceUrl={profile.canonical.sourceUrl}
+            lang={lang}
+          />
+        );
+      })}
     </section>
   ) : (
     <section class="empty-state" aria-labelledby="encyclopedia-empty-title">

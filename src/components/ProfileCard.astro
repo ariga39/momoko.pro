@@ -1,0 +1,53 @@
+---
+import type { Locale } from "../lib/messages.ts";
+import { ml } from "../lib/messages.ts";
+import type { ProfileResolvedLocale } from "../lib/encyclopedia.ts";
+
+interface Props {
+  profile: ProfileResolvedLocale;
+  sourceUrl: string;
+  lang: Locale;
+}
+
+const { profile, sourceUrl, lang } = Astro.props;
+const t = ml(lang);
+
+// Frozen 18 semantic facts in locked order, each a localized label → value.
+// tagline doubles as the card body; it still has a semantic label in the list.
+const facts: Array<[string, string]> = [
+  [t.profileName(), profile.facts.name],
+  [t.profileNameRoman(), profile.facts.nameRoman],
+  [t.profileType(), profile.facts.type],
+  [t.profileAge(), profile.facts.age],
+  [t.profileBirthday(), profile.facts.birthday],
+  [t.profileBloodType(), profile.facts.bloodType],
+  [t.profileConstellation(), profile.facts.constellation],
+  [t.profileHandedness(), profile.facts.handedness],
+  [t.profileHeight(), profile.facts.height],
+  [t.profileWeight(), profile.facts.weight],
+  [t.profileThreeSizes(), profile.facts.threeSizes],
+  [t.profileOrigin(), profile.facts.birthplace],
+  [t.profileVoice(), profile.facts.cv],
+  [t.profileAffiliation(), profile.facts.affiliation],
+  [t.profileHobby(), profile.facts.hobby],
+  [t.profileSpecialty(), profile.facts.specialty],
+  [t.profileLikes(), profile.facts.likes],
+  [t.profileTagline(), profile.facts.tagline],
+];
+---
+
+<article class="dossier-card" data-profile-card>
+  <h2 class="card-title">{profile.title}</h2>
+  <p class="card-body">{profile.facts.tagline}</p>
+  <dl class="profile-facts" lang={lang}>
+    {facts.map(([term, detail]) => (
+      <>
+        <dt>{term}</dt>
+        <dd>{detail}</dd>
+      </>
+    ))}
+  </dl>
+  <p class="card-eyebrow">
+    <a href={sourceUrl} rel="external noreferrer">{t.profileSource()}</a>
+  </p>
+</article>

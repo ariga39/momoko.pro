@@ -2,6 +2,10 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // The real-content E2E runs against the production build via
+  // playwright.real.config.ts (pnpm test:e2e:real); it must not run against
+  // the synthetic fixture server configured below.
+  testIgnore: ["**/final-real-content.spec.ts"],
   timeout: 120_000,
   retries: 0,
   outputDir: "test-results",

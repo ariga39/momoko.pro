@@ -1,0 +1,36 @@
+{
+  "history_version": "1",
+  "identity": "S7|momoko-suou",
+  "events": [
+    {
+      "operation_id": "draft:sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": null,
+      "to": "draft",
+      "actor": "anna-ai-draft",
+      "actor_kind": "ai",
+      "at": "2026-08-12T18:47:42Z",
+      "reason": "synthetic fixture draft",
+      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "sequence": 1,
+      "event_id": "e29c9c18-0c62-49b0-b02a-bd6a1801c7c0"
+    },
+    {
+      "operation_id": "review:S7|momoko-suou:canonical",
+      "scope": "canonical",
+      "lang": "ja",
+      "from": "draft",
+      "to": "reviewed",
+      "actor": "fixture-reviewer",
+      "actor_kind": "human",
+      "at": "2000-01-01T00:00:00Z",
+      "reason": "synthetic fixture human review",
+      "source_content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "content_hash": "sha256:a8d53a0b0c96c6fd761b30fd041dd97e0954e7b0eb1dd5fdce28e2c4eec95e38",
+      "sequence": 2,
+      "event_id": "c6f3ac57-944a-4314-90cd-39902d0f7777"
+    }
+  ]
+}

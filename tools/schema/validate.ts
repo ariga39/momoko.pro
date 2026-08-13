@@ -9,6 +9,8 @@ import anniversarySchema from "../../schemas/anniversary.schema.json" with { typ
 import contentPackageSchema from "../../schemas/content-package.schema.json" with { type: "json" };
 import contentSchema from "../../schemas/content.schema.json" with { type: "json" };
 import discoveryRecordSchema from "../../schemas/discovery-record.schema.json" with { type: "json" };
+import encyclopediaProfileSchema from "../../schemas/encyclopedia-profile.schema.json" with { type: "json" };
+import encyclopediaProfileLocaleSchema from "../../schemas/encyclopedia-profile-locale.schema.json" with { type: "json" };
 import localeSchema from "../../schemas/locale.schema.json" with { type: "json" };
 import manifestSchema from "../../schemas/manifest.schema.json" with { type: "json" };
 import retractionSchema from "../../schemas/retraction.schema.json" with { type: "json" };
@@ -35,6 +37,8 @@ const schemaDocs = new Map<string, Record<string, unknown>>([
   ["content-package.schema.json", contentPackageSchema as Record<string, unknown>],
   ["content.schema.json", contentSchema as Record<string, unknown>],
   ["discovery-record.schema.json", discoveryRecordSchema as Record<string, unknown>],
+  ["encyclopedia-profile.schema.json", encyclopediaProfileSchema as Record<string, unknown>],
+  ["encyclopedia-profile-locale.schema.json", encyclopediaProfileLocaleSchema as Record<string, unknown>],
   ["locale.schema.json", localeSchema as Record<string, unknown>],
   ["manifest.schema.json", manifestSchema as Record<string, unknown>],
   ["retraction.schema.json", retractionSchema as Record<string, unknown>],
@@ -216,9 +220,17 @@ export function collectContentFiles(contentRoot = path.join(REPO_ROOT, "content"
   return out;
 }
 
-/** is_canonical=true → content.schema.json; is_canonical=false → locale.schema.json. */
+/** Route a content file to its schema by kind + is_canonical (+ encyclopedia content_path). */
 export function schemaForContentFile(file: FrontmatterDoc): string {
   const data = file.data as Record<string, unknown>;
+  const kind = data.kind;
+  const contentPath = String(data.content_path ?? "");
+  const isEncyclopedia = kind === "wiki" || contentPath.startsWith("content/encyclopedia/");
+  if (isEncyclopedia) {
+    if (data.is_canonical === true) return "encyclopedia-profile.schema.json";
+    if (data.is_canonical === false) return "encyclopedia-profile-locale.schema.json";
+    throw new Error(`encyclopedia file must declare is_canonical (true|false): ${file.path}`);
+  }
   if (data.is_canonical === true) return "content.schema.json";
   if (data.is_canonical === false) return "locale.schema.json";
   throw new Error(`content file must declare is_canonical (true|false): ${file.path}`);

@@ -10,8 +10,10 @@ const PUBLIC = path.join(REPO_ROOT, "dist-public");
 const DEFAULT = path.join(REPO_ROOT, "dist");
 const FIXTURE = path.join(REPO_ROOT, "dist-fixture");
 const VISUAL_FIXTURE = path.join(REPO_ROOT, "dist-visual-fixture");
+const DRAFT_ONLY_FIXTURE = path.join(REPO_ROOT, "dist-draft-only-fixture");
 const FIXTURE_ROOT = "tests/fixtures/content-package/synthetic";
 const VISUAL_FIXTURE_ROOT = "tests/fixtures/content-package/visual-demo";
+const DRAFT_ONLY_ROOT = "tests/fixtures/content-package/encyclopedia-draft-only";
 
 type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
 
@@ -37,6 +39,14 @@ function visualFixtureEnv(): NodeJS.ProcessEnv {
     ...productionEnv(),
     MOMOKO_CONTENT_PACKAGE_MODE: "test",
     MOMOKO_CONTENT_PACKAGE_ROOT: VISUAL_FIXTURE_ROOT,
+  };
+}
+
+function draftOnlyFixtureEnv(): NodeJS.ProcessEnv {
+  return {
+    ...productionEnv(),
+    MOMOKO_CONTENT_PACKAGE_MODE: "test",
+    MOMOKO_CONTENT_PACKAGE_ROOT: DRAFT_ONLY_ROOT,
   };
 }
 
@@ -76,7 +86,7 @@ function expectServerArtifact(dir: string): void {
 
 describe("production artifact boundary", () => {
   beforeAll(() => {
-    for (const dir of [PUBLIC, DEFAULT, FIXTURE, VISUAL_FIXTURE]) fs.rmSync(dir, { recursive: true, force: true });
+    for (const dir of [PUBLIC, DEFAULT, FIXTURE, VISUAL_FIXTURE, DRAFT_ONLY_FIXTURE]) fs.rmSync(dir, { recursive: true, force: true });
     execFileSync("pnpm", ["build:public"], { cwd: REPO_ROOT, env: productionEnv(), stdio: "pipe" });
     execFileSync("pnpm", ["build"], { cwd: REPO_ROOT, env: productionEnv(), stdio: "pipe" });
 
@@ -103,10 +113,17 @@ describe("production artifact boundary", () => {
       env: { ...visualFixtureEnv(), MOMOKO_BUILD_OUT_DIR: "dist-visual-fixture" },
       stdio: "pipe",
     });
+    // The draft-only fixture build (astro only) exercises the empty-state seam
+    // without a news package, so postbuild is intentionally skipped here.
+    execFileSync("pnpm", ["exec", "astro", "build", "--outDir", "dist-draft-only-fixture"], {
+      cwd: REPO_ROOT,
+      env: draftOnlyFixtureEnv(),
+      stdio: "pipe",
+    });
   });
 
   afterAll(() => {
-    for (const dir of [PUBLIC, DEFAULT, FIXTURE, VISUAL_FIXTURE]) fs.rmSync(dir, { recursive: true, force: true });
+    for (const dir of [PUBLIC, DEFAULT, FIXTURE, VISUAL_FIXTURE, DRAFT_ONLY_FIXTURE]) fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("default production package publishes exactly the reviewed S6 trilingual bundle", () => {
@@ -121,9 +138,32 @@ describe("production artifact boundary", () => {
     expect(asRecord(entry.locales).zh).toBeTruthy();
     expect(asRecord(entry.locales).en).toBeTruthy();
     const search = asArray(readJson(PUBLIC, "search.json"));
-    expect(search).toHaveLength(3); // ja/zh/en rows for the single S6 item
+    expect(search).toHaveLength(6); // 3 news + 3 profile rows (Cycle S1)
     expectServerArtifact(PUBLIC);
     expectServerArtifact(DEFAULT);
+  });
+
+  it("search.json closes to 6 rows: 3 news + 3 profile, profile rows without internal metadata", () => {
+    const search = asArray(readJson(PUBLIC, "search.json"));
+    expect(search).toHaveLength(6);
+    const profileRows = search.filter((r) => asRecord(r).path === "/ja/encyclopedia/");
+    expect(profileRows).toHaveLength(1);
+    const profile = asRecord(profileRows[0]!);
+    expect(profile.title).toBe("周防桃子");
+    const profileText = JSON.stringify(search);
+    expect(profileText).not.toContain("@tsundere");
+    expect(profileText).not.toContain("review_status");
+    expect(profileText).not.toContain("T1");
+    // Profile rows must not carry source_id/source_item_id at all: the serialized
+    // row omits the fields entirely (undefined + absent from the JSON).
+    const profileJson = JSON.stringify(profileRows);
+    expect(profileJson).not.toContain("sourceId");
+    expect(profileJson).not.toContain("sourceItemId");
+    expect(profileJson).not.toContain("S7");
+    // Deterministic stable sort lang:path:slug.
+    const langs = search.map((r) => asRecord(r).lang);
+    const sorted = [...langs].sort((a, b) => String(a).localeCompare(String(b)));
+    expect(langs).toEqual(sorted);
   });
 
   it("production output contains no synthetic/demo markers or external scripts", () => {
@@ -187,6 +227,98 @@ describe("production artifact boundary", () => {
     expect(fixtureText).toContain("S1-synth-2026-08-08-001");
     expect(fixtureText).not.toContain("S1-synth-2026-08-08-002");
     expect(fixtureText).not.toContain("S1-synth-2026-08-08-003");
+  });
+
+  it("embeds the entire current-reviewed encyclopedia bundle and strips draft or retracted bytes", () => {
+    expectServerArtifact(FIXTURE);
+    const fixtureText = serverArtifactText(FIXTURE);
+    // The reviewed momoko-suou encyclopedia bundle (ja/zh/en + editorial history)
+    // is embedded in full.
+    expect(fixtureText).toContain("生意気？強がり？小さくて意地っぱりな妹系アイドル！");
+    expect(fixtureText).toContain("逞强？小个子又倔强的妹妹系偶像！");
+    expect(fixtureText).toContain("Feisty? A small, stubborn little-sister idol!");
+    // Draft and actively retracted encyclopedia bundles must NOT be present.
+    expect(fixtureText).not.toContain("DRAFT-PROFILE-MARKER");
+    expect(fixtureText).not.toContain("RETRACTED-PROFILE-MARKER");
+  });
+
+  it("renders the published Momoko profile in the prerendered encyclopedia index HTML for ja/zh/en", () => {
+    // The encyclopedia index page is statically prerendered (export const
+    // prerender = true), so the production build emits user-visible HTML at
+    // dist-public/<lang>/encyclopedia/index.html. Each locale must carry the
+    // exact 18 fact values + their localized labels, the official source link,
+    // and none of the internal editorial metadata.
+    const facts18: Record<string, string[]> = {
+      ja: [
+        "周防桃子", "MOMOKO SUOU", "Fairy", "11歳", "11月6日", "B", "蠍座", "右", "140cm",
+        "35kg", "73/53/74", "東京都", "渡部恵子", "765プロダクション", "かわいいシール集め",
+        "演技や台詞の暗記", "ホットケーキ", "生意気？強がり？小さくて意地っぱりな妹系アイドル！",
+      ],
+      zh: [
+        "周防桃子", "MOMOKO SUOU", "Fairy", "11岁", "11月6日", "B", "天蝎座", "右手", "140cm",
+        "35kg", "73/53/74", "东京都", "渡部惠子", "765事务所", "收集可爱贴纸",
+        "表演与记忆对白", "松饼", "傲气？逞强？娇小又倔强的妹妹系偶像！",
+      ],
+      en: [
+        "Momoko Suou", "MOMOKO SUOU", "Fairy", "11", "November 6", "B", "Scorpio", "Right", "140cm",
+        "35kg", "73/53/74", "Tokyo", "Keiko Watanabe", "765 PRO", "Collecting cute stickers",
+        "Acting and memorizing lines", "Hotcakes", "Cheeky? Putting on a brave front? A petite, stubborn little-sister-style idol!",
+      ],
+    };
+    // Localized field labels rendered as <dt> for the 18-fact list.
+    const labelSets: Record<string, string[]> = {
+      ja: ["名前", "ローマ字表記", "タイプ", "年齢", "誕生日", "血液型", "星座", "利き手", "身長", "体重", "スリーサイズ", "出身地", "CV", "所属", "趣味", "特技", "好きなもの", "キャッチコピー"],
+      zh: ["名字", "罗马字", "类型", "年龄", "生日", "血型", "星座", "惯用手", "身高", "体重", "三围", "出身地", "配音", "所属", "兴趣", "特技", "喜欢的东西", "标语"],
+      en: ["Name", "Romanized name", "Type", "Age", "Birthday", "Blood type", "Constellation", "Handedness", "Height", "Weight", "Measurements", "From", "Voice actor", "Affiliation", "Hobby", "Specialty", "Likes", "Tagline"],
+    };
+    const sourceLink = "https://millionlive-theaterdays.idolmaster-official.jp/idol/momoko/";
+    // Internal editorial representations must never reach user-visible HTML;
+    // plain UI copy (e.g. "reviewed" inside visual.archiveLede) is allowed.
+    const forbidden = ["review_status", "reviewed_by", "@tsundere", "S7", "T1", "DemoNotice", "DEMO"];
+    for (const lang of ["ja", "zh", "en"] as const) {
+      const htmlPath = path.join(PUBLIC, lang, "encyclopedia", "index.html");
+      const html = fs.readFileSync(htmlPath, "utf8");
+      expect(facts18[lang]!.length, `${lang} must assert all 18 facts`).toBe(18);
+      for (const literal of facts18[lang]!) {
+        expect(html, `${lang} encyclopedia index must contain ${literal}`).toContain(literal);
+      }
+      for (const label of labelSets[lang]!) {
+        expect(html, `${lang} encyclopedia index must render localized label ${label}`).toContain(label);
+      }
+      expect(html, `${lang} encyclopedia index must link the official source`).toContain(sourceLink);
+      for (const token of forbidden) {
+        expect(html, `${lang} encyclopedia index must not leak ${token}`).not.toContain(token);
+      }
+    }
+  });
+
+  it("renders a localized empty state (no Momoko, no DEMO) from a draft-only explicit fixture", () => {
+    // A package whose only encyclopedia profile is draft (status:"empty") must
+    // prerender a localized empty state per locale — and must NOT leak the
+    // draft profile bytes or the DEMO catalog.
+    const emptyTitle: Record<string, string> = {
+      ja: "アーカイブは準備中です。",
+      zh: "资料站仍在准备中。",
+      en: "The archive is still being set up.",
+    };
+    const emptyBody: Record<string, string> = {
+      ja: "人が確認した最新コンテンツパッケージはまだありません。",
+      zh: "目前还没有经过人工审核的最新内容包。",
+      en: "There is no reviewed current content package yet.",
+    };
+    for (const lang of ["ja", "zh", "en"] as const) {
+      const htmlPath = path.join(DRAFT_ONLY_FIXTURE, lang, "encyclopedia", "index.html");
+      const html = fs.readFileSync(htmlPath, "utf8");
+      expect(html, `${lang} draft-only empty state title`).toContain(emptyTitle[lang]!);
+      expect(html, `${lang} draft-only empty state body`).toContain(emptyBody[lang]!);
+      // The draft profile's unique content bytes and source id must not leak;
+      // the site footer's static reference to 周防桃子 is UI copy.
+      expect(html, `${lang} draft-only must not leak the draft tagline`).not.toContain("生意気？強がり？小さくて意地っぱりな妹系アイドル！");
+      expect(html, `${lang} draft-only must not leak the draft CV`).not.toContain("渡部恵子");
+      expect(html, `${lang} draft-only must not render DEMO`).not.toContain("DEMO");
+      expect(html).not.toContain("DemoNotice");
+      expect(html, `${lang} draft-only must not leak S7`).not.toContain("S7");
+    }
   });
 
   it("keeps the explicit visual DEMO artifact separate from production first-content output", () => {

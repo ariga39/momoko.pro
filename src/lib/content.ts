@@ -188,7 +188,7 @@ function readEmbeddedPackageManifest(): ContentPackageManifest {
 }
 
 function assertKnownPackageEntries(root: string, manifest: ContentPackageManifest): void {
-  const allowed = new Set(["package.json", "news", "retractions"]);
+  const allowed = new Set(["package.json", "news", "retractions", "encyclopedia"]);
   if (manifest.visual_catalog) {
     const mode = runtimeEnv(PACKAGE_MODE_ENV);
     if (
@@ -222,7 +222,7 @@ function embeddedPackageManifest(): ContentPackageManifest {
     const [entry] = file.split("/");
     if (entry) topLevel.add(entry);
   }
-  const allowed = new Set(["package.json", "news", "retractions"]);
+  const allowed = new Set(["package.json", "news", "retractions", "encyclopedia"]);
   if (manifest.visual_catalog) {
     if (!embeddedPackage.explicit || (embeddedPackage.mode !== "test" && embeddedPackage.mode !== "dev")) {
       throw new ContentPackageError(
@@ -253,6 +253,11 @@ export function readContentPackageManifest(): ContentPackageManifest {
 
 /** content paths with an active retraction record（status=requested|active）。 */
 function retractedPaths(): Set<string> {
+  return loadRetractions();
+}
+
+/** Exported for kind loaders (e.g. encyclopedia) to reuse the retraction-path semantics. */
+export function getActiveRetractionPaths(): Set<string> {
   return loadRetractions();
 }
 

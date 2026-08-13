@@ -41,6 +41,8 @@
   "search.heading": "Search",
   "search.query": "Keyword:",
   "search.noResults": "No results.",
+  "search.resultCountOne": "{count} result",
+  "search.resultCountOther": "{count} results",
   "about.title": "About momoko.pro",
   "about.body": "momoko.pro is an unofficial fan site for Suō Momoko from THE IDOLM@STER MILLION LIVE! THEATER DAYS. Stable profile information is kept separate from reviewed editorial updates and clearly linked to its source.",
   "profile.eyebrow": "Suō Momoko / profile",
@@ -101,5 +103,16 @@
   "visual.fictional": "Fictional layout sample",
   "visual.readMore": "Read the note",
   "visual.results": "Results",
-  "visual.menuHint": "Open menu"
+  "visual.menuHint": "Open menu",
+  "profile.name": "Name",
+  "profile.nameRoman": "Romanized name",
+  "profile.type": "Type",
+  "profile.constellation": "Constellation",
+  "profile.handedness": "Handedness",
+  "profile.weight": "Weight",
+  "profile.threeSizes": "Measurements",
+  "profile.affiliation": "Affiliation",
+  "profile.specialty": "Specialty",
+  "profile.likes": "Likes",
+  "profile.tagline": "Tagline"
 }

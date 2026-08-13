@@ -1,12 +1,11 @@
 ---
-import DemoNotice from "../../../components/DemoNotice.astro";
 import PageIntro from "../../../components/PageIntro.astro";
 import SiteLayout from "../../../components/SiteLayout.astro";
 import { loadPublishedNews } from "../../../lib/content.ts";
+import { loadPublishedProfiles } from "../../../lib/encyclopedia.ts";
 import { isLocale } from "../../../lib/locale.ts";
 import { ml, type Locale } from "../../../lib/messages.ts";
-import { buildSearchIndex } from "../../../lib/search.ts";
-import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
+import { buildProfileSearchIndex, buildSearchIndex } from "../../../lib/search.ts";
 
 const rawLang = Astro.params.lang;
 if (!isLocale(rawLang)) return Astro.rewrite("/404");
@@ -14,9 +13,11 @@ const lang = rawLang as Locale;
 const t = ml(lang);
 export const prerender = false;
 const searchPath = `/${lang}/search`;
-const catalog = loadVisualCatalog();
-const items = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
-const index = buildSearchIndex(items);
+const newsRows = buildSearchIndex(loadPublishedNews());
+const profileRows = buildProfileSearchIndex(loadPublishedProfiles());
+const index = [...newsRows, ...profileRows]
+  .filter((row) => row.lang === lang)
+  .sort((a, b) => a.path.localeCompare(b.path) || a.slug.localeCompare(b.slug));
 ---
 
 <SiteLayout
@@ -25,25 +26,24 @@ const index = buildSearchIndex(items);
   canonicalPath={`/${lang}/search/`}
   noindex
 >
-  <DemoNotice lang={lang} catalog={catalog} />
   <PageIntro eyebrow="06 / index search" title={t.searchHeading()} lede={t.visualArchiveLede()} />
-  <form class="filter-bar" id="site-search" method="get" action={searchPath}>
+  <form class="filter-bar" id="site-search" method="get" action={searchPath} data-result-one={t.searchResultCountOne({ count: "{count}" })} data-result-other={t.searchResultCountOther({ count: "{count}" })}>
     <label class="filter-field grow" for="q">
       {t.searchQuery()}
       <input class="search-input w-full" id="q" type="search" name="q" autocomplete="off" />
     </label>
     <button class="button-secondary" type="submit">{t.visualSearch()}</button>
-    <p id="search-status" class="filter-hint" aria-live="polite">{index.length} {t.visualResults()}</p>
+    <p id="search-status" class="filter-hint" aria-live="polite">{t.searchResultCountOther({ count: String(index.length) })}</p>
   </form>
 
   {index.length > 0 ? (
     <ul class="search-list" id="results">
       {index.map((row) => {
+        const kindLabel = row.kind === "news" ? t.navNews() : t.navEncyclopedia();
         return (
-          <li data-search-item data-search-text={`${row.title ?? ""} ${row.body ?? ""} ${row.sourceId}`}>
+          <li data-search-item data-search-text={`${row.title ?? ""} ${row.body ?? ""}`}>
             <a class="search-result" href={row.path} lang={row.lang}>
-              <span class="card-eyebrow">{row.sourceId} · {row.lang}</span>
-              <span class="sr-only">{row.sourceId}-{row.sourceItemId}</span>
+              <span class="card-eyebrow">{kindLabel}</span>
               <strong>{row.title}</strong>
               <span>{row.body}</span>
             </a>
@@ -65,6 +65,12 @@ const index = buildSearchIndex(items);
     const searchItems = [...document.querySelectorAll("[data-search-item]")];
     const searchStatus = document.getElementById("search-status");
     const searchEmpty = document.getElementById("search-no-results");
+    const resultCount = (count) => {
+      const one = searchForm?.getAttribute("data-result-one") ?? "{count} result";
+      const other = searchForm?.getAttribute("data-result-other") ?? "{count} results";
+      const template = count === 1 ? one : other;
+      return template.replace("{count}", String(count));
+    };
     const normalize = (value) => (value || "").toLocaleLowerCase();
     const renderSearch = () => {
       const query = normalize(searchInput?.value).trim();
@@ -74,7 +80,7 @@ const index = buildSearchIndex(items);
         item.hidden = !matches;
         if (matches) visible += 1;
       });
-      if (searchStatus) searchStatus.textContent = `${visible} results`;
+      if (searchStatus) searchStatus.textContent = resultCount(visible);
       if (searchEmpty) searchEmpty.hidden = !query || visible > 0;
     };
     const searchParams = new URLSearchParams(window.location.search);

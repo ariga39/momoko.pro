@@ -41,6 +41,8 @@
   "search.heading": "検索 / Search",
   "search.query": "キーワード：",
   "search.noResults": "結果なし / No results.",
+  "search.resultCountOne": "{count}件",
+  "search.resultCountOther": "{count}件",
   "about.title": "momoko.pro について",
   "about.body": "momoko.pro は『アイドルマスター ミリオンライブ！ シアターデイズ』の周防桃子を扱う非公式ファンサイトです。変わりにくいプロフィール情報と、確認を要する更新記事を分け、出典へのリンクを明記します。",
   "profile.eyebrow": "周防桃子 / プロフィール",
@@ -101,5 +103,16 @@
   "visual.fictional": "架空のレイアウト見本",
   "visual.readMore": "ノートを読む",
   "visual.results": "結果",
-  "visual.menuHint": "メニューを開く"
+  "visual.menuHint": "メニューを開く",
+  "profile.name": "名前",
+  "profile.nameRoman": "ローマ字表記",
+  "profile.type": "タイプ",
+  "profile.constellation": "星座",
+  "profile.handedness": "利き手",
+  "profile.weight": "体重",
+  "profile.threeSizes": "スリーサイズ",
+  "profile.affiliation": "所属",
+  "profile.specialty": "特技",
+  "profile.likes": "好きなもの",
+  "profile.tagline": "キャッチコピー"
 }

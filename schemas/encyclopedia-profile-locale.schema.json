@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momoko.pro/schemas/encyclopedia-profile-locale.schema.json",
+  "title": "encyclopedia profile locale（专属；typed LocalizedProfileFacts，18 语义字段）",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "content_path", "lang", "is_canonical", "source_content_hash",
+    "content_hash", "review_status", "title", "body",
+    "name", "name_roman", "cv", "affiliation", "type",
+    "age", "birthday", "blood_type", "constellation", "handedness",
+    "height", "weight", "three_sizes", "birthplace", "hobby", "specialty", "likes", "tagline"
+  ],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "content_path": { "type": "string", "pattern": "^content/encyclopedia/[^/]+(?:/[^/]+)*/content\\.(ja|zh|en)\\.md$" },
+    "lang": { "enum": ["zh", "en"] },
+    "is_canonical": { "const": false },
+    "source_content_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "content_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "review_status": { "enum": ["draft", "reviewed", "stale", "retracted"] },
+    "reviewed_by": { "type": ["string", "null"] },
+    "reviewed_at": { "type": ["string", "null"], "format": "date-time" },
+    "title": { "type": "string", "minLength": 1 },
+    "body": { "type": "string" },
+    "name": { "type": "string", "minLength": 1 },
+    "name_roman": { "type": "string", "minLength": 1 },
+    "cv": { "type": "string", "minLength": 1 },
+    "affiliation": { "type": "string", "minLength": 1 },
+    "type": { "type": "string", "minLength": 1 },
+    "age": { "type": "string", "minLength": 1 },
+    "birthday": { "type": "string", "minLength": 1 },
+    "blood_type": { "type": "string", "minLength": 1 },
+    "constellation": { "type": "string", "minLength": 1 },
+    "handedness": { "type": "string", "minLength": 1 },
+    "height": { "type": "string", "minLength": 1 },
+    "weight": { "type": "string", "minLength": 1 },
+    "three_sizes": { "type": "string", "minLength": 1 },
+    "birthplace": { "type": "string", "minLength": 1 },
+    "hobby": { "type": "string", "minLength": 1 },
+    "specialty": { "type": "string", "minLength": 1 },
+    "likes": { "type": "string", "minLength": 1 },
+    "tagline": { "type": "string", "minLength": 1 }
+  },
+  "if": { "properties": { "review_status": { "const": "reviewed" } } },
+  "then": {
+    "properties": {
+      "reviewed_by": { "type": "string", "minLength": 1 },
+      "reviewed_at": { "type": "string", "format": "date-time" }
+    },
+    "required": ["reviewed_by", "reviewed_at"]
+  }
+}
