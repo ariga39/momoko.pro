@@ -80,11 +80,13 @@ test("search page filters the deterministic local index client-side", async ({ p
   const input = page.locator("#q");
   const results = page.locator("#results li");
   await expect(page.locator("form#site-search")).toHaveAttribute("action", "/ja/search");
+  // Locale-aware page: exactly the ja news row (only the reviewed fixture
+  // item) plus the ja encyclopedia profile row.
+  await expect(results).toHaveCount(2);
+  // Client filter still works on title+body only: "合成" keeps the news row.
   await input.fill("合成");
-  // Draft records remain available to the review workflow but do not enter
-  // public search/build indexes; only the reviewed fixture has three locale rows.
-  await expect(results).toHaveCount(3);
-  await expect(results.first()).toContainText("S1-synth-2026-08-08-001");
+  await expect(page.locator("#results li[data-search-item]:visible")).toHaveCount(1);
+  await expect(page.locator("#results li[data-search-item]:visible")).toContainText("夏フェス開催のお知らせ");
 });
 
 test("retracted news has no public detail body and is absent from the public manifest", async ({ page }) => {

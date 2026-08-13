@@ -90,7 +90,10 @@ function profilePayload(lang: string): string {
 interface Row {
   searchText: string;
   href: string;
+  lang: string;
   eyebrow: string;
+  strong: string;
+  visibleBody: string;
   srOnly: string[];
 }
 
@@ -102,9 +105,12 @@ function parseRows(html: string): Row[] {
     const block = liMatch[1]!;
     const searchText = fullTag.match(/data-search-text="([^"]*)"/)?.[1] ?? "";
     const href = block.match(/<a class="search-result" href="([^"]+)"/)?.[1] ?? "";
+    const lang = block.match(/<a class="search-result"[^>]*\blang="([^"]+)"/)?.[1] ?? "";
     const eyebrow = block.match(/<span class="card-eyebrow"[^>]*>([^<]*)</)?.[1] ?? "";
+    const strong = block.match(/<strong[^>]*>([^<]*)</)?.[1] ?? "";
+    const visibleBody = block.match(/<\/strong>\s*<span[^>]*>([^<]*)</)?.[1] ?? "";
     const srOnly = [...block.matchAll(/<span class="sr-only"[^>]*>([^<]*)</g)].map((m) => m[1]!);
-    rows.push({ searchText, href, eyebrow, srOnly });
+    rows.push({ searchText, href, lang, eyebrow, strong, visibleBody, srOnly });
   }
   return rows;
 }
@@ -158,12 +164,35 @@ describe("locale-aware search page (Cycle S2)", () => {
       expect(profile.eyebrow, `${lang} profile kind label`).toBe(KIND_LABEL[lang]!.encyclopedia);
       expect(profile.srOnly, `${lang} profile row must not carry sr-only ids`).toEqual([]);
 
+      // Every result link must carry the requested locale.
+      for (const row of rows) {
+        expect(row.lang, `${lang} result link must be the requested locale`).toBe(lang);
+      }
+
+      // The visible <strong> must be the local exact title: news row uses the
+      // canonical (ja) title, profile row uses the localized title.
+      expect(newsRows[0]!.strong, `${lang} news visible title`).toBe(NEWS_TITLE);
+      expect(profile.strong, `${lang} profile visible title`).toBe(PROFILE_TITLE[lang]!);
+
+      // The profile visible body must at least start with the local tagline
+      // (it is user-visible content, not only an attribute payload).
+      const tagline = PROFILE_FACTS[lang]![17]!;
+      expect(profile.visibleBody, `${lang} profile visible body must start with the local tagline`).toContain(tagline);
+
       // Neither payload may carry the kind label, lang, or internal ids.
       for (const row of rows) {
         expect(row.searchText, `${lang} payload must not carry kind label`).not.toContain(KIND_LABEL[lang]!.news);
         expect(row.searchText, `${lang} payload must not carry kind label`).not.toContain(KIND_LABEL[lang]!.encyclopedia);
         expect(row.searchText, `${lang} payload must not carry the lang`).not.toMatch(new RegExp(`(^|\\s)${lang}(\\s|$)`));
         expect(row.searchText).not.toMatch(/S7|sourceId|sourceItemId|source_id|source_item_id|@tsundere|T1|review_status|reviewed_by/);
+      }
+
+      // The other two locales' profile taglines must not appear anywhere on the
+      // page (ja/zh share the title 周防桃子, so the tagline is the distinguisher).
+      for (const other of LOCALES) {
+        if (other === lang) continue;
+        const otherTagline = PROFILE_FACTS[other]![17]!;
+        expect(html, `${lang} page must not render the ${other} profile tagline`).not.toContain(otherTagline);
       }
 
       // Whole-page exclusion of tokens that cannot appear in legitimate hrefs.
