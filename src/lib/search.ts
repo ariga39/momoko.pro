@@ -13,7 +13,7 @@ export interface SearchRow {
   body: string | null;
   sourceId?: string;
   sourceItemId?: string;
-  kind?: "news" | "encyclopedia";
+  kind: "news" | "encyclopedia";
 }
 
 /** Deterministic local search index (ADR-05 fallback): built from content, client-filtered. */
@@ -30,6 +30,7 @@ export function buildSearchIndex(items: NewsItem[]): SearchRow[] {
           body: resolved.body,
           sourceId: item.canonical.sourceId,
           sourceItemId: item.canonical.sourceItemId,
+          kind: "news",
         };
       }),
     )

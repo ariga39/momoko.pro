@@ -1,12 +1,11 @@
 ---
-import DemoNotice from "../../../components/DemoNotice.astro";
 import PageIntro from "../../../components/PageIntro.astro";
 import SiteLayout from "../../../components/SiteLayout.astro";
 import { loadPublishedNews } from "../../../lib/content.ts";
+import { loadPublishedProfiles } from "../../../lib/encyclopedia.ts";
 import { isLocale } from "../../../lib/locale.ts";
 import { ml, type Locale } from "../../../lib/messages.ts";
-import { buildSearchIndex } from "../../../lib/search.ts";
-import { loadVisualCatalog } from "../../../lib/visual-demo.ts";
+import { buildProfileSearchIndex, buildSearchIndex } from "../../../lib/search.ts";
 
 const rawLang = Astro.params.lang;
 if (!isLocale(rawLang)) return Astro.rewrite("/404");
@@ -14,9 +13,11 @@ const lang = rawLang as Locale;
 const t = ml(lang);
 export const prerender = false;
 const searchPath = `/${lang}/search`;
-const catalog = loadVisualCatalog();
-const items = loadPublishedNews().sort((a, b) => b.canonical.publishedAt.localeCompare(a.canonical.publishedAt));
-const index = buildSearchIndex(items);
+const newsRows = buildSearchIndex(loadPublishedNews());
+const profileRows = buildProfileSearchIndex(loadPublishedProfiles());
+const index = [...newsRows, ...profileRows]
+  .filter((row) => row.lang === lang)
+  .sort((a, b) => a.path.localeCompare(b.path) || a.slug.localeCompare(b.slug));
 ---
 
 <SiteLayout
@@ -25,7 +26,6 @@ const index = buildSearchIndex(items);
   canonicalPath={`/${lang}/search/`}
   noindex
 >
-  <DemoNotice lang={lang} catalog={catalog} />
   <PageIntro eyebrow="06 / index search" title={t.searchHeading()} lede={t.visualArchiveLede()} />
   <form class="filter-bar" id="site-search" method="get" action={searchPath}>
     <label class="filter-field grow" for="q">
@@ -39,11 +39,11 @@ const index = buildSearchIndex(items);
   {index.length > 0 ? (
     <ul class="search-list" id="results">
       {index.map((row) => {
+        const kindLabel = row.kind === "news" ? t.navNews() : t.navEncyclopedia();
         return (
-          <li data-search-item data-search-text={`${row.title ?? ""} ${row.body ?? ""} ${row.sourceId}`}>
+          <li data-search-item data-search-text={`${row.title ?? ""} ${row.body ?? ""}`}>
             <a class="search-result" href={row.path} lang={row.lang}>
-              <span class="card-eyebrow">{row.sourceId} · {row.lang}</span>
-              <span class="sr-only">{row.sourceId}-{row.sourceItemId}</span>
+              <span class="card-eyebrow">{kindLabel}</span>
               <strong>{row.title}</strong>
               <span>{row.body}</span>
             </a>
