@@ -27,13 +27,13 @@ const index = [...newsRows, ...profileRows]
   noindex
 >
   <PageIntro eyebrow="06 / index search" title={t.searchHeading()} lede={t.visualArchiveLede()} />
-  <form class="filter-bar" id="site-search" method="get" action={searchPath}>
+  <form class="filter-bar" id="site-search" method="get" action={searchPath} data-result-one={t.searchResultCountOne({ count: "{count}" })} data-result-other={t.searchResultCountOther({ count: "{count}" })}>
     <label class="filter-field grow" for="q">
       {t.searchQuery()}
       <input class="search-input w-full" id="q" type="search" name="q" autocomplete="off" />
     </label>
     <button class="button-secondary" type="submit">{t.visualSearch()}</button>
-    <p id="search-status" class="filter-hint" aria-live="polite">{index.length} {t.visualResults()}</p>
+    <p id="search-status" class="filter-hint" aria-live="polite">{t.searchResultCountOther({ count: String(index.length) })}</p>
   </form>
 
   {index.length > 0 ? (
@@ -65,6 +65,12 @@ const index = [...newsRows, ...profileRows]
     const searchItems = [...document.querySelectorAll("[data-search-item]")];
     const searchStatus = document.getElementById("search-status");
     const searchEmpty = document.getElementById("search-no-results");
+    const resultCount = (count) => {
+      const one = searchForm?.getAttribute("data-result-one") ?? "{count} result";
+      const other = searchForm?.getAttribute("data-result-other") ?? "{count} results";
+      const template = count === 1 ? one : other;
+      return template.replace("{count}", String(count));
+    };
     const normalize = (value) => (value || "").toLocaleLowerCase();
     const renderSearch = () => {
       const query = normalize(searchInput?.value).trim();
@@ -74,7 +80,7 @@ const index = [...newsRows, ...profileRows]
         item.hidden = !matches;
         if (matches) visible += 1;
       });
-      if (searchStatus) searchStatus.textContent = `${visible} results`;
+      if (searchStatus) searchStatus.textContent = resultCount(visible);
       if (searchEmpty) searchEmpty.hidden = !query || visible > 0;
     };
     const searchParams = new URLSearchParams(window.location.search);
