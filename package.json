@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:schema": "vitest run tests/schema.test.ts",
     "test:e2e": "playwright test",
+    "test:e2e:real": "playwright test --config=playwright.real.config.ts",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "pnpm lint --fix",
     "typecheck": "astro check"
