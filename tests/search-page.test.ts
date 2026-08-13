@@ -129,77 +129,84 @@ async function renderSearchPage(lang: string): Promise<string> {
 }
 
 describe("locale-aware search page (Cycle S2)", () => {
-  it("each /<lang>/search/ renders exactly the current-locale news + profile rows with exact title+body payloads and no visible internal editorial metadata", async () => {
-    // Sanity: production holds 1 published news item + 1 published profile, so
-    // each locale page must surface exactly 2 result rows.
-    const news = loadPublishedNews();
-    const profiles = loadPublishedProfiles();
-    expect(news).toHaveLength(1);
-    expect(profiles).toHaveLength(1);
-    expect(buildSearchIndex(news)).toHaveLength(3);
-    expect(buildProfileSearchIndex(profiles)).toHaveLength(3);
+  it(
+    "each /<lang>/search/ renders exactly the current-locale news + profile rows with exact title+body payloads and no visible internal editorial metadata",
+    // Three Astro server renders of the real search page can exceed Vitest's
+    // default 5s under full parallel load (observed ~5.35s vs ~2.35s solo);
+    // grant a generous local timeout so the gate is not a slow-machine flake.
+    { timeout: 15000 },
+    async () => {
+      // Sanity: production holds 1 published news item + 1 published profile, so
+      // each locale page must surface exactly 2 result rows.
+      const news = loadPublishedNews();
+      const profiles = loadPublishedProfiles();
+      expect(news).toHaveLength(1);
+      expect(profiles).toHaveLength(1);
+      expect(buildSearchIndex(news)).toHaveLength(3);
+      expect(buildProfileSearchIndex(profiles)).toHaveLength(3);
 
-    for (const lang of LOCALES) {
-      const html = await renderSearchPage(lang);
-      const rows = parseRows(html);
-      expect(rows.length, `${lang} must show exactly 2 result rows`).toBe(2);
+      for (const lang of LOCALES) {
+        const html = await renderSearchPage(lang);
+        const rows = parseRows(html);
+        expect(rows.length, `${lang} must show exactly 2 result rows`).toBe(2);
 
-      // Exactly one news row and one profile row, both current-locale.
-      const newsRows = rows.filter((r) => r.href.startsWith(`/${lang}/news/`));
-      const profileRows = rows.filter((r) => r.href === `/${lang}/encyclopedia/`);
-      expect(newsRows, `${lang} must render exactly one news row`).toHaveLength(1);
-      expect(profileRows, `${lang} must render exactly one profile row`).toHaveLength(1);
+        // Exactly one news row and one profile row, both current-locale.
+        const newsRows = rows.filter((r) => r.href.startsWith(`/${lang}/news/`));
+        const profileRows = rows.filter((r) => r.href === `/${lang}/encyclopedia/`);
+        expect(newsRows, `${lang} must render exactly one news row`).toHaveLength(1);
+        expect(profileRows, `${lang} must render exactly one profile row`).toHaveLength(1);
 
-      // The news href legitimately carries the S6 slug (content path); the
-      // payload must be EXACTLY the frozen localized title + body.
-      expect(newsRows[0]!.href).toBe(`/${lang}/news/2026/S6-01_18661/`);
-      expect(newsRows[0]!.searchText, `${lang} news payload must equal title+body`).toBe(newsPayload(lang));
-      expect(newsRows[0]!.eyebrow, `${lang} news kind label`).toBe(KIND_LABEL[lang]!.news);
-      // No visible/sr-only internal id on the news row.
-      expect(newsRows[0]!.srOnly, `${lang} news row must not carry sr-only ids`).toEqual([]);
+        // The news href legitimately carries the S6 slug (content path); the
+        // payload must be EXACTLY the frozen localized title + body.
+        expect(newsRows[0]!.href).toBe(`/${lang}/news/2026/S6-01_18661/`);
+        expect(newsRows[0]!.searchText, `${lang} news payload must equal title+body`).toBe(newsPayload(lang));
+        expect(newsRows[0]!.eyebrow, `${lang} news kind label`).toBe(KIND_LABEL[lang]!.news);
+        // No visible/sr-only internal id on the news row.
+        expect(newsRows[0]!.srOnly, `${lang} news row must not carry sr-only ids`).toEqual([]);
 
-      // Profile row: exact frozen payload (localized title + tagline + 18 facts).
-      const profile = profileRows[0]!;
-      expect(profile.searchText, `${lang} profile payload must equal title+tagline+18 facts`).toBe(profilePayload(lang));
-      expect(profile.eyebrow, `${lang} profile kind label`).toBe(KIND_LABEL[lang]!.encyclopedia);
-      expect(profile.srOnly, `${lang} profile row must not carry sr-only ids`).toEqual([]);
+        // Profile row: exact frozen payload (localized title + tagline + 18 facts).
+        const profile = profileRows[0]!;
+        expect(profile.searchText, `${lang} profile payload must equal title+tagline+18 facts`).toBe(profilePayload(lang));
+        expect(profile.eyebrow, `${lang} profile kind label`).toBe(KIND_LABEL[lang]!.encyclopedia);
+        expect(profile.srOnly, `${lang} profile row must not carry sr-only ids`).toEqual([]);
 
-      // Every result link must carry the requested locale.
-      for (const row of rows) {
-        expect(row.lang, `${lang} result link must be the requested locale`).toBe(lang);
+        // Every result link must carry the requested locale.
+        for (const row of rows) {
+          expect(row.lang, `${lang} result link must be the requested locale`).toBe(lang);
+        }
+
+        // The visible <strong> must be the local exact title: news row uses the
+        // canonical (ja) title, profile row uses the localized title.
+        expect(newsRows[0]!.strong, `${lang} news visible title`).toBe(NEWS_TITLE);
+        expect(profile.strong, `${lang} profile visible title`).toBe(PROFILE_TITLE[lang]!);
+
+        // The profile visible body must at least start with the local tagline
+        // (it is user-visible content, not only an attribute payload).
+        const tagline = PROFILE_FACTS[lang]![17]!;
+        expect(profile.visibleBody, `${lang} profile visible body must start with the local tagline`).toContain(tagline);
+
+        // Neither payload may carry the kind label, lang, or internal ids.
+        for (const row of rows) {
+          expect(row.searchText, `${lang} payload must not carry kind label`).not.toContain(KIND_LABEL[lang]!.news);
+          expect(row.searchText, `${lang} payload must not carry kind label`).not.toContain(KIND_LABEL[lang]!.encyclopedia);
+          expect(row.searchText, `${lang} payload must not carry the lang`).not.toMatch(new RegExp(`(^|\\s)${lang}(\\s|$)`));
+          expect(row.searchText).not.toMatch(/S7|sourceId|sourceItemId|source_id|source_item_id|@tsundere|T1|review_status|reviewed_by/);
+        }
+
+        // The other two locales' profile taglines must not appear anywhere on the
+        // page (ja/zh share the title 周防桃子, so the tagline is the distinguisher).
+        for (const other of LOCALES) {
+          if (other === lang) continue;
+          const otherTagline = PROFILE_FACTS[other]![17]!;
+          expect(html, `${lang} page must not render the ${other} profile tagline`).not.toContain(otherTagline);
+        }
+
+        // Whole-page exclusion of tokens that cannot appear in legitimate hrefs.
+        for (const token of FORBIDDEN_ANYWHERE) {
+          expect(html, `${lang} search page must not leak ${token}`).not.toContain(token);
+        }
+        expect(html, `${lang} must not render the DEMO notice`).not.toContain("demo-notice");
       }
-
-      // The visible <strong> must be the local exact title: news row uses the
-      // canonical (ja) title, profile row uses the localized title.
-      expect(newsRows[0]!.strong, `${lang} news visible title`).toBe(NEWS_TITLE);
-      expect(profile.strong, `${lang} profile visible title`).toBe(PROFILE_TITLE[lang]!);
-
-      // The profile visible body must at least start with the local tagline
-      // (it is user-visible content, not only an attribute payload).
-      const tagline = PROFILE_FACTS[lang]![17]!;
-      expect(profile.visibleBody, `${lang} profile visible body must start with the local tagline`).toContain(tagline);
-
-      // Neither payload may carry the kind label, lang, or internal ids.
-      for (const row of rows) {
-        expect(row.searchText, `${lang} payload must not carry kind label`).not.toContain(KIND_LABEL[lang]!.news);
-        expect(row.searchText, `${lang} payload must not carry kind label`).not.toContain(KIND_LABEL[lang]!.encyclopedia);
-        expect(row.searchText, `${lang} payload must not carry the lang`).not.toMatch(new RegExp(`(^|\\s)${lang}(\\s|$)`));
-        expect(row.searchText).not.toMatch(/S7|sourceId|sourceItemId|source_id|source_item_id|@tsundere|T1|review_status|reviewed_by/);
-      }
-
-      // The other two locales' profile taglines must not appear anywhere on the
-      // page (ja/zh share the title 周防桃子, so the tagline is the distinguisher).
-      for (const other of LOCALES) {
-        if (other === lang) continue;
-        const otherTagline = PROFILE_FACTS[other]![17]!;
-        expect(html, `${lang} page must not render the ${other} profile tagline`).not.toContain(otherTagline);
-      }
-
-      // Whole-page exclusion of tokens that cannot appear in legitimate hrefs.
-      for (const token of FORBIDDEN_ANYWHERE) {
-        expect(html, `${lang} search page must not leak ${token}`).not.toContain(token);
-      }
-      expect(html, `${lang} must not render the DEMO notice`).not.toContain("demo-notice");
-    }
-  });
+    },
+  );
 });
